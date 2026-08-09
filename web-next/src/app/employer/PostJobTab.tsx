@@ -130,6 +130,8 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
     (q) => !screeningQuestions.some((added) => added.text === q.text)
   );
 
+  const readyToPost = title.trim() !== "" && governorate !== "";
+
   function addScreeningQuestion() {
     const isOther = newQuestionSelect === "other";
     const text = isOther ? newQuestionOther.trim() : newQuestionSelect;
@@ -286,15 +288,42 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
     setContactValue("");
   }
 
+  const submitButton = (
+    <button
+      type="submit"
+      disabled={submitting}
+      style={{
+        width: "100%",
+        padding: "14px",
+        background: "#14213D",
+        color: "#fff",
+        border: "none",
+        borderRadius: 8,
+        fontSize: 16,
+        fontWeight: 700,
+        cursor: submitting ? "wait" : "pointer",
+      }}
+    >
+      {submitting ? "جاري الحفظ..." : (isEditMode ? "حفظ التعديلات" : "نشر الإعلان")}
+    </button>
+  );
+
   return (
     <div dir="rtl" style={{ maxWidth: 700, margin: "0 auto" }}>
-      <h2 style={{ fontSize: 22, marginBottom: 20 }}>
+      <h2 style={{ fontSize: 22, marginBottom: 10 }}>
         {isEditMode ? "تعديل الإعلان" : "انشر إعلان وظيفة جديد"}
       </h2>
 
+      <div style={progressBarStyle}>
+        <span style={readyToPost ? readyBadgeStyle : pendingBadgeStyle}>
+          {readyToPost ? "✓ الحد الأدنى للنشر جاهز" : "أكمل المسمى الوظيفي والمحافظة"}
+        </span>
+        <span style={{ color: "#4A5568", fontSize: 12.5 }}>باقي التفاصيل تحت اختيارية بالكامل</span>
+      </div>
+
       <form onSubmit={handleSubmit}>
-        <fieldset style={sectionStyle}>
-          <h3 style={h3Style}>📋 المعلومات الأساسية</h3>
+        <fieldset style={basicSectionStyle}>
+          <h3 style={basicH3Style}>📋 المعلومات الأساسية</h3>
           <div style={gridStyle}>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>المسمى الوظيفي</label>
@@ -361,8 +390,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
           </div>
         </fieldset>
 
-        <fieldset style={sectionStyle}>
-          <h3 style={h3Style}>💰 الراتب وعدد الفرص</h3>
+        <div style={stickySubmitBarStyle}>{submitButton}</div>
+
+        <CollapsibleSection title="💰 الراتب وعدد الفرص" subtitle="حدد نطاق الراتب — بيساعد يجذب مرشحين مناسبين أكتر">
           <div style={gridStyle}>
             <div>
               <label style={labelStyle}>عدد الفرص المتاحة</label>
@@ -389,10 +419,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
               <label htmlFor="showSalary" style={{ fontSize: 13.5 }}>أظهر الراتب في الإعلان (لو مش متعلّم، هيظهر "غير محدد")</label>
             </div>
           </div>
-        </fieldset>
+        </CollapsibleSection>
 
-        <fieldset style={sectionStyle}>
-          <h3 style={h3Style}>📝 شروط المتقدم (اختياري)</h3>
+        <CollapsibleSection title="📝 شروط المتقدم" subtitle="حدد سن أو شروط معينة لو محتاجها — سيب الحقول فاضية لو أي حد يقدر يقدّم">
           <div style={gridStyle}>
             <div>
               <label style={labelStyle}>السن من</label>
@@ -421,10 +450,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
               <input type="text" value={requirements} onChange={(e) => setRequirements(e.target.value)} placeholder="مثال: ذكور فقط، خبرة سابقة في مجال معين" style={inputStyle} />
             </div>
           </div>
-        </fieldset>
+        </CollapsibleSection>
 
-        <fieldset style={sectionStyle}>
-          <h3 style={h3Style}>❓ أسئلة فرز للمتقدمين (اختياري)</h3>
+        <CollapsibleSection title="❓ أسئلة فرز للمتقدمين" subtitle="ضيف أسئلة يجاوب عليها كل متقدم وقت التقديم — بتوفر عليك وقت الفرز">
           <p style={{ fontSize: 13, color: "#4A5568", marginBottom: 12 }}>
             المتقدم هيجاوب على الأسئلة دي وقت التقديم، وهتظهر إجاباته لك جنب باقي بياناته.
           </p>
@@ -488,10 +516,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
           <button type="button" onClick={addScreeningQuestion} style={{ ...ghostBtnStyle, marginTop: 12 }}>
             + إضافة السؤال
           </button>
-        </fieldset>
+        </CollapsibleSection>
 
-        <fieldset style={sectionStyle}>
-          <h3 style={h3Style}>⏰ ساعات العمل والمزايا (اختياري)</h3>
+        <CollapsibleSection title="⏰ ساعات العمل والمزايا" subtitle="وضّح ساعات العمل والمزايا زي التأمين والمواصلات — بيزود ثقة المتقدمين">
           <div style={gridStyle}>
             <div>
               <label style={labelStyle}>عدد ساعات العمل يوميًا</label>
@@ -544,10 +571,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
               <input type="text" value={additionalBenefits} onChange={(e) => setAdditionalBenefits(e.target.value)} placeholder="مثال: بونص شهري، تدريب مجاني" style={inputStyle} />
             </div>
           </div>
-        </fieldset>
+        </CollapsibleSection>
 
-        <fieldset style={sectionStyle}>
-          <h3 style={h3Style}>🏢 إعدادات الإعلان</h3>
+        <CollapsibleSection title="🏢 إعدادات الإعلان" subtitle="تحكم في ظهور اسم شركتك وطريقة استقبال المتقدمين">
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
             <input type="checkbox" id="showCompanyNamePost" checked={showCompanyName} onChange={(e) => setShowCompanyName(e.target.checked)} />
             <label htmlFor="showCompanyNamePost" style={{ fontSize: 13.5 }}>أظهر اسم الشركة في الإعلان</label>
@@ -582,22 +608,98 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
               </div>
             </div>
           )}
-        </fieldset>
-
-        <button
-          type="submit"
-          disabled={submitting}
-          style={{ width: "100%", padding: "14px", background: "#14213D", color: "#fff", border: "none", borderRadius: 8, fontSize: 16, fontWeight: 700, cursor: "pointer" }}
-        >
-          {submitting ? "جاري الحفظ..." : (isEditMode ? "حفظ التعديلات" : "نشر الإعلان")}
-        </button>
+        </CollapsibleSection>
       </form>
     </div>
   );
 }
 
-const sectionStyle: React.CSSProperties = { border: "1px solid #14213D22", borderRadius: 10, padding: 18, marginBottom: 16 };
-const h3Style: React.CSSProperties = { marginBottom: 12, fontSize: 16 };
+function CollapsibleSection({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="job-post-collapsible" style={collapsibleCardStyle}>
+      <summary style={summaryStyle}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+          <span style={summaryTitleStyle}>{title}</span>
+          <span className="chevron" style={chevronStyle}>▾</span>
+        </div>
+        <div style={summarySubtitleStyle}>{subtitle}</div>
+      </summary>
+      <div style={collapsibleBodyStyle}>{children}</div>
+    </details>
+  );
+}
+
+const basicSectionStyle: React.CSSProperties = {
+  border: "1.5px solid #14213D33",
+  borderRadius: 12,
+  padding: 20,
+  marginBottom: 16,
+  background: "#fff",
+};
+const basicH3Style: React.CSSProperties = { marginBottom: 14, fontSize: 17, fontWeight: 800, color: "#14213D" };
+
+const progressBarStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  flexWrap: "wrap",
+  gap: 10,
+  marginBottom: 18,
+};
+const readyBadgeStyle: React.CSSProperties = {
+  fontSize: 12.5,
+  fontWeight: 700,
+  color: "#2F6F4E",
+  background: "rgba(47,111,78,0.12)",
+  padding: "5px 12px",
+  borderRadius: 999,
+};
+const pendingBadgeStyle: React.CSSProperties = {
+  fontSize: 12.5,
+  fontWeight: 700,
+  color: "#8A570D",
+  background: "rgba(232,163,61,0.18)",
+  padding: "5px 12px",
+  borderRadius: 999,
+};
+
+const stickySubmitBarStyle: React.CSSProperties = {
+  position: "sticky",
+  bottom: 0,
+  zIndex: 5,
+  background: "#FAF6EC",
+  padding: "10px 0 18px",
+  marginBottom: 8,
+};
+
+const collapsibleCardStyle: React.CSSProperties = {
+  border: "1px solid #14213D1F",
+  borderRadius: 12,
+  marginBottom: 20,
+  background: "#FFFDF8",
+  overflow: "hidden",
+};
+const summaryStyle: React.CSSProperties = {
+  cursor: "pointer",
+  padding: "16px 18px",
+  userSelect: "none",
+};
+const summaryTitleStyle: React.CSSProperties = { fontSize: 15.5, fontWeight: 800, color: "#14213D" };
+const summarySubtitleStyle: React.CSSProperties = { fontSize: 12.5, color: "#4A5568", marginTop: 4, lineHeight: 1.6 };
+const chevronStyle: React.CSSProperties = { fontSize: 15, color: "#4A5568", flexShrink: 0 };
+const collapsibleBodyStyle: React.CSSProperties = {
+  padding: "4px 18px 20px",
+  borderTop: "1px solid #14213D14",
+  paddingTop: 16,
+};
+
 const gridStyle: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 };
 const labelStyle: React.CSSProperties = { display: "block", marginBottom: 4, fontSize: 13.5, fontWeight: 600 };
 const inputStyle: React.CSSProperties = { width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 6, fontSize: 14 };

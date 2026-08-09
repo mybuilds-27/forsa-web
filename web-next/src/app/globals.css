@@ -111,3 +111,21 @@ a {
     width: 100%;
   }
 }
+
+/* أقسام "نشر وظيفة" الاختيارية القابلة للطي (PostJobTab) — مقفولة افتراضيًا. بنشيل سهم
+   details الافتراضي ونستخدم سهم مخصص بيتلف بـCSS بس على details[open]، من غير أي state
+   إضافي في React — البيانات جوه الأقسام بتفضل محفوظة عادي لأن details مبيشيلش أولاده من
+   الـDOM لما يتقفل، بس بيخفيهم بصريًا. */
+.job-post-collapsible > summary {
+  list-style: none;
+}
+.job-post-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+.job-post-collapsible .chevron {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+.job-post-collapsible[open] .chevron {
+  transform: rotate(180deg);
+}
