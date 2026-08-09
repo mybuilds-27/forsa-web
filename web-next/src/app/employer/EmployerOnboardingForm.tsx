@@ -116,6 +116,9 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
           <div>
             <label style={labelStyle}>اسم الشركة</label>
             <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required style={inputStyle} />
+            <div style={{ fontSize: 12.5, color: "#4A5568", marginTop: 6 }}>
+              🔒 اسمك هيفضل مخفي عن الباحثين افتراضيًا، ومش هيظهر إلا لو اخترت إظهاره (تقدر تتحكم في الإعداد ده تحت أو لكل وظيفة على حدة).
+            </div>
           </div>
           <div>
             <label style={labelStyle}>اسم مسؤول التواصل</label>
