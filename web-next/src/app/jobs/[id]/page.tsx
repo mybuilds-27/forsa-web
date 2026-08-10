@@ -149,6 +149,20 @@ function isArabicText(text: string): boolean {
   return /[؀-ۿ]/.test(text);
 }
 
+// أصحاب العمل كتير بيكتبوا وصف الوظيفة كنقط مفصولة بـ"•" يدوي جوه نص واحد متصل. لو النقطة
+// دي موجودة فعلًا، بنقسم النص لعناصر قايمة حقيقية (list-style من CSS بدل الرمز اليدوي) —
+// ده بيحل مشكلة اتجاه الرمز (bidi) تلقائيًا لأن نقطة الـCSS مالهاش اتجاه نصي يتأثر بيه،
+// عكس "•" لما يتكتب كحرف عادي جوه نص وارث dir="rtl". لو مفيش "•" في النص، الوصف بيتعرض
+// كفقرة عادية زي ما كان.
+function splitBulletItems(description: string): string[] | null {
+  if (!description.includes("•")) return null;
+  const items = description
+    .split("•")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return items.length > 0 ? items : null;
+}
+
 function salaryText(p: any) {
   if (p.showSalary === false) return "غير محدد";
   if (p.salaryNegotiable) return "قابل للتفاوض / حسب الخبرة";
@@ -231,6 +245,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const seoData = await getActiveJobsSeoData();
   const popularCombos = seoData.combos.slice(0, POPULAR_COMBOS_COUNT);
   const jobPostingJsonLd = buildJobPostingJsonLd(job);
+  const descriptionIsArabic = isArabicText(job.description || "");
+  const descriptionBulletItems = splitBulletItems(job.description || "");
 
   return (
     <div dir="rtl" style={{ width: "100%", maxWidth: 1020, margin: "0 auto", padding: "40px 20px" }}>
@@ -256,16 +272,36 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <ShareButton jobId={job.id} title={job.title} />
       </div>
 
-      <p
-        style={{
-          lineHeight: 1.8,
-          marginBottom: 20,
-          whiteSpace: "pre-wrap",
-          textAlign: isArabicText(job.description || "") ? "right" : "left",
-        }}
-      >
-        {job.description}
-      </p>
+      {descriptionBulletItems ? (
+        <ul
+          dir={descriptionIsArabic ? "rtl" : "ltr"}
+          style={{
+            lineHeight: 1.8,
+            marginBottom: 20,
+            textAlign: descriptionIsArabic ? "right" : "left",
+            paddingInlineStart: 20,
+            listStyleType: "disc",
+          }}
+        >
+          {descriptionBulletItems.map((item, i) => (
+            <li key={i} style={{ whiteSpace: "pre-wrap", marginBottom: 4 }}>
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p
+          dir={descriptionIsArabic ? "rtl" : "ltr"}
+          style={{
+            lineHeight: 1.8,
+            marginBottom: 20,
+            whiteSpace: "pre-wrap",
+            textAlign: descriptionIsArabic ? "right" : "left",
+          }}
+        >
+          {job.description}
+        </p>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 14, marginBottom: 20 }}>
         <DetailRow label="الراتب" value={salaryText(job)} />
