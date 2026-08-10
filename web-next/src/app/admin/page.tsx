@@ -175,6 +175,15 @@ export default function AdminPage() {
         >
           <StatCard label="نشطين آخر 24 ساعة" value={stats.activeUsers24h} />
           <StatCard label="إجمالي المستخدمين المسجلين" value={stats.totalUsers} />
+          <StatCard
+            label="معدل إتمام التسجيل"
+            value={
+              stats.totalUsers > 0
+                ? `${Math.round(((stats.seekers + stats.employers) / stats.totalUsers) * 100)}%`
+                : "—"
+            }
+            subtitle={`${stats.seekers + stats.employers} من ${stats.totalUsers} أكملوا التسجيل`}
+          />
           <StatCard label="الباحثين عن عمل" value={stats.seekers} />
           <StatCard label="أصحاب الأعمال" value={stats.employers} />
           <StatCard label="منهم باقة مدفوعة" value={stats.premium} />
@@ -390,11 +399,12 @@ export default function AdminPage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value, subtitle }: { label: string; value: number | string; subtitle?: string }) {
   return (
     <div style={{ background: "#fff", border: "1px solid #14213D22", borderRadius: 8, padding: 12, textAlign: "center" }}>
       <div style={{ fontSize: 22, fontWeight: 900 }}>{value}</div>
       <div style={{ fontSize: 12, color: "#4A5568" }}>{label}</div>
+      {subtitle && <div style={{ fontSize: 11, color: "#4A5568", marginTop: 4 }}>{subtitle}</div>}
     </div>
   );
 }
