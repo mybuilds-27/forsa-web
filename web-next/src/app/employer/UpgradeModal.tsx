@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 type Props = {
   onClose: () => void;
 };
@@ -63,6 +65,10 @@ export default function UpgradeModal({ onClose }: Props) {
           <li>5 دعوات مباشرة للكوادر شهريًا</li>
           <li>من غير إمكانية التواصل المباشر مع الكوادر</li>
         </ul>
+
+        <Link href="/why-free" style={{ display: "inline-block", fontSize: 12.5, color: "#14213D", marginBottom: 16 }}>
+          عايز تعرف ليه مجاني؟ ←
+        </Link>
 
         <p style={{ color: "#4A5568", fontSize: 14, marginBottom: 6, fontWeight: 700 }}>الترقية للباقة المدفوعة بتديك:</p>
         <ul style={{ margin: "0 0 20px", padding: "0 20px", lineHeight: 2, fontSize: 14.5 }}>
