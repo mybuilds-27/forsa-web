@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, Timestamp } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, writeBatch, getDocs, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
 type NotificationDoc = {
@@ -52,19 +52,47 @@ export default function NotificationBell() {
     return () => unsubscribe();
   }, [uid]);
 
+  // بنقفل كل الإشعارات غير المقروءة وقت *قفل* القايمة مش وقت فتحها، عشان المستخدم يقدر يشوف
+  // مين جديد قبل ما يتحول لمقروء. بنجيب الإشعارات غير المقروءة بقراءة مباشرة من Firestore
+  // (مش من notifications state) عشان الدالة تفضل صحيحة حتى لو اتنادت من جوه useEffect
+  // بيتسجل مرة واحدة بس (زي handleClickOutside تحت).
+  async function markAllAsRead(userId: string) {
+    try {
+      const q = query(collection(db, "notifications"), where("userId", "==", userId), where("read", "==", false));
+      const snap = await getDocs(q);
+      if (snap.empty) return;
+      const batch = writeBatch(db);
+      snap.docs.forEach((d) => batch.update(d.ref, { read: true }));
+      await batch.commit();
+    } catch (err) {
+      console.error("[NotificationBell] فشل تحديد كل الإشعارات كمقروءة", err);
+    }
+  }
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
+        setOpen((wasOpen) => {
+          if (wasOpen && uid) markAllAsRead(uid);
+          return false;
+        });
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid]);
 
   if (!uid) return null;
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  function handleBellClick() {
+    setOpen((wasOpen) => {
+      if (wasOpen) markAllAsRead(uid!);
+      return !wasOpen;
+    });
+  }
 
   async function handleNotificationClick(n: NotificationDoc) {
     setOpen(false);
@@ -86,7 +114,7 @@ export default function NotificationBell() {
   return (
     <div ref={containerRef} style={{ position: "relative" }}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleBellClick}
         title="الإشعارات"
         style={{
           position: "relative",

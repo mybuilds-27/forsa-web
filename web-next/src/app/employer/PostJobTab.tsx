@@ -447,7 +447,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>شروط أخرى</label>
-              <input type="text" value={requirements} onChange={(e) => setRequirements(e.target.value)} placeholder="مثال: ذكور فقط، خبرة سابقة في مجال معين" style={inputStyle} />
+              <textarea value={requirements} onChange={(e) => setRequirements(e.target.value)} placeholder="مثال: ذكور فقط، خبرة سابقة في مجال معين" style={{ ...inputStyle, minHeight: 80 }} />
             </div>
           </div>
         </CollapsibleSection>

@@ -143,6 +143,12 @@ function buildJobPostingJsonLd(job: any) {
   };
 }
 
+// وصف الوظيفة ممكن يتكتب بالعربي أو الإنجليزي بالكامل — التوسيط الافتراضي بيبقى صعب القراءة
+// في الحالتين، فبنحدد اتجاه المحاذاة حسب وجود حروف عربية فعليًا في النص بدل ما نفترض لغة ثابتة.
+function isArabicText(text: string): boolean {
+  return /[؀-ۿ]/.test(text);
+}
+
 function salaryText(p: any) {
   if (p.showSalary === false) return "غير محدد";
   if (p.salaryNegotiable) return "قابل للتفاوض / حسب الخبرة";
@@ -250,7 +256,16 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <ShareButton jobId={job.id} title={job.title} />
       </div>
 
-      <p style={{ lineHeight: 1.8, marginBottom: 20 }}>{job.description}</p>
+      <p
+        style={{
+          lineHeight: 1.8,
+          marginBottom: 20,
+          whiteSpace: "pre-wrap",
+          textAlign: isArabicText(job.description || "") ? "right" : "left",
+        }}
+      >
+        {job.description}
+      </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 14, marginBottom: 20 }}>
         <DetailRow label="الراتب" value={salaryText(job)} />
