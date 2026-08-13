@@ -415,6 +415,80 @@ function buildWeeklyDigestEmailText({ newJobs, savedJobs, unsubscribeUrl }) {
   return lines.join("\n");
 }
 
+function buildSignupReminderEmailHtml({ userType, ctaLink }) {
+  const isEmployer = userType === "employer";
+  const heading = isEmployer ? "محتاج مساعدة في نشر أول وظيفة؟" : "محتاج مساعدة تكمّل بروفايلك؟";
+  const body = isEmployer
+    ? "لاحظنا إنك سجّلت دخول على منصة الشغل بس لسه ما استكملتش بيانات شركتك. الأمر بياخد دقايق بس، وبعدها تقدر تنشر أول وظيفة وتوصل لكوادر مناسبة."
+    : "لاحظنا إنك سجّلت دخول على منصة الشغل بس لسه ما استكملتش بروفايلك. باقيلك دقيقة بس عشان تقدر تتصفح وتقدّم على الوظائف المناسبة ليك.";
+  const ctaLabel = isEmployer ? "كمّل بيانات شركتك" : "كمّل بروفايلك";
+
+  return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${heading}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background-color:#FAF6EC;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FAF6EC;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:14px;border:1px solid #DED2B5;">
+          <tr>
+            ${buildEmailHeader()}
+          </tr>
+          <tr>
+            <td style="padding:28px;direction:rtl;text-align:right;">
+              <div style="font-family:'Cairo',Tahoma,Arial,sans-serif;font-size:18px;font-weight:700;color:#14213D;margin-bottom:14px;">
+                ${heading}
+              </div>
+              <p style="margin:0 0 24px;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:15px;color:#4A5568;line-height:1.8;">
+                ${body}
+              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="border-radius:8px;background-color:#14213D;">
+                          <a href="${ctaLink}" target="_blank" style="display:inline-block;padding:13px 30px;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:8px;">
+                            ${ctaLabel}
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 28px;background-color:#F1EAD9;text-align:center;border-radius:0 0 14px 14px;">
+              <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:12px;color:#4A5568;">
+                الشغل — منصة توظيف مصرية ·
+                <a href="https://www.elshoghl.com" style="color:#14213D;text-decoration:underline;">elshoghl.com</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function buildSignupReminderEmailText({ userType, ctaLink }) {
+  const isEmployer = userType === "employer";
+  const heading = isEmployer ? "محتاج مساعدة في نشر أول وظيفة؟" : "محتاج مساعدة تكمّل بروفايلك؟";
+  const body = isEmployer
+    ? "لاحظنا إنك سجّلت دخول على منصة الشغل بس لسه ما استكملتش بيانات شركتك. الأمر بياخد دقايق بس."
+    : "لاحظنا إنك سجّلت دخول على منصة الشغل بس لسه ما استكملتش بروفايلك. باقيلك دقيقة بس.";
+  return [heading, "", body, "", `كمّل من هنا: ${ctaLink}`, "", "الشغل — منصة توظيف مصرية · elshoghl.com"].join("\n");
+}
+
 function unsubscribePageHtml({ success, message }) {
   const title = success ? "تم إلغاء الاشتراك" : "حصلت مشكلة";
   const body = success
@@ -1050,5 +1124,77 @@ exports.savedJobExpiryReminders = onSchedule(
     }
 
     logger.info(`savedJobExpiryReminders: اتبعت ${matches.length} تذكير`);
+  }
+);
+
+// إيميل متابعة لمرة واحدة بس للحسابات اللي سجّلت دخول (عندها مستند users) بس ماكملتش التسجيل
+// الفعلي (مفيش مستند مطابق بنفس الـuid في job_seekers ولا employers) بعد 3 أيام من تاريخ
+// إنشاء الحساب. signupReminderSent بيتحط على مستند users نفسه بعد الإرسال عشان الإيميل
+// يتبعت مرة واحدة بس لكل حساب، مش يتكرر يوميًا.
+exports.signupCompletionReminders = onSchedule(
+  { schedule: "0 10 * * *", timeZone: "Africa/Cairo", secrets: [RESEND_API_KEY] },
+  async () => {
+    const db = getFirestore();
+
+    let usersSnap, seekersSnap, employersSnap;
+    try {
+      [usersSnap, seekersSnap, employersSnap] = await Promise.all([
+        db.collection("users").get(),
+        db.collection("job_seekers").get(),
+        db.collection("employers").get(),
+      ]);
+    } catch (err) {
+      logger.error("signupCompletionReminders: فشل جلب users/job_seekers/employers", err);
+      return;
+    }
+
+    const seekerIds = new Set(seekersSnap.docs.map((d) => d.id));
+    const employerIds = new Set(employersSnap.docs.map((d) => d.id));
+
+    const now = Date.now();
+    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+
+    // مستند users وuid بتاعه هو نفسه اللي بيتخزن بيه مستند job_seekers/employers، فمطابقة
+    // الـid مباشرة كفاية لمعرفة هل الحساب أكمل التسجيل الفعلي ولا لسه
+    const candidates = usersSnap.docs.filter((docSnap) => {
+      const data = docSnap.data();
+      if (data.signupReminderSent === true) return false;
+      if (!data.createdAt) return false;
+      if (now - data.createdAt.toMillis() < THREE_DAYS_MS) return false;
+      if (!data.email || !data.userType) return false;
+      if (seekerIds.has(docSnap.id) || employerIds.has(docSnap.id)) return false;
+      return true;
+    });
+
+    if (candidates.length === 0) {
+      logger.info("signupCompletionReminders: مفيش حسابات محتاجة تذكير النهاردة");
+      return;
+    }
+
+    let sentCount = 0;
+    for (const docSnap of candidates) {
+      const data = docSnap.data();
+      const userType = data.userType === "employer" ? "employer" : "job_seeker";
+      const ctaLink = userType === "employer" ? "https://www.elshoghl.com/employer" : "https://www.elshoghl.com/seeker";
+
+      try {
+        await sendViaResend({
+          to: data.email,
+          subject: userType === "employer" ? "محتاج مساعدة في نشر أول وظيفة؟" : "محتاج مساعدة تكمّل بروفايلك؟",
+          html: buildSignupReminderEmailHtml({ userType, ctaLink }),
+          text: buildSignupReminderEmailText({ userType, ctaLink }),
+          logPrefix: "signupCompletionReminders",
+        });
+        await docSnap.ref.update({
+          signupReminderSent: true,
+          signupReminderSentAt: FieldValue.serverTimestamp(),
+        });
+        sentCount += 1;
+      } catch (err) {
+        logger.error(`signupCompletionReminders: حصلت مشكلة مع اليوزر ${docSnap.id}`, err);
+      }
+    }
+
+    logger.info(`signupCompletionReminders: اتبعت ${sentCount} إيميل تذكير من أصل ${candidates.length} حساب مؤهل`);
   }
 );
