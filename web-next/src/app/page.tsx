@@ -47,9 +47,28 @@ const linkBtnStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
+// تطبيقات فيسبوك/إنستجرام/ماسنجر بتفتح الروابط جوه WebView داخلي مش متصفح حقيقي، وجوجل
+// بيمنع/بيعقّد تسجيل الدخول الكامل (OAuth) من جوه WebViews دي لأسباب أمنية من عندهم — حتى
+// لو الكود بتاعنا بيعمل fallback لـsignInWithRedirect صح، شاشة جوجل نفسها بتظهر تحذير أمان
+// مخيف للمستخدم. الحل الوحيد الفعلي هو إن المستخدم يفتح الرابط في متصفح حقيقي، فبنكتشف
+// الحالة دي ونوضحله إزاي.
+function isInAppWebView(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /FBAN|FBAV|Instagram/i.test(navigator.userAgent || "");
+}
+
 export default function LandingPage() {
   const router = useRouter();
   const [checkingSession, setCheckingSession] = useState(true);
+  const [isWebView, setIsWebView] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // بنكتشفها بعد أول render (جوه useEffect) بدل وقت الـrender الأول عشان نتجنب hydration
+  // mismatch — السيرفر مبيعرفش الـuser agent، فبنعرض الحالة العادية الأول وبعدين نظبطها
+  // فورًا لما الصفحة توصل للمتصفح.
+  useEffect(() => {
+    setIsWebView(isInAppWebView());
+  }, []);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [emailPanelOpen, setEmailPanelOpen] = useState(false);
   const [pendingRole, setPendingRole] = useState<Role | null>(null);
@@ -324,6 +343,16 @@ export default function LandingPage() {
     setError("");
   }
 
+  async function handleCopyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 3000);
+    } catch (err) {
+      console.error("Copy link failed", err);
+    }
+  }
+
   async function handleSendCode() {
     setError("");
     setErrorColor(COLORS.stamp);
@@ -507,6 +536,46 @@ export default function LandingPage() {
             {selectedRole === "job_seeker" ? "🔍 باحث عن شغل" : "🏢 صاحب عمل أو شركة"}
           </button>
 
+          {isWebView && (
+            <div
+              style={{
+                background: "rgba(232,163,61,0.15)",
+                border: "1px solid #E8A33D66",
+                borderRadius: 10,
+                padding: "14px 16px",
+                marginBottom: 20,
+                fontSize: 13.5,
+                color: COLORS.ink,
+                lineHeight: 1.8,
+              }}
+            >
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                ⚠️ إنت فاتح الرابط من جوه تطبيق (فيسبوك/إنستجرام)
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                عشان تسجّل دخول بسهولة وأمان، افتح الرابط في متصفحك العادي (كروم أو سفاري):
+                دوس على أيقونة الثلات نقط <strong>⋮</strong> فوق يمين الشاشة واختار
+                <strong> "افتح في المتصفح"</strong>.
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                style={{
+                  background: "#fff",
+                  border: "1px solid #E8A33D",
+                  borderRadius: 6,
+                  padding: "6px 12px",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  color: "#8A570D",
+                  cursor: "pointer",
+                }}
+              >
+                {linkCopied ? "✓ اتنسخ الرابط" : "📋 انسخ رابط الصفحة"}
+              </button>
+            </div>
+          )}
+
           <h2 style={{ fontSize: 22, color: COLORS.ink, marginBottom: 6, fontFamily: "var(--font-cairo)" }}>
             سجّل دخولك في أقل من دقيقة
           </h2>
@@ -522,6 +591,12 @@ export default function LandingPage() {
               label="الدخول بحساب Google"
               accentColor={selectedRole === "job_seeker" ? COLORS.ink : "#C97F1F"}
             />
+            {isWebView && (
+              <div style={{ fontSize: 12, color: "#8A570D", marginTop: -4 }}>
+                ⚠️ ممكن ما يشتغلش صح من جوه التطبيق — الأفضل تفتح الرابط في المتصفح زي فوق، أو
+                جرّب الدخول بالإيميل أو التليفون تحت
+              </div>
+            )}
             <AuthOptionButton
               onClick={() => openEmailAuth(selectedRole)}
               icon="✉️"
