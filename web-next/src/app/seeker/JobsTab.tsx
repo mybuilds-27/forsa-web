@@ -288,10 +288,6 @@ export default function JobsTab({ completionPercent }: Props) {
 
       {!loading && !error && (
         <>
-          <div style={{ fontSize: 13, color: "#4A5568", marginBottom: 10 }}>
-            {filteredJobs.length} وظيفة متاحة
-          </div>
-
           {filteredJobs.length === 0 && (
             <div style={{ padding: 30, textAlign: "center", color: "#4A5568" }}>
               مفيش وظائف مطابقة دلوقتي — جرب توسّع الفلاتر

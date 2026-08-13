@@ -144,7 +144,7 @@ export default function PersonalInfoTab({ initialData, onSaved, isNewProfile }: 
           <FileUploadButton
             label="📷 اختيار صورة"
             accept="image/*"
-            fileName={photoFile?.name}
+            fileName={photoFile?.name || (photoURL ? "✓ صورة محفوظة بالفعل" : undefined)}
             onChange={setPhotoFile}
           />
           <div style={{ fontSize: 12.5, color: "#4A5568", marginTop: 6 }}>

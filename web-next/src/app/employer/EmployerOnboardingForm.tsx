@@ -23,6 +23,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
   const [companySize, setCompanySize] = useState("");
   const [showCompanyNameDefault, setShowCompanyNameDefault] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoURL, setLogoURL] = useState("");
   const [logoStatus, setLogoStatus] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -45,6 +46,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
 
     setCompanySize(initialData.companySize || "");
     setShowCompanyNameDefault(!!initialData.showCompanyNameDefault);
+    setLogoURL(initialData.logoURL || "");
   }, [initialData]);
 
   const cities = governorate ? GOVERNORATE_CITIES[governorate] || [] : [];
@@ -130,7 +132,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
             <FileUploadButton
               label="📷 اختيار صورة"
               accept="image/*"
-              fileName={logoFile?.name}
+              fileName={logoFile?.name || (logoURL ? "✓ صورة محفوظة بالفعل" : undefined)}
               onChange={setLogoFile}
             />
             <div style={{ fontSize: 12.5, color: "#4A5568", marginTop: 6 }}>

@@ -322,6 +322,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <DetailRow label="ساعات العمل يوميًا" value={job.hoursPerDay ? `${job.hoursPerDay} ساعات` : undefined} />
         <DetailRow label="التأمين الاجتماعي" value={job.socialInsurance === "yes" ? "متوفر ✓" : job.socialInsurance === "no" ? "غير متوفر" : undefined} />
         <DetailRow label="المواصلات" value={job.transportationAvailable === "yes" ? "متوفرة ✓" : job.transportationAvailable === "no" ? "غير متوفرة" : undefined} />
+        <DetailRow label="أماكن التغطية" value={job.transportationAreas || undefined} />
         <DetailRow label="سكن المغتربين" value={job.housingForExpats === "yes" ? "متوفر ✓" : job.housingForExpats === "no" ? "غير متوفر" : undefined} />
       </div>
 
