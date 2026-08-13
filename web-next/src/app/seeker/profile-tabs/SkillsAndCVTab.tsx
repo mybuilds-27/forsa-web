@@ -94,7 +94,7 @@ export default function SkillsAndCVTab({ initialData, onSaved, isNewProfile }: P
         <FileUploadButton
           label="📎 اختيار ملف"
           accept="application/pdf"
-          fileName={cvFile?.name}
+          fileName={cvFile?.name || (cvLink ? "✓ ملف محفوظ بالفعل" : undefined)}
           onChange={setCvFile}
         />
         <div style={{ fontSize: 12.5, color: "#4A5568", marginTop: 6 }}>
