@@ -167,7 +167,6 @@ export default function LandingPage() {
         createdAt: serverTimestamp(),
         lastLogin: serverTimestamp(),
       });
-      (window as any).fbq?.("track", "CompleteRegistration");
     } else {
       const data = snap.data();
       if (role !== data.userType) {
@@ -188,6 +187,7 @@ export default function LandingPage() {
     setPendingRole(role);
     setLoading(true);
     authInProgressRef.current = true;
+    (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "google" });
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
@@ -216,6 +216,7 @@ export default function LandingPage() {
     setPendingRole(role);
     setError("");
     setEmailPanelOpen(true);
+    (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "email" });
   }
 
   function closeEmailAuth() {
@@ -319,6 +320,7 @@ export default function LandingPage() {
     setPendingRole(role);
     setError("");
     setPhoneStep("enter-phone");
+    (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "phone" });
   }
 
   function closePhoneAuth() {
@@ -333,6 +335,9 @@ export default function LandingPage() {
     setSelectedRole(role);
     setPendingRole(role);
     setError("");
+    (window as any).fbq?.("trackCustom", "SelectAccountType", {
+      role: role === "job_seeker" ? "seeker" : "employer",
+    });
   }
 
   function backToRoleChoice() {

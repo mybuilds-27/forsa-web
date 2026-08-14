@@ -103,6 +103,13 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
       { merge: true }
     );
 
+    if (!isEditMode) {
+      // هنا أول تسجيل مكتمل فعليًا لصاحب العمل (بعد ما يكمّل بيانات شركته)، مش عند أول
+      // تسجيل دخول — ده مكان حدث CompleteRegistration الصح لـMeta Pixel بدل مكانه القديم
+      // في page.tsx
+      (window as any).fbq?.("track", "CompleteRegistration");
+    }
+
     setSaving(false);
     onSaved();
   }

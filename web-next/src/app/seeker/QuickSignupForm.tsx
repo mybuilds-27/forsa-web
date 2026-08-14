@@ -57,6 +57,9 @@ export default function QuickSignupForm({ onSaved }: Props) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      // هنا أول تسجيل مكتمل فعليًا للباحث (بعد ما يكمّل بياناته)، مش عند أول تسجيل دخول —
+      // ده مكان حدث CompleteRegistration الصح لـMeta Pixel بدل مكانه القديم في page.tsx
+      (window as any).fbq?.("track", "CompleteRegistration");
       onSaved();
     } catch (err) {
       console.error("Quick signup save failed", err);
