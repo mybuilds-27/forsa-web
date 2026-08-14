@@ -99,7 +99,7 @@ a {
    ما نحتاج نخفي شجرة كاملة بـvisibility (اللي كانت بتسيب مساحة محجوزة وتطلع صفحة زيادة). */
 @media print {
   body > *:not(.cv-print-view) {
-    display: none;
+    display: none !important;
   }
 }
 
