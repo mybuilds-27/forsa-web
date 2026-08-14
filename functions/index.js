@@ -42,7 +42,7 @@ function buildEmailHeader() {
   return `
             <td style="background-color:#14213D;padding:24px 28px;text-align:center;border-radius:14px 14px 0 0;">
               <img src="https://www.elshoghl.com/email-logo.png" width="160" height="40" alt="الشغل" style="display:block;margin:0 auto;border:0;outline:none;" />
-              <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;color:#E8A33D;font-size:13px;margin-top:8px;">منصة توظيف مصرية</div>
+              <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;color:#E8A33D;font-size:13px;margin-top:8px;">موقع توظيف مصري</div>
             </td>`;
 }
 
@@ -103,7 +103,7 @@ function buildInvitationEmailHtml({ companyName, jobTitle, jobLink }) {
           <tr>
             <td style="padding:18px 28px;background-color:#F1EAD9;text-align:center;border-radius:0 0 14px 14px;">
               <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:12px;color:#4A5568;">
-                الشغل — منصة توظيف مصرية ·
+                الشغل — موقع توظيف مصري ·
                 <a href="https://www.elshoghl.com" style="color:#14213D;text-decoration:underline;">elshoghl.com</a>
               </div>
             </td>
@@ -122,7 +122,7 @@ function buildInvitationEmailText({ companyName, jobTitle, jobLink }) {
     "",
     `اعرض الوظيفة وقدّم عليها من هنا: ${jobLink}`,
     "",
-    "الشغل — منصة توظيف مصرية · elshoghl.com",
+    "الشغل — موقع توظيف مصري · elshoghl.com",
   ].join("\n");
 }
 
@@ -191,7 +191,7 @@ function buildDailySummaryEmailHtml({ totalCount, jobs }) {
           <tr>
             <td style="padding:18px 28px;background-color:#F1EAD9;text-align:center;border-radius:0 0 14px 14px;">
               <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:12px;color:#4A5568;">
-                الشغل — منصة توظيف مصرية ·
+                الشغل — موقع توظيف مصري ·
                 <a href="https://www.elshoghl.com" style="color:#14213D;text-decoration:underline;">elshoghl.com</a>
               </div>
             </td>
@@ -212,7 +212,7 @@ function buildDailySummaryEmailText({ totalCount, jobs }) {
     "",
     "اعرض التفاصيل من لوحة صاحب العمل: https://www.elshoghl.com/employer",
     "",
-    "الشغل — منصة توظيف مصرية · elshoghl.com",
+    "الشغل — موقع توظيف مصري · elshoghl.com",
   ].join("\n");
 }
 
@@ -242,7 +242,7 @@ const APPLICATION_STATUS_MESSAGES = {
   shortlisted: (jobTitle, companyName) => `تقديمك على وظيفة "${jobTitle}" من ${companyName} بقى قيد المراجعة.`,
   interview: (jobTitle, companyName) => `مبروك! ${companyName} عايزة تعمل معاك مقابلة على وظيفة "${jobTitle}".`,
   accepted: (jobTitle, companyName) => `مبروك! اتقبلت على وظيفة "${jobTitle}" من ${companyName}.`,
-  rejected: (jobTitle, companyName) => `للأسف، ${companyName} قررت المتابعة مع مرشح تاني لوظيفة "${jobTitle}". فيه فرص تانية كتير مستنياك على المنصة.`,
+  rejected: (jobTitle, companyName) => `للأسف، ${companyName} قررت المتابعة مع مرشح تاني لوظيفة "${jobTitle}". فيه فرص تانية كتير مستنياك على الموقع.`,
 };
 
 function buildStatusUpdateEmailHtml({ jobTitle, companyName, status, jobLink }) {
@@ -299,7 +299,7 @@ function buildStatusUpdateEmailHtml({ jobTitle, companyName, status, jobLink }) 
           <tr>
             <td style="padding:18px 28px;background-color:#F1EAD9;text-align:center;border-radius:0 0 14px 14px;">
               <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:12px;color:#4A5568;">
-                الشغل — منصة توظيف مصرية ·
+                الشغل — موقع توظيف مصري ·
                 <a href="https://www.elshoghl.com" style="color:#14213D;text-decoration:underline;">elshoghl.com</a>
               </div>
             </td>
@@ -319,7 +319,7 @@ function buildStatusUpdateEmailText({ jobTitle, companyName, status, jobLink }) 
     "",
     `اعرض الوظيفة من هنا: ${jobLink}`,
     "",
-    "الشغل — منصة توظيف مصرية · elshoghl.com",
+    "الشغل — موقع توظيف مصري · elshoghl.com",
   ].join("\n");
 }
 
@@ -382,7 +382,7 @@ function buildWeeklyDigestEmailHtml({ newJobs, savedJobs, unsubscribeUrl }) {
           <tr>
             <td style="padding:18px 28px;background-color:#F1EAD9;text-align:center;border-radius:0 0 14px 14px;">
               <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:12px;color:#4A5568;margin-bottom:8px;">
-                الشغل — منصة توظيف مصرية ·
+                الشغل — موقع توظيف مصري ·
                 <a href="https://www.elshoghl.com" style="color:#14213D;text-decoration:underline;">elshoghl.com</a>
               </div>
               <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:11.5px;color:#4A5568;">
@@ -411,7 +411,7 @@ function buildWeeklyDigestEmailText({ newJobs, savedJobs, unsubscribeUrl }) {
     lines.push("", "متنساش، وظايفك المحفوظة لسه متاحة:", "");
     lines.push(...savedJobs.map((j) => `- ${j.title}: https://www.elshoghl.com/jobs/${j.id}`));
   }
-  lines.push("", "الشغل — منصة توظيف مصرية · elshoghl.com", "", `إلغاء الاشتراك من الإيميلات دي: ${unsubscribeUrl}`);
+  lines.push("", "الشغل — موقع توظيف مصري · elshoghl.com", "", `إلغاء الاشتراك من الإيميلات دي: ${unsubscribeUrl}`);
   return lines.join("\n");
 }
 
@@ -419,8 +419,8 @@ function buildSignupReminderEmailHtml({ userType, ctaLink }) {
   const isEmployer = userType === "employer";
   const heading = isEmployer ? "محتاج مساعدة في نشر أول وظيفة؟" : "محتاج مساعدة تكمّل بروفايلك؟";
   const body = isEmployer
-    ? "لاحظنا إنك سجّلت دخول على منصة الشغل بس لسه ما استكملتش بيانات شركتك. الأمر بياخد دقايق بس، وبعدها تقدر تنشر أول وظيفة وتوصل لكوادر مناسبة."
-    : "لاحظنا إنك سجّلت دخول على منصة الشغل بس لسه ما استكملتش بروفايلك. باقيلك دقيقة بس عشان تقدر تتصفح وتقدّم على الوظائف المناسبة ليك.";
+    ? "لاحظنا إنك سجّلت دخول على موقع الشغل بس لسه ما استكملتش بيانات شركتك. الأمر بياخد دقايق بس، وبعدها تقدر تنشر أول وظيفة وتوصل لكوادر مناسبة."
+    : "لاحظنا إنك سجّلت دخول على موقع الشغل بس لسه ما استكملتش بروفايلك. باقيلك دقيقة بس عشان تقدر تتصفح وتقدّم على الوظائف المناسبة ليك.";
   const ctaLabel = isEmployer ? "كمّل بيانات شركتك" : "كمّل بروفايلك";
 
   return `<!DOCTYPE html>
@@ -467,7 +467,7 @@ function buildSignupReminderEmailHtml({ userType, ctaLink }) {
           <tr>
             <td style="padding:18px 28px;background-color:#F1EAD9;text-align:center;border-radius:0 0 14px 14px;">
               <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:12px;color:#4A5568;">
-                الشغل — منصة توظيف مصرية ·
+                الشغل — موقع توظيف مصري ·
                 <a href="https://www.elshoghl.com" style="color:#14213D;text-decoration:underline;">elshoghl.com</a>
               </div>
             </td>
@@ -484,9 +484,9 @@ function buildSignupReminderEmailText({ userType, ctaLink }) {
   const isEmployer = userType === "employer";
   const heading = isEmployer ? "محتاج مساعدة في نشر أول وظيفة؟" : "محتاج مساعدة تكمّل بروفايلك؟";
   const body = isEmployer
-    ? "لاحظنا إنك سجّلت دخول على منصة الشغل بس لسه ما استكملتش بيانات شركتك. الأمر بياخد دقايق بس."
-    : "لاحظنا إنك سجّلت دخول على منصة الشغل بس لسه ما استكملتش بروفايلك. باقيلك دقيقة بس.";
-  return [heading, "", body, "", `كمّل من هنا: ${ctaLink}`, "", "الشغل — منصة توظيف مصرية · elshoghl.com"].join("\n");
+    ? "لاحظنا إنك سجّلت دخول على موقع الشغل بس لسه ما استكملتش بيانات شركتك. الأمر بياخد دقايق بس."
+    : "لاحظنا إنك سجّلت دخول على موقع الشغل بس لسه ما استكملتش بروفايلك. باقيلك دقيقة بس.";
+  return [heading, "", body, "", `كمّل من هنا: ${ctaLink}`, "", "الشغل — موقع توظيف مصري · elshoghl.com"].join("\n");
 }
 
 function unsubscribePageHtml({ success, message }) {

@@ -4,7 +4,7 @@ import JobListItem from "./JobListItem";
 
 export const metadata = {
   title: "وظايف شغل في مصر - تصفح كل الوظائف المتاحة | الشغل",
-  description: "دوّر على وظيفتك الجاية من هنا - وظايف شغل جديدة يوميًا في كل تخصصات ومحافظات مصر، على منصة الشغل المجانية بالكامل.",
+  description: "دوّر على وظيفتك الجاية من هنا - وظايف شغل جديدة يوميًا في كل تخصصات ومحافظات مصر، على موقع الشغل المجاني بالكامل.",
 };
 
 // الصفحة دي مالهاش أي dynamic segment، فـNext.js كان بيعملها static prerender وقت الـbuild
@@ -23,7 +23,7 @@ export default async function JobsListPage() {
     <div dir="rtl" style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px" }}>
       <h1 style={{ fontSize: 26, marginBottom: 6 }}>تصفح الوظائف</h1>
       <p style={{ color: "#4A5568", marginBottom: 24 }}>
-        {jobs.length} وظيفة متاحة حاليًا على منصة الشغل
+        {jobs.length} وظيفة متاحة حاليًا على موقع الشغل
       </p>
 
       {jobs.length === 0 && (

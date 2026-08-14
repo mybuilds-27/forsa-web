@@ -17,7 +17,7 @@ export default function ShareButton({ jobId, title, style }: ShareButtonProps) {
 
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
-        await navigator.share({ title: title || "وظيفة على منصة الشغل", url });
+        await navigator.share({ title: title || "وظيفة على موقع الشغل", url });
       } catch {
         // المستخدم لغى المشاركة
       }

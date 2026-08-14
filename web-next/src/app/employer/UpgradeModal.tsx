@@ -10,7 +10,7 @@ const WHATSAPP_NUMBER = "201012735333";
 const CONTACT_EMAIL = "elshoghl27@gmail.com";
 
 export default function UpgradeModal({ onClose }: Props) {
-  const whatsappMessage = encodeURIComponent("أهلاً، عايز أرقّي باقتي على منصة الشغل للباقة المدفوعة.");
+  const whatsappMessage = encodeURIComponent("أهلاً، عايز أرقّي باقتي على موقع الشغل للباقة المدفوعة.");
   const emailSubject = encodeURIComponent("طلب ترقية باقة صاحب عمل");
 
   return (

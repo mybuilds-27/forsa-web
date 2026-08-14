@@ -583,7 +583,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13.5 }}>
               <input type="radio" checked={receiveMethod === "platform"} onChange={() => setReceiveMethod("platform")} style={{ marginTop: 3 }} />
-              <span><strong>استقبل الطلبات من خلال المنصة بس</strong> — تشوف المتقدمين من "عرض المتقدمين" في إعلاناتك</span>
+              <span><strong>استقبل الطلبات من خلال الموقع بس</strong> — تشوف المتقدمين من "عرض المتقدمين" في إعلاناتك</span>
             </label>
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13.5 }}>
               <input type="radio" checked={receiveMethod === "contact"} onChange={() => setReceiveMethod("contact")} style={{ marginTop: 3 }} />

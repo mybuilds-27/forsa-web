@@ -26,8 +26,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const title = `وظايف شغل ${specialization} في ${governorate} | الشغل`;
   const description =
     jobs.length > 0
-      ? `${jobs.length} وظيفة ${specialization} متاحة حاليًا في ${governorate} على منصة الشغل — تصفح وقدّم دلوقتي.`
-      : `دوّر على وظايف ${specialization} في ${governorate} على منصة الشغل.`;
+      ? `${jobs.length} وظيفة ${specialization} متاحة حاليًا في ${governorate} على موقع الشغل — تصفح وقدّم دلوقتي.`
+      : `دوّر على وظايف ${specialization} في ${governorate} على موقع الشغل.`;
 
   return {
     title,

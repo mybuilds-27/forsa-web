@@ -162,7 +162,7 @@ export default function AdminPage() {
   return (
     <div dir="rtl" style={{ maxWidth: 900, margin: "0 auto", padding: "30px 20px" }}>
       <h1 style={{ fontSize: 22, marginBottom: 6 }}>لوحة الإدارة</h1>
-      <p style={{ color: "#4A5568", marginBottom: 20 }}>إحصائيات عامة عن المنصة</p>
+      <p style={{ color: "#4A5568", marginBottom: 20 }}>إحصائيات عامة عن الموقع</p>
 
       {stats && (
         <div
