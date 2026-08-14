@@ -94,22 +94,20 @@ a {
   }
 }
 
-/* عرض السيرة الذاتية القابلة للطباعة (ProfileTab) — بيظهر بس وقت الطباعة الفعلية */
+/* عرض السيرة الذاتية القابلة للطباعة (ProfileTab) — بيتحط عن طريق portal كـchild مباشر
+   لـbody (شوف ProfileTab.tsx)، فكفاية نخفي أي sibling تاني ليه على مستوى body من غير
+   ما نحتاج نخفي شجرة كاملة بـvisibility (اللي كانت بتسيب مساحة محجوزة وتطلع صفحة زيادة). */
 @media print {
-  body * {
-    visibility: hidden;
+  body > *:not(.cv-print-view) {
+    display: none;
   }
-  .cv-print-view,
-  .cv-print-view * {
-    visibility: visible;
-  }
-  .cv-print-view {
-    position: absolute;
-    top: 0;
-    right: 0;
-    left: 0;
-    width: 100%;
-  }
+}
+
+/* margin صفر عشان نمنع هيدر/فوتر المتصفح الافتراضي (اسم الصفحة فوق، والتاريخ/الرابط تحت)
+   من الظهور — القيم دي بتتحط جوه المساحة المحجوزة لهامش الصفحة، فلو مفيش هامش مفيش مكان
+   ليها. الهامش البصري الفعلي جاي من padding الكارت نفسه في CVPreview. */
+@page {
+  margin: 0;
 }
 
 /* أقسام "نشر وظيفة" الاختيارية القابلة للطي (PostJobTab) — مقفولة افتراضيًا. بنشيل سهم
