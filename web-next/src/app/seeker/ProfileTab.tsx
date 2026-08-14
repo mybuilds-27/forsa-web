@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import OnboardingForm from "./OnboardingForm";
 import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS } from "@/lib/constants";
 import { normalizeEntries, formatEntries } from "@/lib/profileFields";
@@ -126,10 +127,15 @@ export default function ProfileTab({ data, onUpdated }: Props) {
         </button>
       </div>
 
-      {/* عرض مخفي بيظهر بس وقت الطباعة الفعلية (@media print في globals.css) */}
-      <div className="cv-print-view" style={{ display: printing ? "block" : "none" }}>
-        <CVPreview data={data} skills={skills} languages={languages} />
-      </div>
+      {/* بنعمل الطباعة portal لـdocument.body عشان يبقى sibling مباشر للهيدر والفوتر، مش
+          متداخل جوه شجرة الصفحة العادية — لو فضل جوه شجرة الصفحة، إخفاء باقي العناصر
+          بـvisibility بيسيب مساحتهم محجوزة في التخطيط ويطلع صفحة فاضية زيادة وقت الطباعة. */}
+      {printing && typeof document !== "undefined" && createPortal(
+        <div className="cv-print-view">
+          <CVPreview data={data} skills={skills} languages={languages} />
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
