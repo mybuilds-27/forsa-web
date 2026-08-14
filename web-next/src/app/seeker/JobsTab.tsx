@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   collection,
   query,
@@ -417,6 +418,23 @@ export default function JobsTab({ completionPercent }: Props) {
               >
                 {savedJobs.has(selectedJob.id) ? "★ محفوظة" : "☆ حفظ الوظيفة"}
               </button>
+              <Link
+                href={`/jobs/${selectedJob.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: "10px 20px",
+                  border: "1px solid #14213D",
+                  background: "transparent",
+                  color: "#14213D",
+                  borderRadius: 6,
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
+              >
+                🔗 فتح الصفحة الكاملة
+              </Link>
             </div>
           </div>
         </div>
