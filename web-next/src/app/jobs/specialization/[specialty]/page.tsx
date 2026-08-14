@@ -16,8 +16,8 @@ export async function generateMetadata({ params }: { params: Promise<{ specialty
   const title = `وظايف شغل ${specialization} في مصر | الشغل`;
   const description =
     jobs.length > 0
-      ? `${jobs.length} وظيفة ${specialization} متاحة حاليًا في كل محافظات مصر على منصة الشغل — تصفح وقدّم دلوقتي.`
-      : `دوّر على وظايف ${specialization} في كل محافظات مصر على منصة الشغل.`;
+      ? `${jobs.length} وظيفة ${specialization} متاحة حاليًا في كل محافظات مصر على موقع الشغل — تصفح وقدّم دلوقتي.`
+      : `دوّر على وظايف ${specialization} في كل محافظات مصر على موقع الشغل.`;
 
   return {
     title,

@@ -39,8 +39,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     const title = `وظايف شغل في ${governorate} | الشغل`;
     const description =
       jobs.length > 0
-        ? `${jobs.length} وظيفة شغل متاحة حاليًا في ${governorate} على منصة الشغل — تصفح وقدّم دلوقتي.`
-        : `دوّر على وظايف شغل في ${governorate} على منصة الشغل.`;
+        ? `${jobs.length} وظيفة شغل متاحة حاليًا في ${governorate} على موقع الشغل — تصفح وقدّم دلوقتي.`
+        : `دوّر على وظايف شغل في ${governorate} على موقع الشغل.`;
     return {
       title,
       description,
@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!job) {
     return { title: "وظيفة غير متاحة - الشغل" };
   }
-  const title = `${job.title} - وظيفة على منصة الشغل`;
+  const title = `${job.title} - وظيفة على موقع الشغل`;
   const description = `${job.title} في ${job.city} - ${job.governorate}. ${(job.description || "").slice(0, 120)}`;
   const companyName = job.showCompanyName && job.companyName ? job.companyName : "شركة غير معلنة";
   const ogTitle = `${job.title} - ${companyName}`;

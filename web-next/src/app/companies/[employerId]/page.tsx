@@ -32,8 +32,8 @@ export async function generateMetadata({ params }: { params: Promise<{ employerI
     return { title: "شركة غير متاحة - الشغل" };
   }
   return {
-    title: `${company.companyName} - وظائف على منصة الشغل`,
-    description: company.industry || `تصفح كل الوظائف المفتوحة حاليًا لدى ${company.companyName} على منصة الشغل.`,
+    title: `${company.companyName} - وظائف على موقع الشغل`,
+    description: company.industry || `تصفح كل الوظائف المفتوحة حاليًا لدى ${company.companyName} على موقع الشغل.`,
   };
 }
 

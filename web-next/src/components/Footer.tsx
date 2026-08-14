@@ -14,7 +14,7 @@ export default function Footer() {
       }}
     >
       <div style={{ marginBottom: 8 }}>
-        الشغل — منصة توظيف مصرية · بيانات المستخدمين محمية ومش بتتباع لأي طرف تالت
+        الشغل — موقع توظيف مصري · بيانات المستخدمين محمية ومش بتتباع لأي طرف تالت
       </div>
       <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", marginBottom: 8 }}>
         <Link href="/about" style={linkStyle}>من نحن</Link>
@@ -29,7 +29,7 @@ export default function Footer() {
           📘 صفحتنا على فيسبوك
         </a>
       </div>
-      <div>© {new Date().getFullYear()} الشغل - منصة توظيف مصرية</div>
+      <div>© {new Date().getFullYear()} الشغل - موقع توظيف مصري</div>
     </footer>
   );
 }

@@ -3,8 +3,8 @@ import { collection, doc, getDoc, getDocs, query, where } from "firebase/firesto
 import { db } from "@/lib/firebase";
 
 export const metadata = {
-  title: "الشركات اللي بتوظف دلوقتي في مصر - منصة الشغل",
-  description: "تصفح الشركات اللي بتدوّر على كوادر وبتوظف دلوقتي في مصر، وشوف كل وظايف الشغل المفتوحة عندها في مكان واحد على منصة الشغل.",
+  title: "الشركات اللي بتوظف دلوقتي في مصر - موقع الشغل",
+  description: "تصفح الشركات اللي بتدوّر على كوادر وبتوظف دلوقتي في مصر، وشوف كل وظايف الشغل المفتوحة عندها في مكان واحد على موقع الشغل.",
 };
 
 // الصفحة دي مالهاش أي dynamic segment، فـNext.js كان بيعملها static prerender وقت الـbuild
@@ -71,7 +71,7 @@ export default async function CompaniesPage() {
     <div dir="rtl" style={{ maxWidth: 1200, width: "100%", margin: "0 auto", padding: "40px 20px" }}>
       <h1 style={{ fontSize: 26, marginBottom: 6 }}>الشركات</h1>
       <p style={{ color: "#4A5568", marginBottom: 24 }}>
-        {companies.length} شركة بتوظف حاليًا على منصة الشغل
+        {companies.length} شركة بتوظف حاليًا على موقع الشغل
       </p>
 
       {companies.length === 0 && (
