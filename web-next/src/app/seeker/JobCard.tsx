@@ -43,9 +43,11 @@ type Props = {
   onToggleSave: () => void;
   onClick?: () => void;
   unavailable?: boolean;
+  onApply?: () => void;
+  applying?: boolean;
 };
 
-export default function JobCard({ job: p, applicationStatus, saved, onToggleSave, onClick, unavailable }: Props) {
+export default function JobCard({ job: p, applicationStatus, saved, onToggleSave, onClick, unavailable, onApply, applying }: Props) {
   return (
     <div
       onClick={unavailable ? undefined : onClick}
@@ -76,7 +78,31 @@ export default function JobCard({ job: p, applicationStatus, saved, onToggleSave
             {p.showCompanyName && p.companyName ? p.companyName : "شركة غير معلنة"} · 📍 {p.city} - {p.governorate}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0, flexWrap: "wrap" }}>
+          {onApply && !applicationStatus && !unavailable && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onApply(); }}
+              disabled={applying}
+              title="قدّم على الوظيفة دي"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 12,
+                padding: "5px 12px",
+                borderRadius: 999,
+                border: "none",
+                background: "#14213D",
+                color: "#fff",
+                cursor: applying ? "not-allowed" : "pointer",
+                opacity: applying ? 0.6 : 1,
+                fontFamily: "inherit",
+                fontWeight: 700,
+              }}
+            >
+              📩 قدم الآن
+            </button>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); onToggleSave(); }}
             title={saved ? "إلغاء الحفظ" : "حفظ الوظيفة"}
@@ -98,6 +124,30 @@ export default function JobCard({ job: p, applicationStatus, saved, onToggleSave
             {saved ? "★ محفوظة" : "☆ حفظ"}
           </button>
           <ShareButton jobId={p.id} title={p.title} />
+          <a
+            href={`/jobs/${p.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            title="فتح الصفحة الكاملة للوظيفة"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 12,
+              padding: "5px 12px",
+              borderRadius: 999,
+              border: "1px solid #14213D22",
+              background: "#F0EDE3",
+              color: "#14213D",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            🔗 الصفحة الكاملة
+          </a>
         </div>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid #14213D14" }}>

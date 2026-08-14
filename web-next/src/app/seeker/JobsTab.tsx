@@ -61,8 +61,14 @@ export default function JobsTab({ completionPercent }: Props) {
   const [myApplications, setMyApplications] = useState<Map<string, ApplicationStatus>>(new Map());
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
   const [selectedJob, setSelectedJob] = useState<JobPost | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [applying, setApplying] = useState(false);
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
+
+  function closeDetailsModal() {
+    setSelectedJob(null);
+    setShowDetailsModal(false);
+  }
 
   async function loadMyApplications() {
     const user = auth.currentUser;
@@ -183,6 +189,7 @@ export default function JobsTab({ completionPercent }: Props) {
   }
 
   function handleApplyClick(job: JobPost) {
+    setSelectedJob(job);
     if (job.screeningQuestions && job.screeningQuestions.length > 0) {
       setShowQuestionsModal(true);
     } else {
@@ -306,7 +313,9 @@ export default function JobsTab({ completionPercent }: Props) {
                 applicationStatus={myApplications.get(p.id)}
                 saved={savedJobs.has(p.id)}
                 onToggleSave={() => handleToggleSave(p.id)}
-                onClick={() => setSelectedJob(p)}
+                onClick={() => { setSelectedJob(p); setShowDetailsModal(true); }}
+                onApply={() => handleApplyClick(p)}
+                applying={applying}
               />
             ))}
           </div>
@@ -330,9 +339,9 @@ export default function JobsTab({ completionPercent }: Props) {
       </div>
 
       {/* مودال تفاصيل الوظيفة */}
-      {selectedJob && (
+      {selectedJob && showDetailsModal && (
         <div
-          onClick={() => setSelectedJob(null)}
+          onClick={closeDetailsModal}
           style={{
             position: "fixed",
             inset: 0,
@@ -358,7 +367,7 @@ export default function JobsTab({ completionPercent }: Props) {
             }}
           >
             <button
-              onClick={() => setSelectedJob(null)}
+              onClick={closeDetailsModal}
               style={{
                 position: "absolute",
                 top: 14,
