@@ -198,13 +198,6 @@
       ]
     },
     {
-      "collectionGroup": "private",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "phone", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
