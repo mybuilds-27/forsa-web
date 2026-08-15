@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { buildSeekerSnapshot } from "@/lib/seekerSnapshot";
 import ScreeningQuestionsModal, { ScreeningQuestion } from "@/components/ScreeningQuestionsModal";
+import RegisterModal from "@/components/RegisterModal";
 
 type Props = {
   jobId: string;
@@ -15,12 +15,12 @@ type Props = {
 };
 
 export default function ApplyButton({ jobId, employerId, screeningQuestions = [] }: Props) {
-  const router = useRouter();
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [applied, setApplied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -79,6 +79,16 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
     }
   }
 
+  // بيتنادى بعد ما مودال التسجيل ينجح — auth.currentUser بقى متاح فورًا (متزامن مع نجاح
+  // signIn نفسه، قبل ما listener الأعلى يتفاعل)، فتكملة التقديم بنفس منطق handleApplyClick
+  // بتشتغل صح على طول. setLoggedIn(true) هنا بس عشان الزرار يعكس الحالة فورًا من غير
+  // انتظار الـlistener، مش لازم لصحة المنطق نفسه.
+  function handleRegisterSuccess() {
+    setShowRegisterModal(false);
+    setLoggedIn(true);
+    handleApplyClick();
+  }
+
   async function handleCancel() {
     const user = auth.currentUser;
     if (!user) return;
@@ -96,38 +106,39 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
 
   if (loading) return null;
 
-  if (!loggedIn) {
-    return (
-      <div style={{ padding: 16, background: "#F5EFDE", borderRadius: 8 }}>
-        <p style={{ marginBottom: 10 }}>سجّل دخول عشان تقدر تقدّم على الوظيفة دي</p>
-        <button
-          onClick={() => router.push("/")}
-          style={{ padding: "10px 20px", background: "#14213D", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}
-        >
-          تسجيل الدخول
-        </button>
-      </div>
-    );
-  }
-
   return (
     <>
-      {applied ? (
+      {!loggedIn && (
         <button
-          onClick={handleCancel}
-          disabled={busy}
-          style={{ padding: "12px 24px", border: "1px solid #B03A14", color: "#B03A14", background: "transparent", borderRadius: 8, cursor: "pointer" }}
-        >
-          ✕ إلغاء التقديم
-        </button>
-      ) : (
-        <button
-          onClick={handleApplyClick}
-          disabled={busy}
+          onClick={() => setShowRegisterModal(true)}
           style={{ padding: "12px 24px", background: "#14213D", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}
         >
           📩 قدم الآن
         </button>
+      )}
+
+      {loggedIn && (
+        applied ? (
+          <button
+            onClick={handleCancel}
+            disabled={busy}
+            style={{ padding: "12px 24px", border: "1px solid #B03A14", color: "#B03A14", background: "transparent", borderRadius: 8, cursor: "pointer" }}
+          >
+            ✕ إلغاء التقديم
+          </button>
+        ) : (
+          <button
+            onClick={handleApplyClick}
+            disabled={busy}
+            style={{ padding: "12px 24px", background: "#14213D", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}
+          >
+            📩 قدم الآن
+          </button>
+        )
+      )}
+
+      {showRegisterModal && (
+        <RegisterModal onClose={() => setShowRegisterModal(false)} onSuccess={handleRegisterSuccess} />
       )}
 
       {showQuestionsModal && (
