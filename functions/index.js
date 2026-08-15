@@ -489,6 +489,75 @@ function buildSignupReminderEmailText({ userType, ctaLink }) {
   return [heading, "", body, "", `كمّل من هنا: ${ctaLink}`, "", "الشغل — موقع توظيف مصري · elshoghl.com"].join("\n");
 }
 
+function buildFirstJobReminderEmailHtml({ ctaLink }) {
+  const heading = "محتاج مساعدة في نشر أول وظيفة؟";
+  const body =
+    "كمّلت بيانات شركتك على موقع الشغل من كام يوم، بس لسه ما نشرتش أول وظيفة. النشر مجاني بالكامل وبياخد دقايق بس — انشر وظيفتك الأولى دلوقتي ووصل لكوادر مناسبة.";
+
+  return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${heading}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background-color:#FAF6EC;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FAF6EC;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:14px;border:1px solid #DED2B5;">
+          <tr>
+            ${buildEmailHeader()}
+          </tr>
+          <tr>
+            <td style="padding:28px;direction:rtl;text-align:right;">
+              <div style="font-family:'Cairo',Tahoma,Arial,sans-serif;font-size:18px;font-weight:700;color:#14213D;margin-bottom:14px;">
+                ${heading}
+              </div>
+              <p style="margin:0 0 24px;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:15px;color:#4A5568;line-height:1.8;">
+                ${body}
+              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="border-radius:8px;background-color:#14213D;">
+                          <a href="${ctaLink}" target="_blank" style="display:inline-block;padding:13px 30px;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:8px;">
+                            انشر أول وظيفة
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 28px;background-color:#F1EAD9;text-align:center;border-radius:0 0 14px 14px;">
+              <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:12px;color:#4A5568;">
+                الشغل — موقع توظيف مصري ·
+                <a href="https://www.elshoghl.com" style="color:#14213D;text-decoration:underline;">elshoghl.com</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function buildFirstJobReminderEmailText({ ctaLink }) {
+  const heading = "محتاج مساعدة في نشر أول وظيفة؟";
+  const body =
+    "كمّلت بيانات شركتك على موقع الشغل من كام يوم، بس لسه ما نشرتش أول وظيفة. النشر مجاني بالكامل وبياخد دقايق بس.";
+  return [heading, "", body, "", `انشر أول وظيفة من هنا: ${ctaLink}`, "", "الشغل — موقع توظيف مصري · elshoghl.com"].join("\n");
+}
+
 function unsubscribePageHtml({ success, message }) {
   const title = success ? "تم إلغاء الاشتراك" : "حصلت مشكلة";
   const body = success
@@ -1196,6 +1265,76 @@ exports.signupCompletionReminders = onSchedule(
     }
 
     logger.info(`signupCompletionReminders: اتبعت ${sentCount} إيميل تذكير من أصل ${candidates.length} حساب مؤهل`);
+  }
+);
+
+// حالة مختلفة عن signupCompletionReminders فوق: صاحب عمل كمّل بيانات شركته بالفعل (عنده
+// مستند employers/{uid})، بس عدى 3 أيام من إنشاء الحساب ولسه معندوش ولا إعلان وظيفة واحد
+// في job_posts. فلاج الإرسال لمرة واحدة هنا محطوط على مستند employers نفسه (firstJobReminderSent)
+// مش users، لأن الحالة دي مرتبطة بحالة الشركة (نشرت وظيفة ولا لأ) مش بحالة تسجيل الدخول.
+exports.firstJobPostReminders = onSchedule(
+  { schedule: "0 11 * * *", timeZone: "Africa/Cairo", secrets: [RESEND_API_KEY] },
+  async () => {
+    const db = getFirestore();
+
+    let usersSnap, employersSnap, postsSnap;
+    try {
+      [usersSnap, employersSnap, postsSnap] = await Promise.all([
+        db.collection("users").get(),
+        db.collection("employers").get(),
+        db.collection("job_posts").get(),
+      ]);
+    } catch (err) {
+      logger.error("firstJobPostReminders: فشل جلب users/employers/job_posts", err);
+      return;
+    }
+
+    // الإيميل نفسه متخزنش في مستند employers — بيتخزن في users/{uid} وقت التسجيل، فبنعملها map
+    const emailByUid = new Map(usersSnap.docs.map((d) => [d.id, d.data().email]));
+    const employerIdsWithPosts = new Set(postsSnap.docs.map((d) => d.data().employerId));
+
+    const now = Date.now();
+    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+
+    const candidates = employersSnap.docs.filter((docSnap) => {
+      const data = docSnap.data();
+      if (data.firstJobReminderSent === true) return false;
+      if (!data.createdAt) return false;
+      if (now - data.createdAt.toMillis() < THREE_DAYS_MS) return false;
+      if (employerIdsWithPosts.has(docSnap.id)) return false;
+      if (!emailByUid.get(docSnap.id)) return false;
+      return true;
+    });
+
+    if (candidates.length === 0) {
+      logger.info("firstJobPostReminders: مفيش أصحاب أعمال محتاجين تذكير النهاردة");
+      return;
+    }
+
+    const ctaLink = "https://www.elshoghl.com/employer?tab=postjob";
+
+    let sentCount = 0;
+    for (const docSnap of candidates) {
+      const email = emailByUid.get(docSnap.id);
+      try {
+        await sendViaResend({
+          to: email,
+          subject: "محتاج مساعدة في نشر أول وظيفة؟",
+          html: buildFirstJobReminderEmailHtml({ ctaLink }),
+          text: buildFirstJobReminderEmailText({ ctaLink }),
+          logPrefix: "firstJobPostReminders",
+        });
+        await docSnap.ref.update({
+          firstJobReminderSent: true,
+          firstJobReminderSentAt: FieldValue.serverTimestamp(),
+        });
+        sentCount += 1;
+      } catch (err) {
+        logger.error(`firstJobPostReminders: حصلت مشكلة مع صاحب العمل ${docSnap.id}`, err);
+      }
+    }
+
+    logger.info(`firstJobPostReminders: اتبعت ${sentCount} إيميل تذكير من أصل ${candidates.length} صاحب عمل مؤهل`);
   }
 );
 
