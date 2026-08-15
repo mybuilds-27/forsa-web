@@ -40,6 +40,7 @@ type Stats = {
   seekers: number;
   employers: number;
   premium: number;
+  visibleCompanies: number;
   allPosts: number;
   activePosts: number;
   applications: number;
@@ -95,10 +96,22 @@ export default function AdminPage() {
 
       const premiumCount = employersSnap.docs.filter((d) => d.data().plan === "premium").length;
 
+      // "شركة ظاهرة للعامة" — نفس تعريف getCompanies في companies/page.tsx بالظبط: صاحب
+      // عمل عنده على الأقل إعلان نشط، اسمه ظاهر، ومش منتهي الصلاحية. بنحسبها من postsSnap
+      // الموجودة بالفعل هنا بدل ما نعمل query إضافي.
+      const now = Date.now();
+      const visibleCompanyIds = new Set(
+        postsSnap.docs
+          .map((d) => d.data() as any)
+          .filter((p) => p.isActive === true && p.showCompanyName === true && (!p.expiresAt || p.expiresAt.toMillis() > now))
+          .map((p) => p.employerId)
+      );
+
       setStats({
         seekers: seekersSnap.size,
         employers: employersSnap.size,
         premium: premiumCount,
+        visibleCompanies: visibleCompanyIds.size,
         allPosts: postsSnap.size,
         activePosts: activePostsSnap.size,
         applications: appsSnap.size,
@@ -186,6 +199,7 @@ export default function AdminPage() {
           />
           <StatCard label="الباحثين عن عمل" value={stats.seekers} />
           <StatCard label="أصحاب الأعمال" value={stats.employers} />
+          <StatCard label="الشركات الظاهرة للعامة" value={stats.visibleCompanies} />
           <StatCard label="منهم باقة مدفوعة" value={stats.premium} />
           <StatCard label="كل الإعلانات" value={stats.allPosts} />
           <StatCard label="الإعلانات النشطة" value={stats.activePosts} />
