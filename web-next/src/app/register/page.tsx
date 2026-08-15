@@ -16,7 +16,8 @@ import {
   ConfirmationResult,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { auth, db, functions } from "@/lib/firebase";
 import { normalizeEgyptianPhone } from "@/lib/phoneAuth";
 import { logClientError } from "@/lib/errorLog";
 import LogoMark from "@/components/LogoMark";
@@ -351,8 +352,29 @@ function RegisterPageInner() {
       setError("اكتب رقم موبايل مصري صحيح (مثال: 01012345678)");
       return;
     }
-    (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "phone" });
+
     setPhoneLoading(true);
+
+    // بنتأكد الرقم ده مش مرتبط بحساب موجود بالفعل (اتسجل قبل كده بجوجل أو الإيميل) قبل
+    // ما نبعت كود التحقق أصلًا — يمنع حساب مزدوج ويوفّر رسالة SMS مش هتتبعت لو الحساب
+    // موجود بالفعل. لو الفحص نفسه فشل (مشكلة شبكة مثلًا) بنكمّل عادي وميوقفش التسجيل،
+    // لأنه تحقق إضافي مش بوابة أمان أساسية.
+    try {
+      const checkPhone = httpsCallable(functions, "checkPhoneAlreadyRegistered");
+      const result = await checkPhone({ phone: normalized });
+      if ((result.data as any)?.alreadyRegistered) {
+        setError(
+          "الرقم ده متسجل بحساب موجود بالفعل — سجّل دخولك بنفس الطريقة اللي استخدمتها أول مرة (جوجل أو الإيميل) بدل رقم التليفون."
+        );
+        setPhoneLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.error("Phone conflict check failed", err);
+      logClientError("phone_conflict_check", err);
+    }
+
+    (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "phone" });
     try {
       const verifier = getRecaptchaVerifier();
       const result = await signInWithPhoneNumber(auth, normalized, verifier);

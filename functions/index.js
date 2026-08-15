@@ -1,7 +1,7 @@
 const { setGlobalOptions } = require("firebase-functions");
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { onRequest } = require("firebase-functions/v2/https");
+const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const { initializeApp } = require("firebase-admin/app");
@@ -1198,3 +1198,42 @@ exports.signupCompletionReminders = onSchedule(
     logger.info(`signupCompletionReminders: اتبعت ${sentCount} إيميل تذكير من أصل ${candidates.length} حساب مؤهل`);
   }
 );
+
+// بيتأكد إن رقم التليفون ده مش مرتبط بحساب باحث أو صاحب عمل موجود بالفعل تحت UID تاني —
+// بيتنادى من /register قبل ما نبعت كود الـOTP، عشان نمنع حساب مزدوج لو حد اتسجل قبل كده
+// بجوجل أو الإيميل وبعدين حاول يسجل تاني بنفس رقم تليفونه (كل طريقة دخول في فايربيز بتعمل
+// UID منفصل، فمفيش طريقة نكتشف التضارب ده غير بمطابقة رقم التليفون المخزّن في بروفايل
+// الباحث/صاحب العمل). لازم Admin SDK هنا لأن بيانات تواصل صاحب العمل (employers/{uid}/
+// private/contact) محمية بقاعدة Firestore بتسمح لصاحب الحساب بس يقراها.
+//
+// بيتنادى من غير مصادقة (المستخدم لسه ما دخلش بالتليفون خالص وقت الفحص ده)، فبيرجع
+// boolean بس من غير أي تفاصيل عن الحساب الموجود، تقليلًا لأي تسريب معلومات.
+//
+// ملحوظة: أرقام التليفونات في job_seekers وemployers/private/contact اتكتبت يدويًا في
+// حقل نص عادي من غير توحيد صيغة، فالمطابقة هنا بتغطي الصيغتين الأكتر شيوعًا (E.164 زي
+// +201012345678، والصيغة المحلية زي 01012345678) بس مش أي صيغة تانية (مسافات/شرطات).
+// هدف الميزة الحالي منع حسابات مزدوجة جديدة من دلوقتي، مش تنضيف بيانات قديمة.
+exports.checkPhoneAlreadyRegistered = onCall(async (request) => {
+  const rawPhone = typeof request.data?.phone === "string" ? request.data.phone : "";
+  const digits = rawPhone.replace(/[\s-]/g, "");
+
+  const localMatch = digits.match(/^01[0125]\d{8}$/);
+  const e164Match = digits.match(/^\+201[0125]\d{8}$/);
+  if (!localMatch && !e164Match) {
+    throw new HttpsError("invalid-argument", "رقم تليفون غير صحيح");
+  }
+  const local = localMatch ? digits : "0" + digits.slice(3);
+  const e164 = e164Match ? digits : "+20" + digits.slice(1);
+
+  const db = getFirestore();
+  try {
+    const [seekersSnap, employerContactSnap] = await Promise.all([
+      db.collection("job_seekers").where("phone", "in", [local, e164]).limit(1).get(),
+      db.collectionGroup("private").where("phone", "in", [local, e164]).limit(1).get(),
+    ]);
+    return { alreadyRegistered: !seekersSnap.empty || !employerContactSnap.empty };
+  } catch (err) {
+    logger.error("checkPhoneAlreadyRegistered: فشل فحص تضارب رقم التليفون", err);
+    throw new HttpsError("internal", "حصلت مشكلة في التحقق، حاول تاني");
+  }
+});
