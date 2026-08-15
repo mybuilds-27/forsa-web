@@ -48,6 +48,7 @@ function RegisterPageInner() {
   // اللينك، بس سيبه قديم كان مربك بصريًا (?role=employer فاضل مكتوب رغم اختيار باحث شغل).
   function selectRole(newRole: Role) {
     setRole(newRole);
+    (window as any).fbq?.("trackCustom", "SelectAccountType", { type: newRole });
     const params = new URLSearchParams(searchParams.toString());
     if (newRole === "employer") params.set("role", "employer");
     else params.delete("role");
