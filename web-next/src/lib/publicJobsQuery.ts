@@ -16,6 +16,39 @@ export async function getActivePublicJobs(filters: { governorate?: string; speci
     .sort((a, b) => Number(!!b.featured) - Number(!!a.featured));
 }
 
+// نفس شكل استعلام JobsTab.tsx بالظبط (isActive + orderBy(featured) + orderBy(createdAt) +
+// فلاتر equality اختيارية بينهم) عشان يستخدم نفس composite indexes الموجودة بالفعل في
+// firestore.indexes.json من غير ما نحتاج نضيف indexes جديدة. q (بحث حر) مش قابل للفلترة
+// من Firestore نفسه، فبيتطبق بعد الجلب زي ما JobsTab.tsx بتعمل بالظبط مع specOther.
+export async function getFilteredPublicJobs(
+  filters: { governorate?: string; jobType?: string; q?: string } = {}
+) {
+  const constraints: QueryConstraint[] = [
+    where("isActive", "==", true),
+    orderBy("featured", "desc"),
+    orderBy("createdAt", "desc"),
+    limit(50),
+  ];
+  if (filters.governorate) constraints.splice(1, 0, where("governorate", "==", filters.governorate));
+  if (filters.jobType) constraints.splice(1, 0, where("jobType", "==", filters.jobType));
+
+  const snap = await getDocs(query(collection(db, "job_posts"), ...constraints));
+  const now = Date.now();
+  let jobs = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as any))
+    .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now);
+
+  const q = filters.q?.trim().toLowerCase();
+  if (q) {
+    jobs = jobs.filter((p) => {
+      const haystack = `${p.title} ${p.specialization} ${p.description || ""}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }
+
+  return jobs;
+}
+
 export type JobCombo = { governorate: string; specialization: string; count: number };
 
 export async function getActiveJobsSeoData(): Promise<{

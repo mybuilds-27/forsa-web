@@ -1,6 +1,8 @@
-import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
+import { Suspense } from "react";
+import { getFilteredPublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseByCombos from "@/components/BrowseByCombos";
 import JobListItem from "./JobListItem";
+import JobsFilterBar from "./JobsFilterBar";
 
 export const metadata = {
   title: "وظايف شغل في مصر - تصفح كل الوظائف المتاحة | الشغل",
@@ -15,20 +17,34 @@ export const dynamic = "force-dynamic";
 
 const POPULAR_COMBOS_COUNT = 8;
 
-export default async function JobsListPage() {
-  const [jobs, seoData] = await Promise.all([getActivePublicJobs(), getActiveJobsSeoData()]);
+type Props = {
+  searchParams: Promise<{ q?: string; governorate?: string; jobType?: string }>;
+};
+
+export default async function JobsListPage({ searchParams }: Props) {
+  const { q, governorate, jobType } = await searchParams;
+  const hasFilters = !!(q || governorate || jobType);
+
+  const [jobs, seoData] = await Promise.all([
+    getFilteredPublicJobs({ q, governorate, jobType }),
+    getActiveJobsSeoData(),
+  ]);
   const popularCombos = seoData.combos.slice(0, POPULAR_COMBOS_COUNT);
 
   return (
     <div dir="rtl" style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px" }}>
       <h1 style={{ fontSize: 26, marginBottom: 6 }}>تصفح الوظائف</h1>
-      <p style={{ color: "#4A5568", marginBottom: 24 }}>
-        {jobs.length} وظيفة متاحة حاليًا على موقع الشغل
+      <p style={{ color: "#4A5568", marginBottom: 20 }}>
+        {jobs.length} وظيفة {hasFilters ? "مطابقة" : "متاحة حاليًا"} على موقع الشغل
       </p>
+
+      <Suspense fallback={null}>
+        <JobsFilterBar />
+      </Suspense>
 
       {jobs.length === 0 && (
         <div style={{ padding: 30, textAlign: "center", color: "#4A5568" }}>
-          مفيش وظائف متاحة دلوقتي — تابعنا قريبًا.
+          {hasFilters ? "مفيش وظائف مطابقة، جرب فلتر مختلف" : "مفيش وظائف متاحة دلوقتي — تابعنا قريبًا."}
         </div>
       )}
 
