@@ -70,6 +70,18 @@ function RegisterPageInner() {
     searchParams.get("role") === "employer" ? "employer" : "job_seeker"
   );
 
+  // بيحدّث الـURL (من غير navigation كاملة) كل ما المستخدم يدوس على التوجل، عشان اللينك
+  // فوق يفضل عاكس الاختيار الفعلي دايمًا — التسجيل نفسه بيعتمد على state role مش على
+  // اللينك، بس سيبه قديم كان مربك بصريًا (?role=employer فاضل مكتوب رغم اختيار باحث شغل).
+  function selectRole(newRole: Role) {
+    setRole(newRole);
+    const params = new URLSearchParams(searchParams.toString());
+    if (newRole === "employer") params.set("role", "employer");
+    else params.delete("role");
+    const qs = params.toString();
+    router.replace(qs ? `/register?${qs}` : "/register", { scroll: false });
+  }
+
   const [checkingSession, setCheckingSession] = useState(true);
   const [isWebView, setIsWebView] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -449,13 +461,13 @@ function RegisterPageInner() {
       <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
         <RoleToggleButton
           active={role === "job_seeker"}
-          onClick={() => setRole("job_seeker")}
+          onClick={() => selectRole("job_seeker")}
           icon="🔍"
           label="باحث عن شغل"
         />
         <RoleToggleButton
           active={role === "employer"}
-          onClick={() => setRole("employer")}
+          onClick={() => selectRole("employer")}
           icon="🏢"
           label="صاحب عمل"
         />
@@ -475,6 +487,23 @@ function RegisterPageInner() {
         >
           🎉 مجاني بالكامل — لباحثين الشغل وأصحاب الأعمال
         </span>
+        {role === "employer" && (
+          <div
+            style={{
+              marginTop: 10,
+              maxWidth: 340,
+              marginLeft: "auto",
+              marginRight: "auto",
+              fontSize: 12.5,
+              color: COLORS.success,
+              lineHeight: 1.7,
+              fontWeight: 600,
+            }}
+          >
+            من غير أي مستندات أو رسوم — انشر لحد 5 وظايف شهريًا مجانًا (كل وظيفة نشطة 30
+            يوم) + 5 دعوات تقديم شهريًا
+          </div>
+        )}
       </div>
 
       {isWebView && (
