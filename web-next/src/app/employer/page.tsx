@@ -15,6 +15,9 @@ type Status = "loading" | "no-profile" | "has-profile";
 type EditingPost = { id: string; data: any } | null;
 type Tab = "company" | "postjob" | "talent";
 
+// نفس الرقم والنمط المستخدم في UpgradeModal.tsx
+const WHATSAPP_NUMBER = "201012735333";
+
 export default function EmployerPage() {
   return (
     <Suspense
@@ -102,11 +105,21 @@ function EmployerPageInner() {
   return (
     <div dir="rtl">
       <div style={{ padding: "24px 20px 60px" }}>
-        {!isPremium && (
-          <button onClick={() => setUpgradeModalOpen(true)} style={upgradeBtnStyle}>
-            🚀 طلب الترقية للباقة المدفوعة
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+          {!isPremium && (
+            <button onClick={() => setUpgradeModalOpen(true)} style={upgradeBtnStyle}>
+              🚀 طلب الترقية للباقة المدفوعة
+            </button>
+          )}
+          <a
+            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("أهلاً، محتاج مساعدة في حسابي كصاحب عمل على موقع الشغل.")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={whatsappBtnStyle}
+          >
+            💬 محتاج مساعدة؟ كلمنا واتساب
+          </a>
+        </div>
 
         {activeTab === "company" && (
           <CompanyTab
@@ -137,4 +150,17 @@ function EmployerPageInner() {
   );
 }
 
-const upgradeBtnStyle: React.CSSProperties = { padding: "8px 16px", background: "#E8A33D", color: "#14213D", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13.5, marginBottom: 20 };
+const upgradeBtnStyle: React.CSSProperties = { padding: "8px 16px", background: "#E8A33D", color: "#14213D", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13.5 };
+const whatsappBtnStyle: React.CSSProperties = {
+  padding: "8px 16px",
+  background: "rgba(47,111,78,0.12)",
+  color: "#2F6F4E",
+  border: "none",
+  borderRadius: 8,
+  fontWeight: 700,
+  cursor: "pointer",
+  fontSize: 13.5,
+  textDecoration: "none",
+  display: "inline-flex",
+  alignItems: "center",
+};
