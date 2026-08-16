@@ -58,6 +58,7 @@ export default function AdminPage() {
   const [status, setStatus] = useState<"loading" | "denied" | "allowed">("loading");
   const [stats, setStats] = useState<Stats | null>(null);
   const [funnelStats, setFunnelStats] = useState<FunnelStats | null>(null);
+  const [funnelError, setFunnelError] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
   const [seoData, setSeoData] = useState<{ governorates: string[]; specializations: string[]; combos: JobCombo[] } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -78,34 +79,17 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function loadStats() {
-    setLoadingStats(true);
+  // قمع التسجيل معزول في تحميله الخاص، منفصل تمامًا عن باقي الإحصائيات — لو فشل (زي مشكلة
+  // صلاحيات Firestore على المجموعة الجديدة registration_funnel_events)، القسم ده بس بيعرض
+  // رسالة خطأ بدل ما يوقف باقي لوحة الأدمن كلها (الإحصائيات الأساسية وقائمة الوظائف). ده
+  // حصل فعليًا لما Promise.all واحد كان بيجمع كل الاستعلامات مع بعض — فشل استعلام واحد كان
+  // كافي يمنع أي حاجة من الظهور خالص من غير أي رسالة توضح السبب.
+  async function loadFunnelStats() {
     try {
-      const oneDayAgo = Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
       const sevenDaysAgo = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-
-      const [
-        seekersSnap,
-        employersSnap,
-        postsSnap,
-        activePostsSnap,
-        appsSnap,
-        totalUsersSnap,
-        activeUsersSnap,
-        recentUsersSnap,
-        funnelEventsSnap,
-        jobsSeoData,
-      ] = await Promise.all([
-        getDocs(collection(db, "job_seekers")),
-        getDocs(collection(db, "employers")),
-        getDocs(collection(db, "job_posts")),
-        getDocs(query(collection(db, "job_posts"), where("isActive", "==", true))),
-        getDocs(collection(db, "applications")),
-        getDocs(collection(db, "users")),
-        getDocs(query(collection(db, "users"), where("lastActiveAt", ">=", oneDayAgo))),
+      const [recentUsersSnap, funnelEventsSnap] = await Promise.all([
         getDocs(query(collection(db, "users"), where("createdAt", ">=", sevenDaysAgo))),
         getDocs(query(collection(db, "registration_funnel_events"), where("timestamp", ">=", sevenDaysAgo))),
-        getActiveJobsSeoData(),
       ]);
 
       // "أكمل التسجيل" مش ليها حدث قمع منفصل — بتتحسب مباشرة من users بنفس فترة الـ7 أيام
@@ -115,6 +99,29 @@ export default function AdminPage() {
         methodSelected: funnelEventsSnap.docs.filter((d) => d.data().step === "method_selected").length,
         completed: recentUsersSnap.size,
       });
+      setFunnelError(false);
+    } catch (err) {
+      console.error("Admin funnel stats failed", err);
+      setFunnelStats(null);
+      setFunnelError(true);
+    }
+  }
+
+  async function loadCoreStats() {
+    try {
+      const oneDayAgo = Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+      const [seekersSnap, employersSnap, postsSnap, activePostsSnap, appsSnap, totalUsersSnap, activeUsersSnap, jobsSeoData] =
+        await Promise.all([
+          getDocs(collection(db, "job_seekers")),
+          getDocs(collection(db, "employers")),
+          getDocs(collection(db, "job_posts")),
+          getDocs(query(collection(db, "job_posts"), where("isActive", "==", true))),
+          getDocs(collection(db, "applications")),
+          getDocs(collection(db, "users")),
+          getDocs(query(collection(db, "users"), where("lastActiveAt", ">=", oneDayAgo))),
+          getActiveJobsSeoData(),
+        ]);
 
       setSeoData({
         governorates: jobsSeoData.governorates,
@@ -161,6 +168,11 @@ export default function AdminPage() {
     } catch (err) {
       console.error("Admin stats failed", err);
     }
+  }
+
+  async function loadStats() {
+    setLoadingStats(true);
+    await Promise.all([loadCoreStats(), loadFunnelStats()]);
     setLoadingStats(false);
   }
 
@@ -235,16 +247,23 @@ export default function AdminPage() {
         </div>
       )}
 
-      {funnelStats && (
+      {(funnelStats || funnelError) && (
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 16, marginBottom: 12 }}>قمع التسجيل (آخر 7 أيام)</h2>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <FunnelStepCard label="اختار دور" value={funnelStats.roleSelected} />
-            <FunnelArrow from={funnelStats.roleSelected} to={funnelStats.methodSelected} />
-            <FunnelStepCard label="اختار طريقة تسجيل" value={funnelStats.methodSelected} />
-            <FunnelArrow from={funnelStats.methodSelected} to={funnelStats.completed} />
-            <FunnelStepCard label="أكمل التسجيل" value={funnelStats.completed} />
-          </div>
+          {funnelError && (
+            <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
+              تعذر تحميل بيانات القمع — باقي الإحصائيات تحت شغالة عادي.
+            </div>
+          )}
+          {funnelStats && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <FunnelStepCard label="اختار دور" value={funnelStats.roleSelected} />
+              <FunnelArrow from={funnelStats.roleSelected} to={funnelStats.methodSelected} />
+              <FunnelStepCard label="اختار طريقة تسجيل" value={funnelStats.methodSelected} />
+              <FunnelArrow from={funnelStats.methodSelected} to={funnelStats.completed} />
+              <FunnelStepCard label="أكمل التسجيل" value={funnelStats.completed} />
+            </div>
+          )}
         </div>
       )}
 
