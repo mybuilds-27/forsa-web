@@ -20,6 +20,7 @@ import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "@/lib/firebase";
 import { normalizeEgyptianPhone } from "@/lib/phoneAuth";
 import { logClientError } from "@/lib/errorLog";
+import { logFunnelEvent } from "@/lib/registrationFunnel";
 
 export type Role = "job_seeker" | "employer";
 
@@ -155,6 +156,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     setGoogleLoading(true);
     authInProgressRef.current = true;
     (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "google" });
+    logFunnelEvent("method_selected", role, "google");
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
@@ -183,6 +185,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     setError("");
     setEmailPanelOpen(true);
     (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "email" });
+    logFunnelEvent("method_selected", role, "email");
   }
 
   function closeEmailAuth() {
@@ -339,6 +342,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     }
 
     (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "phone" });
+    logFunnelEvent("method_selected", role, "phone");
     try {
       const verifier = getRecaptchaVerifier();
       const result = await signInWithPhoneNumber(auth, normalized, verifier);
