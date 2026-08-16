@@ -7,6 +7,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import RegisterForm, { Role } from "@/components/RegisterForm";
 import LogoMark from "@/components/LogoMark";
+import { logFunnelEvent } from "@/lib/registrationFunnel";
 
 // نفس المفتاح المستخدم جوه RegisterForm.tsx وقت signInWithRedirect — لو موجود، معناه
 // المستخدم راجع لتوّه من ريدايركت جوجل، فـRegisterForm هو المسؤول عن استكمال التسجيل
@@ -49,6 +50,7 @@ function RegisterPageInner() {
   function selectRole(newRole: Role) {
     setRole(newRole);
     (window as any).fbq?.("trackCustom", "SelectAccountType", { type: newRole });
+    logFunnelEvent("role_selected", newRole);
     const params = new URLSearchParams(searchParams.toString());
     if (newRole === "employer") params.set("role", "employer");
     else params.delete("role");

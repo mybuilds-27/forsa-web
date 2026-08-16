@@ -48,9 +48,16 @@ type Stats = {
   activeUsers24h: number;
 };
 
+type FunnelStats = {
+  roleSelected: number;
+  methodSelected: number;
+  completed: number;
+};
+
 export default function AdminPage() {
   const [status, setStatus] = useState<"loading" | "denied" | "allowed">("loading");
   const [stats, setStats] = useState<Stats | null>(null);
+  const [funnelStats, setFunnelStats] = useState<FunnelStats | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [seoData, setSeoData] = useState<{ governorates: string[]; specializations: string[]; combos: JobCombo[] } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -75,18 +82,39 @@ export default function AdminPage() {
     setLoadingStats(true);
     try {
       const oneDayAgo = Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+      const sevenDaysAgo = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
 
-      const [seekersSnap, employersSnap, postsSnap, activePostsSnap, appsSnap, totalUsersSnap, activeUsersSnap, jobsSeoData] =
-        await Promise.all([
-          getDocs(collection(db, "job_seekers")),
-          getDocs(collection(db, "employers")),
-          getDocs(collection(db, "job_posts")),
-          getDocs(query(collection(db, "job_posts"), where("isActive", "==", true))),
-          getDocs(collection(db, "applications")),
-          getDocs(collection(db, "users")),
-          getDocs(query(collection(db, "users"), where("lastActiveAt", ">=", oneDayAgo))),
-          getActiveJobsSeoData(),
-        ]);
+      const [
+        seekersSnap,
+        employersSnap,
+        postsSnap,
+        activePostsSnap,
+        appsSnap,
+        totalUsersSnap,
+        activeUsersSnap,
+        recentUsersSnap,
+        funnelEventsSnap,
+        jobsSeoData,
+      ] = await Promise.all([
+        getDocs(collection(db, "job_seekers")),
+        getDocs(collection(db, "employers")),
+        getDocs(collection(db, "job_posts")),
+        getDocs(query(collection(db, "job_posts"), where("isActive", "==", true))),
+        getDocs(collection(db, "applications")),
+        getDocs(collection(db, "users")),
+        getDocs(query(collection(db, "users"), where("lastActiveAt", ">=", oneDayAgo))),
+        getDocs(query(collection(db, "users"), where("createdAt", ">=", sevenDaysAgo))),
+        getDocs(query(collection(db, "registration_funnel_events"), where("timestamp", ">=", sevenDaysAgo))),
+        getActiveJobsSeoData(),
+      ]);
+
+      // "أكمل التسجيل" مش ليها حدث قمع منفصل — بتتحسب مباشرة من users بنفس فترة الـ7 أيام
+      // اللي بيتحسب فيها باقي القمع، عشان النسب تكون متسقة.
+      setFunnelStats({
+        roleSelected: funnelEventsSnap.docs.filter((d) => d.data().step === "role_selected").length,
+        methodSelected: funnelEventsSnap.docs.filter((d) => d.data().step === "method_selected").length,
+        completed: recentUsersSnap.size,
+      });
 
       setSeoData({
         governorates: jobsSeoData.governorates,
@@ -204,6 +232,19 @@ export default function AdminPage() {
           <StatCard label="كل الإعلانات" value={stats.allPosts} />
           <StatCard label="الإعلانات النشطة" value={stats.activePosts} />
           <StatCard label="كل التقديمات" value={stats.applications} />
+        </div>
+      )}
+
+      {funnelStats && (
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 16, marginBottom: 12 }}>قمع التسجيل (آخر 7 أيام)</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <FunnelStepCard label="اختار دور" value={funnelStats.roleSelected} />
+            <FunnelArrow from={funnelStats.roleSelected} to={funnelStats.methodSelected} />
+            <FunnelStepCard label="اختار طريقة تسجيل" value={funnelStats.methodSelected} />
+            <FunnelArrow from={funnelStats.methodSelected} to={funnelStats.completed} />
+            <FunnelStepCard label="أكمل التسجيل" value={funnelStats.completed} />
+          </div>
         </div>
       )}
 
@@ -419,6 +460,31 @@ function StatCard({ label, value, subtitle }: { label: string; value: number | s
       <div style={{ fontSize: 22, fontWeight: 900 }}>{value}</div>
       <div style={{ fontSize: 12, color: "#4A5568" }}>{label}</div>
       {subtitle && <div style={{ fontSize: 11, color: "#4A5568", marginTop: 4 }}>{subtitle}</div>}
+    </div>
+  );
+}
+
+function FunnelStepCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #14213D22", borderRadius: 8, padding: "12px 16px", textAlign: "center", minWidth: 120, flex: "1 1 120px" }}>
+      <div style={{ fontSize: 22, fontWeight: 900 }}>{value}</div>
+      <div style={{ fontSize: 12, color: "#4A5568" }}>{label}</div>
+    </div>
+  );
+}
+
+// نسبة السقوط من الخطوة اللي قبلها — لو الخطوة السابقة صفر، مفيش نسبة تتحسب (تجنبًا لقسمة
+// على صفر)، وده متوقع للـ7 أيام الأولى بعد إضافة التتبّع ده لحد ما يتراكم بيانات كفاية.
+function FunnelArrow({ from, to }: { from: number; to: number }) {
+  const dropPercent = from > 0 ? Math.round((1 - to / from) * 100) : null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flex: "0 0 auto" }}>
+      <span style={{ fontSize: 18, color: "#4A5568" }}>←</span>
+      {dropPercent !== null && (
+        <span style={{ fontSize: 11, fontWeight: 700, color: dropPercent >= 0 ? "#B03A14" : "#2F6F4E", whiteSpace: "nowrap" }}>
+          {dropPercent >= 0 ? `-${dropPercent}%` : `+${-dropPercent}%`}
+        </span>
+      )}
     </div>
   );
 }
