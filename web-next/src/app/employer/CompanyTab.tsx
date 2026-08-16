@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import EmployerOnboardingForm from "./EmployerOnboardingForm";
-import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsCSV } from "@/lib/jobPostActions";
+import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
 import { EXPERIENCE_LEVELS } from "@/lib/constants";
 import ShareButton from "@/components/ShareButton";
 import ApplicantCard from "@/components/ApplicantCard";
@@ -172,10 +172,10 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
     }
   }
 
-  function exportCSV(postId: string, jobTitle: string) {
+  function exportExcel(postId: string, jobTitle: string) {
     const user = auth.currentUser;
     if (!user) return;
-    exportApplicantsCSV(postId, jobTitle, user.uid);
+    exportApplicantsExcel(postId, jobTitle, user.uid);
   }
 
   if (editing) {
@@ -293,7 +293,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                       👥 عرض المتقدمين ({appCount})
                     </button>
                     {appCount > 0 && (
-                      <button onClick={() => exportCSV(p.id, p.title)} style={ghostActionStyle}>⬇ تحميل Excel</button>
+                      <button onClick={() => exportExcel(p.id, p.title)} style={ghostActionStyle}>⬇ تحميل Excel</button>
                     )}
                   </div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
