@@ -381,7 +381,7 @@ export default function AdminPage() {
                     👥 عرض المتقدمين ({p.applicantCount})
                   </button>
                   {p.applicantCount > 0 && (
-                    <button onClick={() => exportApplicantsExcel(p.id, p.title, p.employerId)} style={ghostActionStyle}>⬇ تحميل Excel</button>
+                    <button onClick={() => exportApplicantsExcel(p.id, p.title, p.employerId, p.screeningQuestions || [])} style={ghostActionStyle}>⬇ تحميل Excel</button>
                   )}
                   <a href={`/jobs/${p.id}`} target="_blank" rel="noopener noreferrer" style={{ ...ghostActionStyle, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
                     🔗 الصفحة العامة

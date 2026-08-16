@@ -172,10 +172,10 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
     }
   }
 
-  function exportExcel(postId: string, jobTitle: string) {
+  function exportExcel(postId: string, jobTitle: string, screeningQuestions?: JobPost["screeningQuestions"]) {
     const user = auth.currentUser;
     if (!user) return;
-    exportApplicantsExcel(postId, jobTitle, user.uid);
+    exportApplicantsExcel(postId, jobTitle, user.uid, screeningQuestions || []);
   }
 
   if (editing) {
@@ -293,7 +293,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                       👥 عرض المتقدمين ({appCount})
                     </button>
                     {appCount > 0 && (
-                      <button onClick={() => exportExcel(p.id, p.title)} style={ghostActionStyle}>⬇ تحميل Excel</button>
+                      <button onClick={() => exportExcel(p.id, p.title, p.screeningQuestions)} style={ghostActionStyle}>⬇ تحميل Excel</button>
                     )}
                   </div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
