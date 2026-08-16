@@ -7,7 +7,7 @@ import { auth, db } from "@/lib/firebase";
 import ShareButton from "@/components/ShareButton";
 import PostJobTab from "../employer/PostJobTab";
 import Link from "next/link";
-import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsCSV } from "@/lib/jobPostActions";
+import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
 import { EXPERIENCE_LEVELS, slugify } from "@/lib/constants";
 import { getActiveJobsSeoData, type JobCombo } from "@/lib/publicJobsQuery";
 import ApplicantCard from "@/components/ApplicantCard";
@@ -381,7 +381,7 @@ export default function AdminPage() {
                     👥 عرض المتقدمين ({p.applicantCount})
                   </button>
                   {p.applicantCount > 0 && (
-                    <button onClick={() => exportApplicantsCSV(p.id, p.title, p.employerId)} style={ghostActionStyle}>⬇ تحميل Excel</button>
+                    <button onClick={() => exportApplicantsExcel(p.id, p.title, p.employerId)} style={ghostActionStyle}>⬇ تحميل Excel</button>
                   )}
                   <a href={`/jobs/${p.id}`} target="_blank" rel="noopener noreferrer" style={{ ...ghostActionStyle, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
                     🔗 الصفحة العامة
