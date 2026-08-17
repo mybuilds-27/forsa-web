@@ -9,7 +9,7 @@ import { EXPERIENCE_LEVELS, findGovernorateBySlug, slugify } from "@/lib/constan
 import { tagStyle, featuredPillStyle, JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseSidebar from "@/components/BrowseSidebar";
-import JobListItem from "../JobListItem";
+import PublicJobsList from "@/components/PublicJobsList";
 
 const POPULAR_COMBOS_COUNT = 8;
 
@@ -199,11 +199,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               </div>
             )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {jobs.map((job) => (
-                <JobListItem key={job.id} job={job} />
-              ))}
-            </div>
+            <PublicJobsList jobs={jobs} />
 
             {specialtiesForGovernorate.length > 0 && (
               <div style={{ marginTop: 30, paddingTop: 20, borderTop: "1px solid #DED2B5" }}>
