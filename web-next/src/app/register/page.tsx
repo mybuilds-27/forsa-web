@@ -17,7 +17,7 @@ const PENDING_ROLE_STORAGE_KEY = "elshoghl_pending_auth_role";
 // نفس القايمة المستخدمة في Navbar.tsx وRegisterForm.tsx وadmin/page.tsx لتحديد حساب الأدمن
 const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
 
-const COLORS = { ink: "#14213D" };
+const COLORS = { ink: "#14213D", inkSoft: "#4A5568" };
 
 export default function RegisterPage() {
   return (
@@ -43,6 +43,9 @@ function RegisterPageInner() {
     searchParams.get("role") === "employer" ? "employer" : "job_seeker"
   );
   const [checkingSession, setCheckingSession] = useState(true);
+  // بيزيد كل ما المستخدم يدوس على لينك "عندك حساب بالفعل؟" فوق — RegisterForm بيراقب
+  // التغيير ده ويفتح فورم الإيميل في وضع "دخول" مباشرة (زرار "دخول" بدل "إنشاء حساب").
+  const [loginSignal, setLoginSignal] = useState(0);
 
   // بيحدّث الـURL (من غير navigation كاملة) كل ما المستخدم يدوس على التوجل، عشان اللينك
   // فوق يفضل عاكس الاختيار الفعلي دايمًا — التسجيل نفسه بيعتمد على state role مش على
@@ -98,6 +101,24 @@ function RegisterPageInner() {
 
   return (
     <div dir="rtl" style={{ maxWidth: 440, margin: "0 auto", padding: "40px 20px" }}>
+      <div style={{ textAlign: "center", marginBottom: 10 }}>
+        <button
+          type="button"
+          onClick={() => setLoginSignal((n) => n + 1)}
+          style={{
+            background: "none",
+            border: "none",
+            fontSize: 12.5,
+            color: COLORS.inkSoft,
+            textDecoration: "underline",
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          عندك حساب بالفعل؟ سجل دخول من هنا
+        </button>
+      </div>
+
       <div style={{ textAlign: "center", marginBottom: 28 }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
           <LogoMark size={44} />
@@ -110,7 +131,7 @@ function RegisterPageInner() {
         </h1>
       </div>
 
-      <RegisterForm role={role} onRoleChange={selectRole} onSuccess={handleSuccess} />
+      <RegisterForm role={role} onRoleChange={selectRole} onSuccess={handleSuccess} openLoginSignal={loginSignal} />
     </div>
   );
 }

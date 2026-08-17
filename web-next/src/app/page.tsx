@@ -1,6 +1,6 @@
 import Link from "next/link";
 import BrowseByCombos from "@/components/BrowseByCombos";
-import JobListItem from "./jobs/JobListItem";
+import PublicJobsList from "@/components/PublicJobsList";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import { GOVERNORATES } from "@/lib/constants";
 import { JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
@@ -111,11 +111,7 @@ export default async function HomePage() {
         {latestJobs.length > 0 && (
           <div style={{ marginBottom: 40 }}>
             <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>أحدث الوظائف</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
-              {latestJobs.map((job) => (
-                <JobListItem key={job.id} job={job} />
-              ))}
-            </div>
+            <PublicJobsList jobs={latestJobs} layout="grid" />
           </div>
         )}
 

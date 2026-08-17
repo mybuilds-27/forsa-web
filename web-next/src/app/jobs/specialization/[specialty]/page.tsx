@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { findSpecialtyBySlug, slugify } from "@/lib/constants";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseSidebar from "@/components/BrowseSidebar";
-import JobListItem from "../../JobListItem";
+import PublicJobsList from "@/components/PublicJobsList";
 
 const POPULAR_COMBOS_COUNT = 8;
 
@@ -64,11 +64,7 @@ export default async function SpecializationJobsPage({
             </div>
           )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {jobs.map((job) => (
-              <JobListItem key={job.id} job={job} />
-            ))}
-          </div>
+          <PublicJobsList jobs={jobs} />
 
           {governoratesForSpecialty.length > 0 && (
             <div style={{ marginTop: 30, paddingTop: 20, borderTop: "1px solid #DED2B5" }}>

@@ -56,9 +56,13 @@ type Props = {
   // الصفحة بتستخدمه للتوجيه لـ/seeker أو /employer، والمودال بيستخدمه عشان يكمّل التقديم
   // على الوظيفة فورًا من غير ما يحتاج المستخدم يدوس "قدم الآن" تاني.
   onSuccess: (role: Role) => void;
+  // بيتغيّر (counter) كل ما لينك "عندك حساب بالفعل؟" فوق اللوجو في register/page.tsx يتدوس
+  // عليه — بيفتح فورم الإيميل في وضع "دخول" مباشرة. undefined يعني معندناش زرار خارجي بيطلب
+  // كده (زي مودال التقديم على وظيفة).
+  openLoginSignal?: number;
 };
 
-export default function RegisterForm({ role, onRoleChange, showRoleToggle = true, onSuccess }: Props) {
+export default function RegisterForm({ role, onRoleChange, showRoleToggle = true, onSuccess, openLoginSignal }: Props) {
   const router = useRouter();
 
   const [isWebView, setIsWebView] = useState(false);
@@ -68,7 +72,17 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     setIsWebView(isInAppWebView());
   }, []);
 
+  // بيفتح فورم الإيميل في وضع "دخول" مباشرة كل ما openLoginSignal يتغيّر — أول render بيه
+  // undefined أو 0 فمبيعملش حاجة، وبعدين أي زيادة (دوسة على اللينك) بتفتح الفورم.
+  useEffect(() => {
+    if (!openLoginSignal) return;
+    setEmailPanelOpen(true);
+    setLoginMode(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openLoginSignal]);
+
   const [emailPanelOpen, setEmailPanelOpen] = useState(false);
+  const [loginMode, setLoginMode] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailSaving, setEmailSaving] = useState(false);
@@ -184,12 +198,14 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
   function openEmailAuth() {
     setError("");
     setEmailPanelOpen(true);
+    setLoginMode(false);
     (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "email" });
     logFunnelEvent("method_selected", role, "email");
   }
 
   function closeEmailAuth() {
     setEmailPanelOpen(false);
+    setLoginMode(false);
     setEmail("");
     setPassword("");
     setError("");
@@ -382,7 +398,9 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
   // إلا لو المستخدم فتح فورم الإيميل بنفسه (اختيار صريح)، وقتها بياخد الأولوية.
   function finalCta(): { label: string; onClick: () => void; disabled: boolean } {
     if (emailPanelOpen) {
-      return { label: "إنشاء حساب مجانًا", onClick: handleEmailSignUp, disabled: emailSaving };
+      return loginMode
+        ? { label: "دخول", onClick: handleEmailLogin, disabled: emailSaving }
+        : { label: "إنشاء حساب مجانًا", onClick: handleEmailSignUp, disabled: emailSaving };
     }
     if (phoneStep === "enter-code") {
       return { label: "إنشاء حساب مجانًا", onClick: handleVerifyCode, disabled: phoneLoading };

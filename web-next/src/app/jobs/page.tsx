@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { getFilteredPublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseByCombos from "@/components/BrowseByCombos";
-import JobListItem from "./JobListItem";
+import PublicJobsList from "@/components/PublicJobsList";
 import JobsFilterBar from "./JobsFilterBar";
 
 export const metadata = {
@@ -48,11 +48,7 @@ export default async function JobsListPage({ searchParams }: Props) {
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {jobs.map((job) => (
-          <JobListItem key={job.id} job={job} />
-        ))}
-      </div>
+      <PublicJobsList jobs={jobs} />
 
       {popularCombos.length > 0 && (
         <div style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid #DED2B5" }}>
