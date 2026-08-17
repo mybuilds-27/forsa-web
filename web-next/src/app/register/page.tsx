@@ -17,7 +17,7 @@ const PENDING_ROLE_STORAGE_KEY = "elshoghl_pending_auth_role";
 // نفس القايمة المستخدمة في Navbar.tsx وRegisterForm.tsx وadmin/page.tsx لتحديد حساب الأدمن
 const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
 
-const COLORS = { ink: "#14213D", inkSoft: "#4A5568" };
+const COLORS = { ink: "#14213D", inkSoft: "#4A5568", stamp: "#B03A14" };
 
 export default function RegisterPage() {
   return (
@@ -38,7 +38,7 @@ function RegisterPageInner() {
   const searchParams = useSearchParams();
 
   // ?role=employer بيخلي التوجل مظبوط على "صاحب عمل" من البداية (مفيد لو جاي من زرار
-  // "بتدوّر على موظفين؟")، وأي حاجة تانية (أو من غيره خالص) بترجع لـ"باحث عن شغل" كافتراضي.
+  // "سجل كصاحب عمل")، وأي حاجة تانية (أو من غيره خالص) بترجع لـ"باحث عن شغل" كافتراضي.
   const [role, setRole] = useState<Role>(() =>
     searchParams.get("role") === "employer" ? "employer" : "job_seeker"
   );
@@ -108,8 +108,9 @@ function RegisterPageInner() {
           style={{
             background: "none",
             border: "none",
-            fontSize: 12.5,
-            color: COLORS.inkSoft,
+            fontSize: 13.5,
+            fontWeight: 700,
+            color: COLORS.stamp,
             textDecoration: "underline",
             cursor: "pointer",
             fontFamily: "inherit",

@@ -14,6 +14,8 @@ import {
   RecaptchaVerifier,
   signInWithPhoneNumber,
   ConfirmationResult,
+  EmailAuthProvider,
+  linkWithCredential,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
@@ -44,6 +46,13 @@ const COLORS = {
 function isInAppWebView(): boolean {
   if (typeof navigator === "undefined") return false;
   return /FBAN|FBAV|Instagram/i.test(navigator.userAgent || "");
+}
+
+// فايربيز مالوش "دخول بتليفون + باسورد" كطريقة مصادقة مستقلة — الحل الشائع إننا نربط
+// (link) بيانات دخول إيميل/باسورد بنفس حساب التليفون، بإيميل داخلي وهمي مبني من الرقم
+// نفسه، من غير ما المستخدم يشوفه أو يتفاعل معاه خالص. e164Phone هنا بصيغة زي +201012345678.
+function phoneToSyntheticEmail(e164Phone: string): string {
+  return `phone+${e164Phone.replace(/^\+/, "")}@elshoghl.internal`;
 }
 
 type Props = {
@@ -95,9 +104,17 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
   const [phoneStep, setPhoneStep] = useState<"enter-phone" | "enter-code">("enter-phone");
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [phonePassword, setPhonePassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [phoneLoading, setPhoneLoading] = useState(false);
+  // otpContext بيفرّق بين خطوة الكود بتاعة تسجيل جديد بالتليفون، وخطوة الكود بتاعة استرجاع
+  // دخول مستخدم قديم اتسجل بالتليفون قبل ما يبقى عندنا باسورد (شوف handleOtpFallback تحت).
+  const [otpContext, setOtpContext] = useState<"signup" | "login-fallback">("signup");
+  // بيظهر لما مستخدم يجرب يدخل برقم تليفون + باسورد ويفشل — يديله فرصة يدخل بكود التحقق
+  // القديم بدل ما يتقفل برّه، وبعدين نربطله الباسورد اللي كتبه عشان يستخدمه المرة الجاية.
+  const [showOtpFallback, setShowOtpFallback] = useState(false);
+  const [pendingLoginPhone, setPendingLoginPhone] = useState<string | null>(null);
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
   // true من لحظة ما أي محاولة تسجيل جديدة تبدأ لحد ما routeAfterAuth بتاعتها يخلص أو يفشل.
   const authInProgressRef = useRef(false);
@@ -209,6 +226,15 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     setEmail("");
     setPassword("");
     setError("");
+    setShowOtpFallback(false);
+    setPendingLoginPhone(null);
+    // لو المستخدم كان في نص استرجاع دخول بالـOTP وقفل الفورم، نرجّع كل حاجة لوضعها الطبيعي
+    if (otpContext === "login-fallback") {
+      setOtpContext("signup");
+      setPhoneStep("enter-phone");
+      setOtpCode("");
+      setConfirmationResult(null);
+    }
   }
 
   function emailAuthErrorMessage(err: any): string {
@@ -263,6 +289,78 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     }
   }
 
+  // فورم "دخول" بياخد رقم موبايل أو إيميل في حقل واحد — بنفرّق بينهم برقم مصري صحيح ولا لأ.
+  async function handleUnifiedLogin() {
+    const identifier = email.trim();
+    const normalizedPhone = normalizeEgyptianPhone(identifier);
+    if (normalizedPhone) {
+      await handlePhonePasswordLogin(normalizedPhone);
+    } else {
+      await handleEmailLogin();
+    }
+  }
+
+  async function handlePhonePasswordLogin(normalizedPhone: string) {
+    setError("");
+    setErrorColor(COLORS.stamp);
+    setEmailSaving(true);
+    authInProgressRef.current = true;
+    try {
+      await signInWithEmailAndPassword(auth, phoneToSyntheticEmail(normalizedPhone), password);
+      closeEmailAuth();
+      await routeAfterAuth(role);
+    } catch (err: any) {
+      // ده ممكن يبقى باسورد غلط، أو حساب قديم اتسجل بالتليفون قبل ما يبقى عندنا باسورد
+      // خالص — مقدرش أفرّق بينهم من نوع الخطأ لوحده، فبديله فرصة يدخل بكود التحقق بدلها.
+      console.error("Phone password login failed", err);
+      logClientError("phone_password_login", err);
+      setError("الباسورد غلط، أو الحساب ده لسه معندوش باسورد متسجل.");
+      setPendingLoginPhone(normalizedPhone);
+      setShowOtpFallback(true);
+    } finally {
+      authInProgressRef.current = false;
+      setEmailSaving(false);
+    }
+  }
+
+  // مستخدم قديم اتسجل بالتليفون قبل ما نضيف الباسورد — بنرجّعه لمسار الـOTP القديم عشان
+  // يقدر يدخل، وبعد ما يتأكد الكود بنربط نفس الباسورد اللي كان كاتبه فوق (handleVerifyCode).
+  function handleOtpFallback() {
+    if (!pendingLoginPhone) return;
+    setOtpContext("login-fallback");
+    setPhoneNumber(pendingLoginPhone);
+    setShowOtpFallback(false);
+    setError("");
+    handleSendCode(pendingLoginPhone);
+  }
+
+  function cancelLoginOtp() {
+    setPhoneStep("enter-phone");
+    setOtpCode("");
+    setConfirmationResult(null);
+    setOtpContext("signup");
+    setShowOtpFallback(true);
+    setError("");
+  }
+
+  // بعد ما أي تحقق بالتليفون (تسجيل جديد أو استرجاع دخول) ينجح، بنربط الباسورد اللي كتبه
+  // المستخدم بالحساب — بس لو الحساب معندوش credential باسورد مربوط بالفعل (مستخدم اتسجل
+  // بالتليفون قبل التعديل ده ولسه معندوش باسورد). فشل الربط ميوقفش تسجيل الدخول نفسه.
+  async function linkPasswordIfNeeded(passwordToLink: string, normalizedPhone: string) {
+    const user = auth.currentUser;
+    // في حالة استرجاع الدخول، passwordToLink ممكن يكون مجرد "محاولة" كتبها المستخدم قبل ما
+    // يكتشف إن حسابه لسه معندوش باسورد — لو أقل من 6 أحرف مش هنربطها كباسورد فعلي بدون
+    // تأكيد صريح منه، ونسيبه يقدر يعمل كده لاحقًا بدل ما نفرض عليه باسورد قصير مش قاصده.
+    if (!user || passwordToLink.trim().length < 6) return;
+    if (user.providerData.some((p) => p.providerId === "password")) return;
+    try {
+      await linkWithCredential(user, EmailAuthProvider.credential(phoneToSyntheticEmail(normalizedPhone), passwordToLink));
+    } catch (err) {
+      console.error("Failed to link password credential to phone account", err);
+      logClientError("phone_link_password", err);
+    }
+  }
+
   async function handlePasswordReset() {
     if (!email.trim()) {
       setErrorColor(COLORS.stamp);
@@ -305,7 +403,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
 
   // مفيش "إلغاء" كامل للتليفون دلوقتي (الحقول ظاهرة على طول، مفيش حاجة تتقفل) — بس لو
   // المستخدم وصل لخطوة الكود وعايز يغيّر الرقم، بيرجّعه لخطوة إدخال الرقم من غير ما يمسح
-  // الاسم أو الرقم اللي كتبهم قبل كده.
+  // الاسم أو الرقم أو الباسورد اللي كتبهم قبل كده.
   function resetPhoneCodeStep() {
     setPhoneStep("enter-phone");
     setOtpCode("");
@@ -323,14 +421,26 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     }
   }
 
-  async function handleSendCode() {
+  // phoneOverride بتتبعت من handleOtpFallback عشان تتفادى قراءة state الـphoneNumber قبل
+  // ما يتحدّث فعليًا (setState مش متزامن) — من غيرها هيتبعت الرقم القديم مش الجديد.
+  async function handleSendCode(phoneOverride?: string) {
     setError("");
     setErrorColor(COLORS.stamp);
-    if (!fullName.trim()) {
-      setError("اكتب اسمك بالكامل");
-      return;
+
+    const isSignup = otpContext === "signup";
+
+    if (isSignup) {
+      if (!fullName.trim()) {
+        setError("اكتب اسمك بالكامل");
+        return;
+      }
+      if (!phonePassword || phonePassword.length < 6) {
+        setError("اختار باسورد 6 أحرف على الأقل");
+        return;
+      }
     }
-    const normalized = normalizeEgyptianPhone(phoneNumber.trim());
+
+    const normalized = normalizeEgyptianPhone((phoneOverride ?? phoneNumber).trim());
     if (!normalized) {
       setError("اكتب رقم موبايل مصري صحيح (مثال: 01012345678)");
       return;
@@ -338,27 +448,32 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
 
     setPhoneLoading(true);
 
-    // بنتأكد الرقم ده مش مرتبط بحساب موجود بالفعل (اتسجل قبل كده بجوجل أو الإيميل) قبل
-    // ما نبعت كود التحقق أصلًا — يمنع حساب مزدوج ويوفّر رسالة SMS مش هتتبعت لو الحساب
-    // موجود بالفعل. لو الفحص نفسه فشل (مشكلة شبكة مثلًا) بنكمّل عادي وميوقفش التسجيل،
-    // لأنه تحقق إضافي مش بوابة أمان أساسية.
-    try {
-      const checkPhone = httpsCallable(functions, "checkPhoneAlreadyRegistered");
-      const result = await checkPhone({ phone: normalized });
-      if ((result.data as any)?.alreadyRegistered) {
-        setError(
-          "الرقم ده متسجل بحساب موجود بالفعل — سجّل دخولك بنفس الطريقة اللي استخدمتها أول مرة (جوجل أو الإيميل) بدل رقم التليفون."
-        );
-        setPhoneLoading(false);
-        return;
+    // فحص تضارب الحسابات معناه بس وقت التسجيل الجديد — استرجاع دخول حساب قديم غرضه أصلًا
+    // إن الرقم ده مرتبط بحساب موجود، فمفيش داعي (ولا معنى) نمنعه هنا.
+    if (isSignup) {
+      // بنتأكد الرقم ده مش مرتبط بحساب موجود بالفعل (اتسجل قبل كده بجوجل أو الإيميل) قبل
+      // ما نبعت كود التحقق أصلًا — يمنع حساب مزدوج ويوفّر رسالة SMS مش هتتبعت لو الحساب
+      // موجود بالفعل. لو الفحص نفسه فشل (مشكلة شبكة مثلًا) بنكمّل عادي وميوقفش التسجيل،
+      // لأنه تحقق إضافي مش بوابة أمان أساسية.
+      try {
+        const checkPhone = httpsCallable(functions, "checkPhoneAlreadyRegistered");
+        const result = await checkPhone({ phone: normalized });
+        if ((result.data as any)?.alreadyRegistered) {
+          setError(
+            "الرقم ده متسجل بحساب موجود بالفعل — سجّل دخولك بنفس الطريقة اللي استخدمتها أول مرة (جوجل أو الإيميل) بدل رقم التليفون."
+          );
+          setPhoneLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Phone conflict check failed", err);
+        logClientError("phone_conflict_check", err);
       }
-    } catch (err) {
-      console.error("Phone conflict check failed", err);
-      logClientError("phone_conflict_check", err);
+
+      (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "phone" });
+      logFunnelEvent("method_selected", role, "phone");
     }
 
-    (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "phone" });
-    logFunnelEvent("method_selected", role, "phone");
     try {
       const verifier = getRecaptchaVerifier();
       const result = await signInWithPhoneNumber(auth, normalized, verifier);
@@ -376,13 +491,21 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
 
   async function handleVerifyCode() {
     if (!confirmationResult) return;
+    const normalized = normalizeEgyptianPhone(phoneNumber.trim());
+    if (!normalized) return;
     setError("");
     setErrorColor(COLORS.stamp);
     setPhoneLoading(true);
     authInProgressRef.current = true;
     try {
       await confirmationResult.confirm(otpCode.trim());
-      await routeAfterAuth(role, fullName.trim());
+      const isSignup = otpContext === "signup";
+      await linkPasswordIfNeeded(isSignup ? phonePassword : password, normalized);
+      if (isSignup) {
+        await routeAfterAuth(role, fullName.trim());
+      } else {
+        await routeAfterAuth(role);
+      }
     } catch (err: any) {
       console.error("Verify code failed", err);
       logClientError("phone_verify_code", err);
@@ -394,18 +517,23 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
   }
 
   // الزرار النهائي الأحمر بيتكيّف مع الخطوة الحالية بدل ما يبقى فيه زرار submit منفصل جوه
-  // كل قسم. حقول الاسم/التليفون ظاهرة على طول وهي المسار الافتراضي، فبتحكم في الزرار
-  // إلا لو المستخدم فتح فورم الإيميل بنفسه (اختيار صريح)، وقتها بياخد الأولوية.
+  // كل قسم. خطوة تأكيد كود الـOTP (تسجيل جديد أو استرجاع دخول) ليها الأولوية القصوى لو
+  // بدأت فعليًا، حتى لو فورم الإيميل لسه مفتوح تقنيًا — بعد كده فورم الإيميل، وأخيرًا حقول
+  // الاسم/التليفون الافتراضية.
   function finalCta(): { label: string; onClick: () => void; disabled: boolean } {
+    if (phoneStep === "enter-code") {
+      return {
+        label: otpContext === "login-fallback" ? "دخول" : "إنشاء حساب مجانًا",
+        onClick: handleVerifyCode,
+        disabled: phoneLoading,
+      };
+    }
     if (emailPanelOpen) {
       return loginMode
-        ? { label: "دخول", onClick: handleEmailLogin, disabled: emailSaving }
+        ? { label: "دخول", onClick: handleUnifiedLogin, disabled: emailSaving }
         : { label: "إنشاء حساب مجانًا", onClick: handleEmailSignUp, disabled: emailSaving };
     }
-    if (phoneStep === "enter-code") {
-      return { label: "إنشاء حساب مجانًا", onClick: handleVerifyCode, disabled: phoneLoading };
-    }
-    return { label: "ابعتلي كود التحقق", onClick: handleSendCode, disabled: phoneLoading };
+    return { label: "ابعتلي كود التحقق", onClick: () => handleSendCode(), disabled: phoneLoading };
   }
 
   const cta = finalCta();
@@ -538,6 +666,19 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
                 style={fieldInputStyle}
               />
             </div>
+            <div>
+              <label style={fieldLabelStyle}>اختار باسورد</label>
+              <input
+                type="password"
+                value={phonePassword}
+                onChange={(e) => setPhonePassword(e.target.value)}
+                placeholder="6 أحرف على الأقل"
+                style={fieldInputStyle}
+              />
+              <div style={{ fontSize: 11.5, color: COLORS.inkSoft, marginTop: -4 }}>
+                عشان تقدر تدخل المرة الجاية بالباسورد على طول من غير ما نبعتلك كود تاني
+              </div>
+            </div>
           </>
         )}
 
@@ -555,8 +696,12 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
             <div style={{ fontSize: 12, color: COLORS.inkSoft, marginTop: -4, marginBottom: 6 }}>
               اتبعتلك رسالة نصية فيها الكود على {phoneNumber}
             </div>
-            <button type="button" onClick={resetPhoneCodeStep} style={smallLinkStyle}>
-              تغيير الرقم
+            <button
+              type="button"
+              onClick={otpContext === "login-fallback" ? cancelLoginOtp : resetPhoneCodeStep}
+              style={smallLinkStyle}
+            >
+              {otpContext === "login-fallback" ? "رجوع" : "تغيير الرقم"}
             </button>
           </div>
         )}
@@ -608,12 +753,12 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
         {emailPanelOpen && (
           <div style={{ border: `1px solid ${COLORS.ink}22`, borderRadius: 12, padding: 18, background: "#fff" }}>
             <div style={{ marginBottom: 12 }}>
-              <label style={fieldLabelStyle}>الإيميل</label>
+              <label style={fieldLabelStyle}>{loginMode ? "رقم الموبايل أو الإيميل" : "الإيميل"}</label>
               <input
-                type="email"
+                type={loginMode ? "text" : "email"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="example@email.com"
+                placeholder={loginMode ? "01012345678 أو example@email.com" : "example@email.com"}
                 style={fieldInputStyle}
               />
             </div>
@@ -627,14 +772,30 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
                 style={fieldInputStyle}
               />
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-              <button type="button" onClick={handlePasswordReset} style={smallLinkStyle}>
-                نسيت الباسورد؟
-              </button>
-              <button type="button" onClick={handleEmailLogin} disabled={emailSaving} style={smallLinkStyle}>
-                عندي حساب بالفعل — دخول
-              </button>
-            </div>
+
+            {/* استرجاع الباسورد بإيميل فعلي بس — مش متاح لمستخدم بيدخل برقم تليفون لأن
+                الإيميل الداخلي اللي بنستخدمه وهمي، ومحدش يقدر يستلم إيميل عليه أصلًا. */}
+            {(!loginMode || !normalizeEgyptianPhone(email.trim())) && (
+              <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                <button type="button" onClick={handlePasswordReset} style={smallLinkStyle}>
+                  نسيت الباسورد؟
+                </button>
+                {!loginMode && (
+                  <button type="button" onClick={handleEmailLogin} disabled={emailSaving} style={smallLinkStyle}>
+                    عندي حساب بالفعل — دخول
+                  </button>
+                )}
+              </div>
+            )}
+
+            {showOtpFallback && (
+              <div style={{ marginTop: 10 }}>
+                <button type="button" onClick={handleOtpFallback} style={smallLinkStyle}>
+                  سجّلت بالتليفون قبل كده ولسه معندكش باسورد؟ ادخل بكود التحقق (OTP) بدلاً منه
+                </button>
+              </div>
+            )}
+
             <div style={{ marginTop: 10 }}>
               <button type="button" onClick={closeEmailAuth} style={smallLinkStyle}>
                 إلغاء
