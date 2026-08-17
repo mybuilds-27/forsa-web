@@ -164,6 +164,15 @@ export default function Navbar() {
           <button onClick={handleSignOut} style={signOutStyle}>خروج</button>
         </div>
       )}
+
+      {/* زراير الدخول للزوار مش المسجلين — منقولة من هيدر page.tsx القديم عشان منعملش هيدرين
+          فوق بعض على الصفحة الرئيسية. */}
+      {!signedIn && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/register?role=employer" style={employerCtaStyle}>بتدوّر على موظفين؟</Link>
+          <Link href="/register" style={seekerCtaStyle}>بتدوّر على شغل؟</Link>
+        </div>
+      )}
     </nav>
   );
 }
@@ -204,4 +213,25 @@ const signOutStyle: React.CSSProperties = {
   background: "transparent",
   fontSize: 13,
   cursor: "pointer",
+};
+
+const employerCtaStyle: React.CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 6,
+  border: "1.5px solid #14213D",
+  color: "#14213D",
+  fontSize: 13,
+  fontWeight: 700,
+  textDecoration: "none",
+};
+
+const seekerCtaStyle: React.CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 6,
+  border: "none",
+  background: "#B03A14",
+  color: "#fff",
+  fontSize: 13,
+  fontWeight: 700,
+  textDecoration: "none",
 };

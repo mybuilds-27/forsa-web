@@ -484,62 +484,9 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 4 }}>
-        <AuthOptionButton onClick={handleGoogleSignIn} disabled={googleLoading} icon={<GoogleIcon />} label="المتابعة بجوجل" />
-        {isWebView && (
-          <div style={{ fontSize: 12, color: "#8A570D", marginTop: -4 }}>
-            ⚠️ ممكن ما يشتغلش صح من جوه التطبيق — الأفضل تفتح الرابط في المتصفح زي فوق، أو
-            جرّب الإيميل أو التليفون تحت
-          </div>
-        )}
-
-        {!emailPanelOpen && (
-          <AuthOptionButton onClick={openEmailAuth} icon="✉️" label="المتابعة بالإيميل" />
-        )}
-
-        {emailPanelOpen && (
-          <div style={{ border: `1px solid ${COLORS.ink}22`, borderRadius: 12, padding: 18, background: "#fff" }}>
-            <div style={{ marginBottom: 12 }}>
-              <label style={fieldLabelStyle}>الإيميل</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="example@email.com"
-                style={fieldInputStyle}
-              />
-            </div>
-            <div style={{ marginBottom: 8 }}>
-              <label style={fieldLabelStyle}>الباسورد</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="6 أحرف على الأقل"
-                style={fieldInputStyle}
-              />
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-              <button type="button" onClick={handlePasswordReset} style={smallLinkStyle}>
-                نسيت الباسورد؟
-              </button>
-              <button type="button" onClick={handleEmailLogin} disabled={emailSaving} style={smallLinkStyle}>
-                عندي حساب بالفعل — دخول
-              </button>
-            </div>
-            <div style={{ marginTop: 10 }}>
-              <button type="button" onClick={closeEmailAuth} style={smallLinkStyle}>
-                إلغاء
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "6px 0" }}>
-          <div style={{ flex: 1, height: 1, background: `${COLORS.ink}22` }} />
-          <span style={{ fontSize: 12.5, color: COLORS.inkSoft }}>أو</span>
-          <div style={{ flex: 1, height: 1, background: `${COLORS.ink}22` }} />
-        </div>
-
+        {/* التسجيل بالاسم ورقم الموبايل هو الاختيار الأساسي الظاهر فوق — جوجل والإيميل
+            بدائل تحت خط "أو". ده بس ترتيب عرض بصري، المنطق والسلوك (فحص تضارب الحسابات،
+            الـOTP، إلخ) زي ما هو تمامًا. */}
         <p style={{ color: COLORS.inkSoft, fontSize: 12.5, lineHeight: 1.8, margin: 0 }}>
           ⚠️ لو سجّلت قبل كده بجوجل أو الإيميل، استخدم نفس الطريقة دي تاني بدل رقم التليفون —
           كل طريقة دخول بتعمل حساب منفصل.
@@ -615,6 +562,62 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
         >
           {cta.disabled ? "جاري التنفيذ..." : cta.label}
         </button>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "6px 0" }}>
+          <div style={{ flex: 1, height: 1, background: `${COLORS.ink}22` }} />
+          <span style={{ fontSize: 12.5, color: COLORS.inkSoft }}>أو</span>
+          <div style={{ flex: 1, height: 1, background: `${COLORS.ink}22` }} />
+        </div>
+
+        <AuthOptionButton onClick={handleGoogleSignIn} disabled={googleLoading} icon={<GoogleIcon />} label="المتابعة بجوجل" />
+        {isWebView && (
+          <div style={{ fontSize: 12, color: "#8A570D", marginTop: -4 }}>
+            ⚠️ ممكن ما يشتغلش صح من جوه التطبيق — الأفضل تفتح الرابط في المتصفح زي فوق، أو
+            جرّب الإيميل تحت
+          </div>
+        )}
+
+        {!emailPanelOpen && (
+          <AuthOptionButton onClick={openEmailAuth} icon="✉️" label="المتابعة بالإيميل" />
+        )}
+
+        {emailPanelOpen && (
+          <div style={{ border: `1px solid ${COLORS.ink}22`, borderRadius: 12, padding: 18, background: "#fff" }}>
+            <div style={{ marginBottom: 12 }}>
+              <label style={fieldLabelStyle}>الإيميل</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="example@email.com"
+                style={fieldInputStyle}
+              />
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <label style={fieldLabelStyle}>الباسورد</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="6 أحرف على الأقل"
+                style={fieldInputStyle}
+              />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+              <button type="button" onClick={handlePasswordReset} style={smallLinkStyle}>
+                نسيت الباسورد؟
+              </button>
+              <button type="button" onClick={handleEmailLogin} disabled={emailSaving} style={smallLinkStyle}>
+                عندي حساب بالفعل — دخول
+              </button>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <button type="button" onClick={closeEmailAuth} style={smallLinkStyle}>
+                إلغاء
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div id="recaptcha-container" />

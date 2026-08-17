@@ -1,5 +1,4 @@
 import Link from "next/link";
-import LogoMark from "@/components/LogoMark";
 import BrowseByCombos from "@/components/BrowseByCombos";
 import JobListItem from "./jobs/JobListItem";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
@@ -29,59 +28,6 @@ export default async function HomePage() {
 
   return (
     <div dir="rtl">
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 12,
-          padding: "16px 20px",
-          borderBottom: "1px solid #14213D14",
-        }}
-      >
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-          <LogoMark size={30} />
-          <span style={{ fontFamily: "var(--font-cairo)", fontSize: 17, fontWeight: 800, color: COLORS.ink }}>
-            الشغل
-          </span>
-        </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <Link href="/register" style={{ fontSize: 13.5, color: COLORS.inkSoft, textDecoration: "underline" }}>
-            تسجيل الدخول
-          </Link>
-          <Link
-            href="/register?role=employer"
-            style={{
-              padding: "9px 16px",
-              borderRadius: 8,
-              border: `1.5px solid ${COLORS.ink}`,
-              color: COLORS.ink,
-              fontSize: 13.5,
-              fontWeight: 700,
-              textDecoration: "none",
-            }}
-          >
-            بتدوّر على موظفين؟
-          </Link>
-          <Link
-            href="/register"
-            style={{
-              padding: "9px 16px",
-              borderRadius: 8,
-              border: "none",
-              background: COLORS.stamp,
-              color: "#fff",
-              fontSize: 13.5,
-              fontWeight: 700,
-              textDecoration: "none",
-            }}
-          >
-            بتدوّر على شغل؟
-          </Link>
-        </div>
-      </header>
-
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "40px 20px 60px" }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <h1 style={{ fontSize: 30, color: COLORS.ink, marginBottom: 12, fontFamily: "var(--font-cairo)" }}>
@@ -164,7 +110,7 @@ export default async function HomePage() {
 
         {latestJobs.length > 0 && (
           <div style={{ marginBottom: 40 }}>
-            <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>وظائف اليوم</h2>
+            <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>أحدث الوظائف</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
               {latestJobs.map((job) => (
                 <JobListItem key={job.id} job={job} />
@@ -199,8 +145,11 @@ export default async function HomePage() {
           }}
         >
           <h3 style={{ fontSize: 18, color: COLORS.ink, marginBottom: 8 }}>صاحب عمل؟</h3>
-          <p style={{ fontSize: 14, color: COLORS.inkSoft, marginBottom: 18, lineHeight: 1.7 }}>
+          <p style={{ fontSize: 14, color: COLORS.inkSoft, marginBottom: 6, lineHeight: 1.7 }}>
             انشر لحد 5 وظايف شهريًا مجانًا، وابحث عن كوادر مباشرة — من غير أي مصاريف.
+          </p>
+          <p style={{ fontSize: 12, color: COLORS.inkSoft, opacity: 0.85, marginBottom: 18 }}>
+            بدون بطاقة ائتمان • بدون التزام • انشر في أقل من دقيقتين
           </p>
           <Link
             href="/register?role=employer"
