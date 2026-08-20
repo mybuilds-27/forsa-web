@@ -41,8 +41,10 @@ export async function getFilteredPublicJobs(
 
   const q = filters.q?.trim().toLowerCase();
   if (q) {
+    // مقصورة على العنوان والتخصص بس، من غير الوصف — البحث في الوصف كان بيطلّع نتايج مش
+    // دقيقة (زي "عامل" بيطلّع "أمين مخزن" لمجرد إن الكلمة اتذكرت جوه وصف الوظيفة).
     jobs = jobs.filter((p) => {
-      const haystack = `${p.title} ${p.specialization} ${p.description || ""}`.toLowerCase();
+      const haystack = `${p.title} ${p.specialization}`.toLowerCase();
       return haystack.includes(q);
     });
   }

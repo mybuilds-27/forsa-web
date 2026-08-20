@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { getFilteredPublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseByCombos from "@/components/BrowseByCombos";
-import PublicJobsList from "@/components/PublicJobsList";
 import JobsFilterBar from "./JobsFilterBar";
+import PaginatedJobsList from "./PaginatedJobsList";
 
 export const metadata = {
   title: "وظايف شغل في مصر - تصفح كل الوظائف المتاحة | الشغل",
@@ -33,10 +33,7 @@ export default async function JobsListPage({ searchParams }: Props) {
 
   return (
     <div dir="rtl" style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px" }}>
-      <h1 style={{ fontSize: 26, marginBottom: 6 }}>تصفح الوظائف</h1>
-      <p style={{ color: "#4A5568", marginBottom: 20 }}>
-        {jobs.length} وظيفة {hasFilters ? "مطابقة" : "متاحة حاليًا"} على موقع الشغل
-      </p>
+      <h1 style={{ fontSize: 26, marginBottom: 20 }}>تصفح الوظائف</h1>
 
       <Suspense fallback={null}>
         <JobsFilterBar />
@@ -48,7 +45,7 @@ export default async function JobsListPage({ searchParams }: Props) {
         </div>
       )}
 
-      <PublicJobsList jobs={jobs} />
+      <PaginatedJobsList jobs={jobs} />
 
       {popularCombos.length > 0 && (
         <div style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid #DED2B5" }}>
