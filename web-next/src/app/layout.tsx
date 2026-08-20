@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SiteVisitTracker from "@/components/SiteVisitTracker";
 
 const META_PIXEL_ID = "1801200730865819";
 
@@ -86,6 +87,7 @@ export default function RootLayout({
             alt=""
           />
         </noscript>
+        <SiteVisitTracker />
         <Navbar />
         {children}
         <Footer />
