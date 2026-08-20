@@ -18,15 +18,15 @@ export const dynamic = "force-dynamic";
 const POPULAR_COMBOS_COUNT = 8;
 
 type Props = {
-  searchParams: Promise<{ q?: string; governorate?: string; jobType?: string }>;
+  searchParams: Promise<{ q?: string; governorate?: string; jobType?: string; specialization?: string }>;
 };
 
 export default async function JobsListPage({ searchParams }: Props) {
-  const { q, governorate, jobType } = await searchParams;
-  const hasFilters = !!(q || governorate || jobType);
+  const { q, governorate, jobType, specialization } = await searchParams;
+  const hasFilters = !!(q || governorate || jobType || specialization);
 
   const [jobs, seoData] = await Promise.all([
-    getFilteredPublicJobs({ q, governorate, jobType }),
+    getFilteredPublicJobs({ q, governorate, jobType, specialization }),
     getActiveJobsSeoData(),
   ]);
   const popularCombos = seoData.combos.slice(0, POPULAR_COMBOS_COUNT);

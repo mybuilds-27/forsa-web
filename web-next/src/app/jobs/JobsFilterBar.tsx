@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { GOVERNORATES } from "@/lib/constants";
+import { GOVERNORATES, SPECIALIZATION_OPTIONS } from "@/lib/constants";
 import { JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
 
 const inputStyle: React.CSSProperties = {
@@ -77,6 +77,16 @@ export default function JobsFilterBar() {
         <option value="">كل أنواع الدوام</option>
         {Object.entries(JOB_TYPE_LABELS).map(([value, label]) => (
           <option key={value} value={value}>{label}</option>
+        ))}
+      </select>
+      <select
+        value={searchParams.get("specialization") || ""}
+        onChange={(e) => applyFilters({ specialization: e.target.value })}
+        style={selectStyle}
+      >
+        <option value="">كل التخصصات</option>
+        {SPECIALIZATION_OPTIONS.map((s) => (
+          <option key={s} value={s}>{s}</option>
         ))}
       </select>
       <button
