@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
+// نفس القايمة المستخدمة في باقي الملفات (Navbar.tsx، page.tsx، admin/page.tsx) لتحديد حساب الأدمن
+const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
+
 type Props = {
   seekerId: string;
   seekerName: string;
@@ -23,8 +26,13 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, o
     async function loadJobs() {
       const user = auth.currentUser;
       if (!user) return;
+      // الأدمن مالوش وظائف بتاعته هو، فبدل الاقتصار على employerId == uid بتاعه (هيرجع فاضي
+      // دايمًا)، بيشوف كل الوظائف النشطة على الموقع عشان يقدر يدعو باحثين لأي وظيفة.
+      const isAdmin = ADMIN_EMAILS.includes(user.email || "");
       const snap = await getDocs(
-        query(collection(db, "job_posts"), where("employerId", "==", user.uid), where("isActive", "==", true))
+        isAdmin
+          ? query(collection(db, "job_posts"), where("isActive", "==", true))
+          : query(collection(db, "job_posts"), where("employerId", "==", user.uid), where("isActive", "==", true))
       );
       setJobs(snap.docs.map((d) => ({ id: d.id, ...d.data() } as any)));
       setLoading(false);
@@ -38,25 +46,31 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, o
     setError("");
     setSending(true);
     try {
-      // حد الدعوات الشهري — نفس نمط حد نشر الوظائف الشهري في PostJobTab.tsx
-      const monthlyLimit = employerPlan === "premium" ? 30 : 5;
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
+      const isAdmin = ADMIN_EMAILS.includes(user.email || "");
 
-      const invitesSnap = await getDocs(query(collection(db, "invitations"), where("employerId", "==", user.uid)));
-      const invitesThisMonth = invitesSnap.docs.filter((d) => {
-        const t = d.data().createdAt;
-        return t && t.toMillis() >= startOfMonth.getTime();
-      });
-      if (invitesThisMonth.length >= monthlyLimit) {
-        setError(
-          employerPlan === "premium"
-            ? `وصلت للحد الأقصى (${monthlyLimit} دعوة) للباقة المدفوعة الشهر ده.`
-            : `الباقة المجانية بتسمح بحد أقصى ${monthlyLimit} دعوات شهريًا، وإنت وصلت للحد ده الشهر ده.`
-        );
-        setSending(false);
-        return;
+      // حد الدعوات الشهري بيتحسب على صاحب الوظيفة الحقيقي — مش منطقي نطبقه على الأدمن نفسه
+      // لأنه بيبعت الدعوة نيابة عن صاحب العمل، مش بيستهلك من رصيده الشخصي.
+      if (!isAdmin) {
+        // حد الدعوات الشهري — نفس نمط حد نشر الوظائف الشهري في PostJobTab.tsx
+        const monthlyLimit = employerPlan === "premium" ? 30 : 5;
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+
+        const invitesSnap = await getDocs(query(collection(db, "invitations"), where("employerId", "==", user.uid)));
+        const invitesThisMonth = invitesSnap.docs.filter((d) => {
+          const t = d.data().createdAt;
+          return t && t.toMillis() >= startOfMonth.getTime();
+        });
+        if (invitesThisMonth.length >= monthlyLimit) {
+          setError(
+            employerPlan === "premium"
+              ? `وصلت للحد الأقصى (${monthlyLimit} دعوة) للباقة المدفوعة الشهر ده.`
+              : `الباقة المجانية بتسمح بحد أقصى ${monthlyLimit} دعوات شهريًا، وإنت وصلت للحد ده الشهر ده.`
+          );
+          setSending(false);
+          return;
+        }
       }
 
       const job = jobs.find((j) => j.id === selectedJobId);
@@ -66,8 +80,10 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, o
         return;
       }
 
+      // employerId بتاع صاحب الوظيفة الحقيقي — مش بالضرورة user.uid لو اللي بيبعت الدعوة
+      // هو الأدمن نيابة عن صاحب العمل، عشان الإحصائيات والصلاحيات تفضل صحيحة على الوظيفة الأصلية.
       await setDoc(doc(db, "invitations", `${selectedJobId}_${seekerId}`), {
-        employerId: user.uid,
+        employerId: job.employerId || user.uid,
         employerCompanyName: job.companyName || "",
         seekerId,
         jobPostId: selectedJobId,
