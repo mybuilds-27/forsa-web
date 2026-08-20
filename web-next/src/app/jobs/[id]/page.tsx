@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/firebase";
 import ApplyButton from "./ApplyButton";
 import ShareButton from "@/components/ShareButton";
+import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
 import { EXPERIENCE_LEVELS, findGovernorateBySlug, slugify } from "@/lib/constants";
 import { tagStyle, featuredPillStyle, JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
@@ -246,6 +247,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <div dir="rtl" style={{ width: "100%", maxWidth: 1020, margin: "0 auto", padding: "40px 20px" }}>
+      <JobViewTracker jobId={job.id} />
       {jobPostingJsonLd && (
         <script
           type="application/ld+json"
