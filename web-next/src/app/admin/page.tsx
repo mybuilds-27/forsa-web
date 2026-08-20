@@ -61,6 +61,7 @@ export default function AdminPage() {
   const [funnelError, setFunnelError] = useState(false);
   const [visits30d, setVisits30d] = useState<number | null>(null);
   const [visitsError, setVisitsError] = useState(false);
+  const [jobViewCounts, setJobViewCounts] = useState<Record<string, number> | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [seoData, setSeoData] = useState<{ governorates: string[]; specializations: string[]; combos: JobCombo[] } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -124,6 +125,22 @@ export default function AdminPage() {
       console.error("Admin visit stats failed", err);
       setVisits30d(null);
       setVisitsError(true);
+    }
+  }
+
+  // معزول برضو — مقارنة المشاهدات بالتقديمات تحسين إضافي في القايمة، مش لازم يوقف عرض
+  // القايمة نفسها (اسم الوظيفة، عدد المتقدمين، إلخ) لو مجموعة job_views فشلت لأي سبب.
+  async function loadJobViewStats() {
+    try {
+      const snap = await getDocs(collection(db, "job_views"));
+      const counts: Record<string, number> = {};
+      snap.docs.forEach((d) => {
+        counts[d.id] = d.data().count || 0;
+      });
+      setJobViewCounts(counts);
+    } catch (err) {
+      console.error("Admin job view stats failed", err);
+      setJobViewCounts(null);
     }
   }
 
@@ -192,7 +209,7 @@ export default function AdminPage() {
 
   async function loadStats() {
     setLoadingStats(true);
-    await Promise.all([loadCoreStats(), loadFunnelStats(), loadVisitStats()]);
+    await Promise.all([loadCoreStats(), loadFunnelStats(), loadVisitStats(), loadJobViewStats()]);
     setLoadingStats(false);
   }
 
@@ -359,6 +376,8 @@ export default function AdminPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {posts.map((p) => {
           const isPaused = p.isActive === false;
+          const views = jobViewCounts?.[p.id];
+          const conversionRate = views && views > 0 ? Math.round((p.applicantCount / views) * 100) : null;
           return (
           <div key={p.id} style={jobCardContainerStyle}>
             <div style={{ padding: "18px 20px" }}>
@@ -387,6 +406,11 @@ export default function AdminPage() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
                   <span style={applicantBadgeStyle}>👥 {p.applicantCount} متقدم</span>
+                  {views !== undefined && (
+                    <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>
+                      👁️ {views} مشاهدة{conversionRate !== null ? ` · تحويل ${conversionRate}%` : ""}
+                    </span>
+                  )}
                   <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>{formatDate(p.createdAt)}</span>
                 </div>
               </div>
