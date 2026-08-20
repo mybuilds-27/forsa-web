@@ -20,12 +20,6 @@ const tajawal = Tajawal({
 });
 
 const SITE_URL = "https://www.elshoghl.com";
-const OG_IMAGE = {
-  url: `${SITE_URL}/og-image.png`,
-  width: 1200,
-  height: 630,
-  alt: "الشغل - موقع توظيف مصري",
-};
 
 const HOME_TITLE = "الشغل - موقع وظايف مصر المجاني | دوّر على شغل بسهولة";
 const HOME_DESCRIPTION =
@@ -35,12 +29,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: HOME_TITLE,
   description: HOME_DESCRIPTION,
+  // مفيش images هنا عمدًا — app/opengraph-image.tsx (ملف الـconvention) بيولّد الصورة
+  // ديناميكيًا وبيغلب أي صورة معرّفة هنا في نفس الـsegment، فتعريفها هنا تاني هيبقى كود ميت.
   openGraph: {
     title: HOME_TITLE,
     description: HOME_DESCRIPTION,
     url: SITE_URL,
     siteName: "الشغل",
-    images: [OG_IMAGE],
     locale: "ar_EG",
     type: "website",
   },
@@ -48,7 +43,6 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: HOME_TITLE,
     description: HOME_DESCRIPTION,
-    images: [OG_IMAGE.url],
   },
 };
 
