@@ -5,8 +5,17 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 const SITE_NAME = "الشغل";
-const SLOGAN = "موقع توظيف مصري مجاني بالكامل";
+const SLOGAN_WORDS = ["موقع", "توظيف", "مصري", "مجاني", "بالكامل"];
 const DOMAIN = "elshoghl.com";
+
+// satori (المحرك اللي بترسم بيه ImageResponse) بيقسّم أي نص لكلمات داخليًا عشان يحسب التفاف
+// السطر، وده بيكسر ترتيب الكلمات في جملة عربية متعددة الكلمات حتى لو الجملة نفسها string
+// واحد جوه عنصر واحد بس (جرّبنا direction:"rtl" وunicodeBidi:"plaintext" ومظلتش المشكلة
+// موجودة). الحل الأضمن: نرتب الكلمات إحنا بنفسنا بترتيب العرض الصح (يمين لشمال) ونخلي
+// الحاوية direction:"ltr" عادي — يعني satori مش هيحاول يعيد ترتيب حاجة خالص، هو بس هيرص
+// الكلمات اللي اديناهاله بالترتيب ده من الشمال لليمين زي ما هي، وده بيطلع بصريًا صح لأن
+// شكل كل كلمة عربي (اتصال الحروف جوها) بيتحدد بالخط نفسه مش بالـdirection.
+const SLOGAN = [...SLOGAN_WORDS].reverse().join(" ");
 
 // UA بتاع Safari قديم — بيخلي جوجل فونتس يرجع صيغة خط satori (اللي بيستخدمها ImageResponse)
 // قادرة تقرأها (woff/truetype/opentype) بدل الـwoff2 الحديثة اللي بترجع للمتصفحات العادية.
@@ -86,7 +95,12 @@ export default async function OpengraphImage() {
             fontWeight: 500,
             color: "#4A5568",
             fontFamily: "Cairo",
-            direction: "rtl",
+            // ltr + bidi-override: مفيش أي محاولة إعادة ترتيب من الرندرر — الكلمات بترص
+            // بالظبط بالترتيب اللي احنا رتبناه في SLOGAN فوق (مقلوب يدويًا عشان يطلع صح).
+            direction: "ltr",
+            unicodeBidi: "bidi-override",
+            whiteSpace: "nowrap",
+            textAlign: "center",
           }}
         >
           {SLOGAN}
