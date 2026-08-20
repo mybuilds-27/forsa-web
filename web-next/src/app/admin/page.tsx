@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
+import { collection, documentId, getDocs, orderBy, query, where, limit, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import ShareButton from "@/components/ShareButton";
 import PostJobTab from "../employer/PostJobTab";
@@ -59,6 +59,8 @@ export default function AdminPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [funnelStats, setFunnelStats] = useState<FunnelStats | null>(null);
   const [funnelError, setFunnelError] = useState(false);
+  const [visits30d, setVisits30d] = useState<number | null>(null);
+  const [visitsError, setVisitsError] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
   const [seoData, setSeoData] = useState<{ governorates: string[]; specializations: string[]; combos: JobCombo[] } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -104,6 +106,24 @@ export default function AdminPage() {
       console.error("Admin funnel stats failed", err);
       setFunnelStats(null);
       setFunnelError(true);
+    }
+  }
+
+  // معزول في تحميله الخاص بنفس منطق loadFunnelStats — لو مجموعة site_visits لسه معندهاش
+  // قاعدة أمان مطبّقة (أو أي مشكلة تانية)، القسم ده بس بيفشل من غير ما يأثر على باقي اللوحة.
+  async function loadVisitStats() {
+    try {
+      // مستندات site_visits معمولة بمعرّف YYYY-MM-DD، فترتيبها أبجديًا = ترتيبها زمنيًا —
+      // آخر 30 مستند بترتيب تنازلي حسب المعرّف نفسه بيدّي آخر 30 يوم فعليًا من غير الحاجة
+      // لحقل تاريخ منفصل نعمله عليه index.
+      const snap = await getDocs(query(collection(db, "site_visits"), orderBy(documentId(), "desc"), limit(30)));
+      const total = snap.docs.reduce((sum, d) => sum + (d.data().count || 0), 0);
+      setVisits30d(total);
+      setVisitsError(false);
+    } catch (err) {
+      console.error("Admin visit stats failed", err);
+      setVisits30d(null);
+      setVisitsError(true);
     }
   }
 
@@ -172,7 +192,7 @@ export default function AdminPage() {
 
   async function loadStats() {
     setLoadingStats(true);
-    await Promise.all([loadCoreStats(), loadFunnelStats()]);
+    await Promise.all([loadCoreStats(), loadFunnelStats(), loadVisitStats()]);
     setLoadingStats(false);
   }
 
@@ -244,6 +264,13 @@ export default function AdminPage() {
           <StatCard label="كل الإعلانات" value={stats.allPosts} />
           <StatCard label="الإعلانات النشطة" value={stats.activePosts} />
           <StatCard label="كل التقديمات" value={stats.applications} />
+          {visits30d !== null && <StatCard label="الزيارات آخر 30 يوم" value={visits30d} />}
+        </div>
+      )}
+
+      {visitsError && (
+        <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px", marginBottom: 20 }}>
+          تعذر تحميل عداد الزيارات — باقي الإحصائيات تحت شغالة عادي.
         </div>
       )}
 
