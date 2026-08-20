@@ -376,7 +376,10 @@ export default function AdminPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {posts.map((p) => {
           const isPaused = p.isActive === false;
-          const views = jobViewCounts?.[p.id];
+          // lo jobViewCounts نفسها فشلت تجيب خالص (null)، مش عارفين المشاهدات فعلاً فبنخفي
+          // السطر كله زي الأول — لكن لو جبناها بنجاح وبس الوظيفة دي معندهاش مستند، الافتراض
+          // 0 (مش إخفاء) عشان يبان إنها "لسه محدش شافها" مش إن الميزة نفسها مش شغالة.
+          const views = jobViewCounts ? jobViewCounts[p.id] ?? 0 : null;
           const conversionRate = views && views > 0 ? Math.round((p.applicantCount / views) * 100) : null;
           return (
           <div key={p.id} style={jobCardContainerStyle}>
@@ -406,7 +409,7 @@ export default function AdminPage() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
                   <span style={applicantBadgeStyle}>👥 {p.applicantCount} متقدم</span>
-                  {views !== undefined && (
+                  {views !== null && (
                     <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>
                       👁️ {views} مشاهدة{conversionRate !== null ? ` · تحويل ${conversionRate}%` : ""}
                     </span>
