@@ -117,6 +117,23 @@ export default async function HomePage() {
           <div style={{ marginBottom: 40 }}>
             <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>أحدث الوظائف</h2>
             <PublicJobsList jobs={latestJobs} layout="grid" />
+            <div style={{ textAlign: "center", marginTop: 20 }}>
+              <Link
+                href="/jobs"
+                style={{
+                  display: "inline-block",
+                  padding: "10px 22px",
+                  borderRadius: 8,
+                  border: `1.5px solid ${COLORS.ink}`,
+                  color: COLORS.ink,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                }}
+              >
+                تصفح كل الوظائف ←
+              </Link>
+            </div>
           </div>
         )}
 
@@ -128,20 +145,15 @@ export default async function HomePage() {
             <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 12 }}>
               دي أمثلة بس من أشهر التخصصات المتاحة — مش كل الاختيارات.
             </p>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-              <BrowseByCombos combos={exampleCombos} variant="inline" />
-              <Link href="/jobs" style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.ink, textDecoration: "none" }}>
-                أو تصفح كل الوظائف ←
-              </Link>
-            </div>
+            <BrowseByCombos combos={exampleCombos} variant="inline" />
           </div>
         )}
 
-        <details style={{ marginBottom: 24 }}>
-          <summary style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, cursor: "pointer" }}>
+        <div style={{ marginBottom: 24 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, marginBottom: 14 }}>
             تصفح حسب المحافظة
-          </summary>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+          </h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {GOVERNORATES.map((g) => (
               <Link
                 key={g}
@@ -152,13 +164,13 @@ export default async function HomePage() {
               </Link>
             ))}
           </div>
-        </details>
+        </div>
 
-        <details style={{ marginBottom: 40 }}>
-          <summary style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, cursor: "pointer" }}>
+        <div style={{ marginBottom: 40 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, marginBottom: 14 }}>
             تصفح حسب التخصص
-          </summary>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+          </h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {SPECIALIZATION_OPTIONS.map((s) => (
               <Link
                 key={s}
@@ -169,7 +181,7 @@ export default async function HomePage() {
               </Link>
             ))}
           </div>
-        </details>
+        </div>
 
         <div
           style={{
