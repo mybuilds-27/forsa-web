@@ -390,8 +390,6 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
           </div>
         </fieldset>
 
-        <div style={stickySubmitBarStyle}>{submitButton}</div>
-
         <CollapsibleSection title="💰 الراتب وعدد الفرص" subtitle="حدد نطاق الراتب — بيساعد يجذب مرشحين مناسبين أكتر">
           <div style={gridStyle}>
             <div>
@@ -609,6 +607,8 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
             </div>
           )}
         </CollapsibleSection>
+
+        <div style={{ marginTop: 20 }}>{submitButton}</div>
       </form>
     </div>
   );
@@ -668,15 +668,6 @@ const pendingBadgeStyle: React.CSSProperties = {
   background: "rgba(232,163,61,0.18)",
   padding: "5px 12px",
   borderRadius: 999,
-};
-
-const stickySubmitBarStyle: React.CSSProperties = {
-  position: "sticky",
-  bottom: 0,
-  zIndex: 5,
-  background: "#FAF6EC",
-  padding: "10px 0 18px",
-  marginBottom: 8,
 };
 
 const collapsibleCardStyle: React.CSSProperties = {

@@ -633,17 +633,6 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
         {/* التسجيل بالاسم ورقم الموبايل هو الاختيار الأساسي الظاهر فوق — جوجل والإيميل
             بدائل تحت خط "أو". ده بس ترتيب عرض بصري، المنطق والسلوك (فحص تضارب الحسابات،
             الـOTP، إلخ) زي ما هو تمامًا. */}
-        {/* لما loginMode شغال (حد دوس "عندك حساب بالفعل؟" فوق) بتبقى النية "دخول بالإيميل"
-            واضحة ومقصودة — حقول التسجيل بالتليفون (والتحذير الخاص بيها) مالهاش معنى هنا
-            ومربكة لو ظهرت، فبتتخفي تمامًا لحد ما فورم الإيميل يتقفل (closeEmailAuth بيرجّع
-            loginMode لـfalse تلقائي). */}
-        {!loginMode && (
-          <p style={{ color: COLORS.inkSoft, fontSize: 12.5, lineHeight: 1.8, margin: 0 }}>
-            ⚠️ لو سجّلت قبل كده بجوجل أو الإيميل، استخدم نفس الطريقة دي تاني بدل رقم التليفون —
-            كل طريقة دخول بتعمل حساب منفصل.
-          </p>
-        )}
-
         {phoneStep === "enter-phone" && !loginMode && (
           <>
             <div>
@@ -802,6 +791,15 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
               </button>
             </div>
           </div>
+        )}
+
+        {/* اتنقلت هنا من فوق حقول التليفون — ملحوظة عامة على مستوى الصفحة كلها بدل ما تبقى
+            مربوطة بصريًا بحقول معينة، ومش لازمة أصلًا في وضع الدخول (loginMode). */}
+        {!loginMode && (
+          <p style={{ color: COLORS.inkSoft, fontSize: 11.5, lineHeight: 1.8, margin: "10px 0 0", textAlign: "center" }}>
+            ⚠️ لو سجّلت قبل كده بجوجل أو الإيميل، استخدم نفس الطريقة دي تاني بدل رقم التليفون —
+            كل طريقة دخول بتعمل حساب منفصل.
+          </p>
         )}
       </div>
 

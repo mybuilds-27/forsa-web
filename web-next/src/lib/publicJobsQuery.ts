@@ -21,7 +21,7 @@ export async function getActivePublicJobs(filters: { governorate?: string; speci
 // firestore.indexes.json من غير ما نحتاج نضيف indexes جديدة. q (بحث حر) مش قابل للفلترة
 // من Firestore نفسه، فبيتطبق بعد الجلب زي ما JobsTab.tsx بتعمل بالظبط مع specOther.
 export async function getFilteredPublicJobs(
-  filters: { governorate?: string; jobType?: string; q?: string } = {}
+  filters: { governorate?: string; jobType?: string; specialization?: string; q?: string } = {}
 ) {
   const constraints: QueryConstraint[] = [
     where("isActive", "==", true),
@@ -31,6 +31,7 @@ export async function getFilteredPublicJobs(
   ];
   if (filters.governorate) constraints.splice(1, 0, where("governorate", "==", filters.governorate));
   if (filters.jobType) constraints.splice(1, 0, where("jobType", "==", filters.jobType));
+  if (filters.specialization) constraints.splice(1, 0, where("specialization", "==", filters.specialization));
 
   const snap = await getDocs(query(collection(db, "job_posts"), ...constraints));
   const now = Date.now();

@@ -2,8 +2,8 @@ import Link from "next/link";
 import BrowseByCombos from "@/components/BrowseByCombos";
 import PublicJobsList from "@/components/PublicJobsList";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
-import { GOVERNORATES } from "@/lib/constants";
-import { JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
+import { GOVERNORATES, SPECIALIZATION_OPTIONS } from "@/lib/constants";
+import { JOB_TYPE_LABELS, tagStyle } from "@/lib/jobCardStyles";
 
 const COLORS = {
   ink: "#14213D",
@@ -13,7 +13,7 @@ const COLORS = {
   success: "#2F6F4E",
 };
 
-const LATEST_JOBS_COUNT = 4;
+const LATEST_JOBS_COUNT = 6;
 const EXAMPLE_COMBOS_COUNT = 6;
 
 // الصفحة دي بتجيب أحدث الوظائف والـcombos لايف من Firestore، فلازم force-dynamic زي /jobs
@@ -136,6 +136,40 @@ export default async function HomePage() {
             </div>
           </div>
         )}
+
+        <details style={{ marginBottom: 24 }}>
+          <summary style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, cursor: "pointer" }}>
+            تصفح حسب المحافظة
+          </summary>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+            {GOVERNORATES.map((g) => (
+              <Link
+                key={g}
+                href={`/jobs?governorate=${encodeURIComponent(g)}`}
+                style={{ ...tagStyle, textDecoration: "none", color: COLORS.ink, padding: "7px 14px", fontSize: 13 }}
+              >
+                {g}
+              </Link>
+            ))}
+          </div>
+        </details>
+
+        <details style={{ marginBottom: 40 }}>
+          <summary style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, cursor: "pointer" }}>
+            تصفح حسب التخصص
+          </summary>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+            {SPECIALIZATION_OPTIONS.map((s) => (
+              <Link
+                key={s}
+                href={`/jobs?specialization=${encodeURIComponent(s)}`}
+                style={{ ...tagStyle, textDecoration: "none", color: COLORS.ink, padding: "7px 14px", fontSize: 13 }}
+              >
+                {s}
+              </Link>
+            ))}
+          </div>
+        </details>
 
         <div
           style={{
