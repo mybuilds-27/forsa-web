@@ -256,10 +256,14 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       )}
       <div className="browse-layout">
         <div className="browse-main">
-      <div style={{ fontSize: 12.5, color: "#4A5568", marginBottom: 2 }}>المسمى الوظيفي</div>
+      <div style={{ fontSize: 12.5, color: "#2D3748", fontWeight: 600, marginBottom: 2 }}>المسمى الوظيفي</div>
       <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 6 }}>{job.title}</h1>
-      <div style={{ fontSize: 14.5, color: "#14213D", marginBottom: 16 }}>
-        🏢 {job.showCompanyName && job.companyName ? job.companyName : "شركة غير معلنة"}
+      <div style={{ fontSize: 14.5, color: "#14213D", fontWeight: 600, marginBottom: 16 }}>
+        {/* fontFamily صريح هنا (بدل الاعتماد على fallback المتصفح التلقائي بس) — بعض
+            المتصفحات على ويندوز بتفشل تلاقي خط إيموجي مناسب لـTajawal تلقائيًا وترسم
+            مربع (tofu) بدل الإيموجي، فبنحدد خطوط الإيموجي الشائعة صراحة كـfallback. */}
+        <span style={{ fontFamily: '"Segoe UI Emoji","Noto Color Emoji","Apple Color Emoji",sans-serif' }}>🏢</span>{" "}
+        {job.showCompanyName && job.companyName ? job.companyName : "شركة غير معلنة"}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
