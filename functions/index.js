@@ -126,6 +126,94 @@ function buildInvitationEmailText({ companyName, jobTitle, jobLink }) {
   ].join("\n");
 }
 
+function buildJobReportEmailHtml({ jobTitle, reason, details, jobLink }) {
+  const safeJobTitle = escapeHtml(jobTitle);
+  const safeReason = escapeHtml(reason);
+  const safeDetails = escapeHtml(details || "");
+
+  return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بلاغ عن وظيفة</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background-color:#FAF6EC;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FAF6EC;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:14px;border:1px solid #DED2B5;">
+          <tr>
+            ${buildEmailHeader()}
+          </tr>
+          <tr>
+            <td style="padding:28px;direction:rtl;text-align:right;">
+              <p style="margin:0 0 18px;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:15px;color:#14213D;line-height:1.8;">
+                🚩 بلاغ جديد من زائر عن وظيفة على الموقع:
+              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F1EAD9;border-radius:10px;margin-bottom:20px;">
+                <tr>
+                  <td style="padding:16px 18px;direction:rtl;text-align:right;">
+                    <div style="font-family:'Cairo',Tahoma,Arial,sans-serif;font-size:16px;font-weight:700;color:#14213D;margin-bottom:10px;">
+                      ${safeJobTitle}
+                    </div>
+                    <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:14px;color:#4A5568;margin-bottom:${safeDetails ? "8px" : "0"};">
+                      السبب: <strong style="color:#B03A14;">${safeReason}</strong>
+                    </div>
+                    ${
+                      safeDetails
+                        ? `<div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:13.5px;color:#4A5568;line-height:1.7;white-space:pre-wrap;">${safeDetails}</div>`
+                        : ""
+                    }
+                  </td>
+                </tr>
+              </table>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="border-radius:8px;background-color:#14213D;">
+                          <a href="${jobLink}" target="_blank" style="display:inline-block;padding:13px 30px;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:8px;">
+                            عرض الوظيفة
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 28px;background-color:#F1EAD9;text-align:center;border-radius:0 0 14px 14px;">
+              <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:12px;color:#4A5568;">
+                الشغل — موقع توظيف مصري ·
+                <a href="https://www.elshoghl.com" style="color:#14213D;text-decoration:underline;">elshoghl.com</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function buildJobReportEmailText({ jobTitle, reason, details, jobLink }) {
+  return [
+    `بلاغ جديد من زائر عن وظيفة "${jobTitle}".`,
+    `السبب: ${reason}`,
+    ...(details ? ["", `تفاصيل إضافية: ${details}`] : []),
+    "",
+    `اعرض الوظيفة من هنا: ${jobLink}`,
+    "",
+    "الشغل — موقع توظيف مصري · elshoghl.com",
+  ].join("\n");
+}
+
 function buildDailySummaryEmailHtml({ totalCount, jobs }) {
   const jobRows = jobs
     .map(
@@ -1106,6 +1194,34 @@ exports.onNewJobPostNotifyAdmins = onDocumentCreated(
 
     await createNotificationsBatch(notifications, "onNewJobPostNotifyAdmins");
     logger.info(`onNewJobPostNotifyAdmins: اتبعت ${notifications.length} إشعار أدمن لوظيفة ${jobPostId}`);
+  }
+);
+
+// بلاغ زائر عن وظيفة (زرار "🚩 بلغنا" في صفحة تفاصيل الوظيفة) — إيميل تنبيه بسيط للأدمن
+// بس دلوقتي، مفيش لوحة مراجعة كاملة لسه. job_reports قاعدتها create-only من العميل
+// (مفيش read/update/delete)، فمفيش خطر إن زائر يقرا بلاغات زائرين تانيين.
+exports.onNewJobReport = onDocumentCreated(
+  { document: "job_reports/{reportId}", secrets: [RESEND_API_KEY] },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const report = snap.data();
+    const jobTitle = report.jobTitle || "وظيفة";
+    const jobLink = `https://www.elshoghl.com/jobs/${report.jobId}`;
+    const emailFields = { jobTitle, reason: report.reason || "سبب غير محدد", details: report.details || "", jobLink };
+
+    try {
+      await sendViaResend({
+        to: ADMIN_EMAILS,
+        subject: `🚩 بلاغ عن وظيفة: ${jobTitle}`,
+        html: buildJobReportEmailHtml(emailFields),
+        text: buildJobReportEmailText(emailFields),
+        logPrefix: "onNewJobReport",
+      });
+    } catch (err) {
+      logger.error("onNewJobReport: حصلت مشكلة غير متوقعة", err);
+    }
   }
 );
 

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/firebase";
 import ApplyButton from "./ApplyButton";
 import ShareButton from "@/components/ShareButton";
+import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
 import { EXPERIENCE_LEVELS, findGovernorateBySlug, slugify } from "@/lib/constants";
@@ -281,7 +282,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         {job.specialization && <InfoChip icon="🏷️" label="التخصص" value={job.specialization} />}
       </div>
 
-      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
         {job.receiveMethod === "contact" && job.contactValue ? (
           <p style={{ color: "#4A5568", margin: 0 }}>
             <strong>التواصل ({({ email: "إيميل", whatsapp: "واتساب", phone: "تليفون" } as Record<string,string>)[job.contactMethod] || job.contactMethod}):</strong> {job.contactValue}
@@ -289,7 +290,15 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         ) : (
           <ApplyButton jobId={job.id} employerId={job.employerId} screeningQuestions={job.screeningQuestions || []} />
         )}
-        <ShareButton jobId={job.id} title={job.title} />
+        <ShareButton
+          jobId={job.id}
+          title={job.title}
+          style={{ background: "transparent", border: "1px solid #14213D33", color: "#4A5568", fontSize: 11.5, padding: "3px 9px" }}
+        />
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <ReportJobButton jobId={job.id} employerId={job.employerId} jobTitle={job.title} />
       </div>
 
       {descriptionBulletItems ? (
