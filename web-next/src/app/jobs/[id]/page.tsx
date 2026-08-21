@@ -256,10 +256,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       )}
       <div className="browse-layout">
         <div className="browse-main">
-      <div style={{ fontSize: 12.5, color: "#4A5568", opacity: 0.8, marginBottom: 2 }}>المسمى الوظيفي</div>
-      <h1 style={{ fontSize: 26, marginBottom: 6 }}>{job.title}</h1>
-      <div style={{ color: "#4A5568", marginBottom: 16 }}>
-        {job.showCompanyName && job.companyName ? job.companyName : "شركة غير معلنة"}
+      <div style={{ fontSize: 12.5, color: "#4A5568", marginBottom: 2 }}>المسمى الوظيفي</div>
+      <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 6 }}>{job.title}</h1>
+      <div style={{ fontSize: 14.5, color: "#14213D", marginBottom: 16 }}>
+        🏢 {job.showCompanyName && job.companyName ? job.companyName : "شركة غير معلنة"}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
