@@ -7,7 +7,7 @@ import ShareButton from "@/components/ShareButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
 import { EXPERIENCE_LEVELS, findGovernorateBySlug, slugify } from "@/lib/constants";
-import { tagStyle, featuredPillStyle, JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
+import { featuredPillStyle, JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
@@ -262,13 +262,18 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         {job.showCompanyName && job.companyName ? job.companyName : "شركة غير معلنة"}
       </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-        {job.specialization && <span style={tagStyle}>التخصص: {job.specialization}</span>}
-        <span style={tagStyle}>{job.city} - {job.governorate}</span>
-        <span style={tagStyle}>{JOB_TYPE_LABELS[job.jobType] || job.jobType}</span>
-        {job.jobLevel && <span style={tagStyle}>{EXPERIENCE_LEVELS[job.jobLevel] || job.jobLevel}</span>}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
         {job.featured && <span style={featuredPillStyle}>⭐ مميز</span>}
         <ShareButton jobId={job.id} title={job.title} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+        <InfoChip icon="📍" label="الموقع" value={`${job.city} - ${job.governorate}`} />
+        <InfoChip icon="🕒" label="نوع الدوام" value={JOB_TYPE_LABELS[job.jobType] || job.jobType} />
+        {job.jobLevel && (
+          <InfoChip icon="📊" label="المستوى" value={EXPERIENCE_LEVELS[job.jobLevel] || job.jobLevel} />
+        )}
+        {job.specialization && <InfoChip icon="🏷️" label="التخصص" value={job.specialization} />}
       </div>
 
       {descriptionBulletItems ? (
@@ -354,6 +359,30 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
     <div>
       <span style={{ fontWeight: 700 }}>{label}: </span>
       <span>{value}</span>
+    </div>
+  );
+}
+
+// خانة معلومة واحدة جوه grid الـ2×2 فوق تفاصيل الوظيفة — أيقونة + تسمية رمادية صغيرة
+// توضح إيه القيمة دي، بدل ما تكون نص عايم من غير سياق.
+function InfoChip({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 8,
+        border: "1px solid #14213D1F",
+        borderRadius: 8,
+        padding: "8px 10px",
+        background: "#fff",
+      }}
+    >
+      <span style={{ fontSize: 16, lineHeight: 1.4 }}>{icon}</span>
+      <div>
+        <div style={{ fontSize: 11, color: "#4A5568" }}>{label}</div>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: "#14213D" }}>{value}</div>
+      </div>
     </div>
   );
 }
