@@ -1212,8 +1212,10 @@ exports.onNewJobReport = onDocumentCreated(
     const emailFields = { jobTitle, reason: report.reason || "سبب غير محدد", details: report.details || "", jobLink };
 
     try {
+      // بلاغات الوظايف بتتبعت لمحمد بس (مش كل ADMIN_EMAILS) — طلب صريح، عشان كده إيميل
+      // ثابت هنا بدل الثابت المشترك اللي باقي الدوال (زي onNewJobPostNotifyAdmins) بتستخدمه.
       await sendViaResend({
-        to: ADMIN_EMAILS,
+        to: "mohamedzakaria2727@gmail.com",
         subject: `🚩 بلاغ عن وظيفة: ${jobTitle}`,
         html: buildJobReportEmailHtml(emailFields),
         text: buildJobReportEmailText(emailFields),
