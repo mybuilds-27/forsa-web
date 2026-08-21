@@ -266,10 +266,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         {job.showCompanyName && job.companyName ? job.companyName : "شركة غير معلنة"}
       </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
-        {job.featured && <span style={featuredPillStyle}>⭐ مميز</span>}
-        <ShareButton jobId={job.id} title={job.title} />
-      </div>
+      {job.featured && (
+        <div style={{ marginBottom: 12 }}>
+          <span style={featuredPillStyle}>⭐ مميز</span>
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
         <InfoChip icon="📍" label="الموقع" value={`${job.city} - ${job.governorate}`} />
@@ -278,6 +279,17 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           <InfoChip icon="📊" label="المستوى" value={EXPERIENCE_LEVELS[job.jobLevel] || job.jobLevel} />
         )}
         {job.specialization && <InfoChip icon="🏷️" label="التخصص" value={job.specialization} />}
+      </div>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 20 }}>
+        {job.receiveMethod === "contact" && job.contactValue ? (
+          <p style={{ color: "#4A5568", margin: 0 }}>
+            <strong>التواصل ({({ email: "إيميل", whatsapp: "واتساب", phone: "تليفون" } as Record<string,string>)[job.contactMethod] || job.contactMethod}):</strong> {job.contactValue}
+          </p>
+        ) : (
+          <ApplyButton jobId={job.id} employerId={job.employerId} screeningQuestions={job.screeningQuestions || []} />
+        )}
+        <ShareButton jobId={job.id} title={job.title} />
       </div>
 
       {descriptionBulletItems ? (
@@ -339,14 +351,6 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       )}
       {job.additionalBenefits && (
         <p style={{ marginBottom: 20 }}><strong>مزايا إضافية:</strong> {job.additionalBenefits}</p>
-      )}
-
-      {job.receiveMethod === "contact" && job.contactValue ? (
-        <p style={{ color: "#4A5568" }}>
-          <strong>التواصل ({({ email: "إيميل", whatsapp: "واتساب", phone: "تليفون" } as Record<string,string>)[job.contactMethod] || job.contactMethod}):</strong> {job.contactValue}
-        </p>
-      ) : (
-        <ApplyButton jobId={job.id} employerId={job.employerId} screeningQuestions={job.screeningQuestions || []} />
       )}
 
       <RelatedJobs jobId={job.id} specialization={job.specialization} governorate={job.governorate} />
