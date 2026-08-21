@@ -200,7 +200,7 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
       {!loggedIn && (
         <button
           onClick={() => setShowRegisterModal(true)}
-          style={{ padding: "12px 24px", background: "#14213D", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}
+          style={{ padding: "14px 30px", fontSize: 15.5, fontWeight: 700, background: "#14213D", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}
         >
           📩 قدم الآن
         </button>
@@ -219,7 +219,7 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
           <button
             onClick={handleApplyClick}
             disabled={busy}
-            style={{ padding: "12px 24px", background: "#14213D", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}
+            style={{ padding: "14px 30px", fontSize: 15.5, fontWeight: 700, background: "#14213D", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}
           >
             📩 قدم الآن
           </button>
