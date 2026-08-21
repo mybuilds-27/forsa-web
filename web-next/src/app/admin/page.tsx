@@ -8,6 +8,7 @@ import ShareButton from "@/components/ShareButton";
 import PostJobTab from "../employer/PostJobTab";
 import Link from "next/link";
 import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
+import { exportAllUsersExcel } from "@/lib/adminExports";
 import { EXPERIENCE_LEVELS, slugify } from "@/lib/constants";
 import { getActiveJobsSeoData, type JobCombo } from "@/lib/publicJobsQuery";
 import ApplicantCard from "@/components/ApplicantCard";
@@ -68,6 +69,7 @@ export default function AdminPage() {
   const [editingPost, setEditingPost] = useState<EditingPost>(null);
   const [openApplicantsFor, setOpenApplicantsFor] = useState<string | null>(null);
   const [applicants, setApplicants] = useState<any[]>([]);
+  const [exportingUsers, setExportingUsers] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -213,6 +215,17 @@ export default function AdminPage() {
     setLoadingStats(false);
   }
 
+  async function handleExportAllUsers() {
+    setExportingUsers(true);
+    try {
+      await exportAllUsersExcel();
+    } catch (err) {
+      console.error("Export all users failed", err);
+      alert("حصلت مشكلة في تصدير الملف — حاول تاني.");
+    }
+    setExportingUsers(false);
+  }
+
   async function handleToggleActive(postId: string, makeActive: boolean) {
     await toggleJobActive(postId, makeActive);
     loadStats();
@@ -311,20 +324,36 @@ export default function AdminPage() {
         </div>
       )}
 
-      <button
-        onClick={loadStats}
-        disabled={loadingStats}
-        style={{
-          padding: "8px 16px",
-          border: "1px solid #14213D",
-          background: "transparent",
-          borderRadius: 6,
-          cursor: "pointer",
-          marginBottom: 30,
-        }}
-      >
-        {loadingStats ? "جاري التحديث..." : "🔄 تحديث"}
-      </button>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 30 }}>
+        <button
+          onClick={loadStats}
+          disabled={loadingStats}
+          style={{
+            padding: "8px 16px",
+            border: "1px solid #14213D",
+            background: "transparent",
+            borderRadius: 6,
+            cursor: "pointer",
+          }}
+        >
+          {loadingStats ? "جاري التحديث..." : "🔄 تحديث"}
+        </button>
+
+        <button
+          onClick={handleExportAllUsers}
+          disabled={exportingUsers}
+          style={{
+            padding: "8px 16px",
+            border: "1px solid #14213D",
+            background: "transparent",
+            borderRadius: 6,
+            cursor: exportingUsers ? "wait" : "pointer",
+            opacity: exportingUsers ? 0.7 : 1,
+          }}
+        >
+          {exportingUsers ? "جاري التحميل..." : "⬇ تحميل كل المستخدمين Excel"}
+        </button>
+      </div>
 
       {seoData && (seoData.combos.length > 0 || seoData.governorates.length > 0 || seoData.specializations.length > 0) && (
         <details style={{ marginBottom: 30, border: "1px solid #14213D22", borderRadius: 8, padding: 14 }}>
