@@ -4,6 +4,11 @@ import { useState } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
+// بعض إضافات الـadblock بتحظر أي طلب فيه كلمة "report" في اسم الـcollection من غير ما
+// ترجع error أو resolve خالص — الـpromise بتاعة addDoc بتفضل معلقة للأبد. الـrace مع
+// timeout هنا هو الحل الوحيد لفك التعليق ده وإرجاع الزرار يشتغل تاني.
+const REPORT_TIMEOUT_MS = 10000;
+
 const REPORT_REASONS = [
   "الوظيفة مش حقيقية",
   "معلومات الوظيفة غلط",
@@ -41,20 +46,32 @@ export default function ReportJobButton({ jobId, employerId, jobTitle }: Props) 
     e.preventDefault();
     setSending(true);
     setError("");
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      await addDoc(collection(db, "job_reports"), {
-        jobId,
-        employerId,
-        jobTitle,
-        reason,
-        details: details.trim(),
-        reporterId: auth.currentUser?.uid || null,
-        createdAt: serverTimestamp(),
-      });
+      await Promise.race([
+        addDoc(collection(db, "job_reports"), {
+          jobId,
+          employerId,
+          jobTitle,
+          reason,
+          details: details.trim(),
+          reporterId: auth.currentUser?.uid || null,
+          createdAt: serverTimestamp(),
+        }),
+        new Promise((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error("REPORT_TIMEOUT")), REPORT_TIMEOUT_MS);
+        }),
+      ]);
       setSent(true);
     } catch (err) {
       console.error("[ReportJobButton] فشل إرسال البلاغ", err);
-      setError("حصلت مشكلة، حاول تاني");
+      if (err instanceof Error && err.message === "REPORT_TIMEOUT") {
+        setError("الطلب مستني كتير — لو عندك إضافة adblock في المتصفح جرب تقفلها أو تستخدم نافذة incognito وجرب تاني");
+      } else {
+        setError("حصلت مشكلة، حاول تاني");
+      }
+    } finally {
+      clearTimeout(timeoutId);
     }
     setSending(false);
   }
