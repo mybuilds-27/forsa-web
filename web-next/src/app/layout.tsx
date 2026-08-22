@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SiteVisitTracker from "@/components/SiteVisitTracker";
 
-const META_PIXEL_ID = "1801200730865819";
+const META_PIXEL_ID = "1678267889939692";
 
 const cairo = Cairo({
   variable: "--font-cairo",
