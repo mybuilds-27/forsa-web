@@ -37,6 +37,37 @@ function formatDate(ts: any) {
   return d.toLocaleDateString("ar-EG");
 }
 
+// بيحسب عدد مستندات error_logs بـstep معيّن، وأكتر code تكرر بينهم (بدون أي استعلام إضافي —
+// نفس الـdocs المجلوبة أصلًا من loadAuthErrorStats). code == null بيتحسب كقيمة لوحده (يعني
+// "مفيش code مسجل")، فلو ده أكتر قيمة تكررت، topErrorCode بيرجع null والواجهة بتعرض رسالة توضيحية.
+function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
+  const stepDocs = docs.filter((d) => d.data().step === step);
+  const codeCounts = new Map<string | null, number>();
+  stepDocs.forEach((d) => {
+    const code = d.data().code ?? null;
+    codeCounts.set(code, (codeCounts.get(code) || 0) + 1);
+  });
+
+  let topErrorCode: string | null = null;
+  let topErrorCodeCount = 0;
+  codeCounts.forEach((count, code) => {
+    if (count > topErrorCodeCount) {
+      topErrorCode = code;
+      topErrorCodeCount = count;
+    }
+  });
+
+  return { count: stepDocs.length, topErrorCode, topErrorCodeCount };
+}
+
+// نص السطر الصغير تحت كل رقم في بطاقة أخطاء التسجيل — undefined (مفيش سطر خالص) لو الـstep
+// ده معندهوش أي أخطاء أصلًا، عشان ميظهرش "كود مش متسجل" تحت رقم صفر بشكل مضلل.
+function authErrorSubtitle(detail: AuthErrorDetail): string | undefined {
+  if (detail.count === 0) return undefined;
+  if (!detail.topErrorCode) return "(كود الخطأ مش متسجل)";
+  return `${detail.topErrorCode} (${detail.topErrorCodeCount} مرة)`;
+}
+
 type Stats = {
   seekers: number;
   employers: number;
@@ -61,11 +92,15 @@ type SignupMethodStats = {
   email: number;
 };
 
+// count إجمالي الأخطاء المسجّلة للـstep ده، وtopErrorCode/topErrorCodeCount أكتر code
+// (زي auth/quota-exceeded) تكرر بينهم — null لو كل المستندات معندهاش code مسجل خالص.
+type AuthErrorDetail = { count: number; topErrorCode: string | null; topErrorCodeCount: number };
+
 type AuthErrorStats = {
-  phone_send_code: number;
-  phone_verify_code: number;
-  google_popup_signin: number;
-  google_redirect_signin: number;
+  phone_send_code: AuthErrorDetail;
+  phone_verify_code: AuthErrorDetail;
+  google_popup_signin: AuthErrorDetail;
+  google_redirect_signin: AuthErrorDetail;
 };
 
 export default function AdminPage() {
@@ -156,10 +191,10 @@ export default function AdminPage() {
       const sevenDaysAgo = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
       const snap = await getDocs(query(collection(db, "error_logs"), where("createdAt", ">=", sevenDaysAgo)));
       setAuthErrorStats({
-        phone_send_code: snap.docs.filter((d) => d.data().step === "phone_send_code").length,
-        phone_verify_code: snap.docs.filter((d) => d.data().step === "phone_verify_code").length,
-        google_popup_signin: snap.docs.filter((d) => d.data().step === "google_popup_signin").length,
-        google_redirect_signin: snap.docs.filter((d) => d.data().step === "google_redirect_signin").length,
+        phone_send_code: computeAuthErrorDetail(snap.docs, "phone_send_code"),
+        phone_verify_code: computeAuthErrorDetail(snap.docs, "phone_verify_code"),
+        google_popup_signin: computeAuthErrorDetail(snap.docs, "google_popup_signin"),
+        google_redirect_signin: computeAuthErrorDetail(snap.docs, "google_redirect_signin"),
       });
       setAuthErrorStatsError(false);
     } catch (err) {
@@ -408,19 +443,19 @@ export default function AdminPage() {
             </div>
           )}
           {authErrorStats && (
-            (authErrorStats.phone_send_code +
-              authErrorStats.phone_verify_code +
-              authErrorStats.google_popup_signin +
-              authErrorStats.google_redirect_signin) === 0 ? (
+            (authErrorStats.phone_send_code.count +
+              authErrorStats.phone_verify_code.count +
+              authErrorStats.google_popup_signin.count +
+              authErrorStats.google_redirect_signin.count) === 0 ? (
               <div style={{ fontSize: 13.5, color: "#2F6F4E", background: "rgba(47,111,78,0.1)", borderRadius: 8, padding: "10px 14px" }}>
                 مفيش أخطاء تسجيل مسجّلة آخر 7 أيام 👍
               </div>
             ) : (
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <FunnelStepCard label="فشل إرسال كود التليفون" value={authErrorStats.phone_send_code} />
-                <FunnelStepCard label="فشل تأكيد كود التليفون" value={authErrorStats.phone_verify_code} />
-                <FunnelStepCard label="فشل نافذة جوجل المنبثقة" value={authErrorStats.google_popup_signin} />
-                <FunnelStepCard label="فشل تسجيل جوجل بالكامل" value={authErrorStats.google_redirect_signin} />
+                <FunnelStepCard label="فشل إرسال كود التليفون" value={authErrorStats.phone_send_code.count} subtitle={authErrorSubtitle(authErrorStats.phone_send_code)} />
+                <FunnelStepCard label="فشل تأكيد كود التليفون" value={authErrorStats.phone_verify_code.count} subtitle={authErrorSubtitle(authErrorStats.phone_verify_code)} />
+                <FunnelStepCard label="فشل نافذة جوجل المنبثقة" value={authErrorStats.google_popup_signin.count} subtitle={authErrorSubtitle(authErrorStats.google_popup_signin)} />
+                <FunnelStepCard label="فشل تسجيل جوجل بالكامل" value={authErrorStats.google_redirect_signin.count} subtitle={authErrorSubtitle(authErrorStats.google_redirect_signin)} />
               </div>
             )
           )}
@@ -669,11 +704,12 @@ function StatCard({ label, value, subtitle }: { label: string; value: number | s
   );
 }
 
-function FunnelStepCard({ label, value }: { label: string; value: number }) {
+function FunnelStepCard({ label, value, subtitle }: { label: string; value: number; subtitle?: string }) {
   return (
     <div style={{ background: "#fff", border: "1px solid #14213D22", borderRadius: 8, padding: "12px 16px", textAlign: "center", minWidth: 120, flex: "1 1 120px" }}>
       <div style={{ fontSize: 22, fontWeight: 900 }}>{value}</div>
       <div style={{ fontSize: 12, color: "#4A5568" }}>{label}</div>
+      {subtitle && <div style={{ fontSize: 11, color: "#4A5568", marginTop: 4 }}>{subtitle}</div>}
     </div>
   );
 }
