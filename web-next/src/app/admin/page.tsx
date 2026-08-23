@@ -469,6 +469,22 @@ export default function AdminPage() {
       <h1 style={{ fontSize: 22, marginBottom: 6 }}>لوحة الإدارة</h1>
       <p style={{ color: "#4A5568", marginBottom: 20 }}>إحصائيات عامة عن الموقع</p>
 
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+        <button
+          onClick={loadStats}
+          disabled={loadingStats}
+          style={{
+            padding: "8px 16px",
+            border: "1px solid #14213D",
+            background: "transparent",
+            borderRadius: 6,
+            cursor: "pointer",
+          }}
+        >
+          {loadingStats ? "جاري التحديث..." : "🔄 تحديث"}
+        </button>
+      </div>
+
       {stats && (
         <div
           style={{
@@ -637,20 +653,6 @@ export default function AdminPage() {
       )}
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 30 }}>
-        <button
-          onClick={loadStats}
-          disabled={loadingStats}
-          style={{
-            padding: "8px 16px",
-            border: "1px solid #14213D",
-            background: "transparent",
-            borderRadius: 6,
-            cursor: "pointer",
-          }}
-        >
-          {loadingStats ? "جاري التحديث..." : "🔄 تحديث"}
-        </button>
-
         <button
           onClick={handleExportAllUsers}
           disabled={exportingUsers}
