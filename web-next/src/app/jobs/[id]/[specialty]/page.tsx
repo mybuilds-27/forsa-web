@@ -5,6 +5,11 @@ import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
 
+// نفس مشكلة الـstatic prerender اللي لقيناها في companies/page.tsx وjobs/page.tsx —
+// من غيرها، صفحة محافظة+تخصص مع بعض ممكن تفضل بالبيانات القديمة لحد أول deploy جديد.
+// force-dynamic بيضمن قراءة فريش من Firestore في كل طلب.
+export const dynamic = "force-dynamic";
+
 const POPULAR_COMBOS_COUNT = 8;
 
 // [id] هنا هو slug المحافظة (زي القاهرة) — نفس تسمية segment الأب في jobs/[id]/page.tsx.
