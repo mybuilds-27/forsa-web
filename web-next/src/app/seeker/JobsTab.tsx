@@ -29,7 +29,7 @@ import BrowseSidebar from "@/components/BrowseSidebar";
 import ProfileCompletionBar from "@/components/ProfileCompletionBar";
 
 const PAGE_SIZE = 12;
-const POPULAR_COMBOS_COUNT = 8;
+const POPULAR_COMBOS_COUNT = 40;
 
 const JOB_TYPE_LABELS: Record<string, string> = {
   full_time: "دوام كامل",

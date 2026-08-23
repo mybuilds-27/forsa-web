@@ -10,7 +10,7 @@ import PublicJobsList from "@/components/PublicJobsList";
 // force-dynamic بيضمن قراءة فريش من Firestore في كل طلب.
 export const dynamic = "force-dynamic";
 
-const POPULAR_COMBOS_COUNT = 8;
+const POPULAR_COMBOS_COUNT = 40;
 
 export async function generateMetadata({ params }: { params: Promise<{ specialty: string }> }) {
   const { specialty: specSlug } = await params;

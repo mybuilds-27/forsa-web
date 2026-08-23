@@ -18,7 +18,7 @@ import PublicJobsList from "@/components/PublicJobsList";
 // القديمة لحد أول deploy جديد. force-dynamic بيضمن قراءة فريش من Firestore في كل طلب.
 export const dynamic = "force-dynamic";
 
-const POPULAR_COMBOS_COUNT = 8;
+const POPULAR_COMBOS_COUNT = 40;
 
 async function getJob(id: string): Promise<any> {
   try {
