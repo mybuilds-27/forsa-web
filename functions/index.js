@@ -1314,6 +1314,107 @@ exports.savedJobExpiryReminders = onSchedule(
   }
 );
 
+// تذكير داخلي (إشعار بس، مفيش إيميل) لصاحب العمل لو عنده تقديمات status=="submitted" فضلت
+// من غير أي تغيير حالة 3 أيام أو أكتر. staleReminderSent بيتحط على كل مستند application
+// بعد الإرسال عشان مبعتش نفس التذكير كل يوم لنفس التقديم — أول ما الحالة تتغيّر (شوف
+// onApplicationStatusChanged) التقديم بيخرج من "submitted" أصلًا فمعادش بيتفحص هنا تاني.
+// وقت الجدولة (12 ظهرًا) مختار عشان يفضل متباعد عن باقي التذكيرات اليومية (8، 9، 10، 11).
+exports.staleApplicationReminders = onSchedule(
+  { schedule: "0 12 * * *", timeZone: "Africa/Cairo" },
+  async () => {
+    const db = getFirestore();
+
+    let appsSnap;
+    try {
+      appsSnap = await db.collection("applications").get();
+    } catch (err) {
+      logger.error("staleApplicationReminders: فشل جلب applications", err);
+      return;
+    }
+    if (appsSnap.empty) return;
+
+    const now = Date.now();
+    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+
+    // نفس تعريف "submitted" المستخدم في applicationStatusOf (web-next/src/lib/jobCardStyles.ts)
+    // — status غير موجود بيتحسب submitted كمان، مش بس القيمة الصريحة.
+    const staleDocs = appsSnap.docs.filter((docSnap) => {
+      const data = docSnap.data();
+      const status = data.status || "submitted";
+      if (status !== "submitted") return false;
+      if (data.staleReminderSent === true) return false;
+      if (!data.appliedAt) return false;
+      return now - data.appliedAt.toMillis() >= THREE_DAYS_MS;
+    });
+
+    if (staleDocs.length === 0) {
+      logger.info("staleApplicationReminders: مفيش تقديمات متأخرة النهاردة");
+      return;
+    }
+
+    // تجميع حسب employerId — إشعار واحد مجمّع لكل صاحب عمل بدل إشعار منفصل لكل تقديم،
+    // حتى لو عنده أكتر من تقديم متأخر في نفس اليوم.
+    const byEmployer = new Map();
+    staleDocs.forEach((docSnap) => {
+      const employerId = docSnap.data().employerId;
+      if (!employerId) return;
+      if (!byEmployer.has(employerId)) byEmployer.set(employerId, []);
+      byEmployer.get(employerId).push(docSnap);
+    });
+
+    // كل صاحب عمل = مجموعة عمليات (إشعار واحد + تعليم كل تقديماته المتأخرة) لازم تتنفذ مع
+    // بعض في نفس الـbatch، عشان مفيش سيناريو نعلّم staleReminderSent من غير ما الإشعار
+    // يتبعت فعليًا (أو العكس). بنقفل الـbatch الحالي ونبدأ واحد جديد لو المجموعة الجاية
+    // هتخلي العدد يتخطى حد الـ500 عملية بتاع Firestore لكل batch.
+    let batch = db.batch();
+    let opsInBatch = 0;
+    let notifiedEmployers = 0;
+
+    for (const [employerId, docSnaps] of byEmployer) {
+      const opsNeeded = 1 + docSnaps.length;
+      if (opsInBatch > 0 && opsInBatch + opsNeeded > 450) {
+        try {
+          await batch.commit();
+        } catch (err) {
+          logger.error("staleApplicationReminders: فشل batch commit", err);
+        }
+        batch = db.batch();
+        opsInBatch = 0;
+      }
+
+      const count = docSnaps.length;
+      const message =
+        count === 1
+          ? "عندك تقديم لسه محدش راجعه من 3 أيام — يستاهل نظرة"
+          : `عندك ${count} تقديمات لسه محدش راجعها من 3 أيام — يستاهلوا نظرة`;
+
+      const notifRef = db.collection("notifications").doc();
+      batch.set(notifRef, {
+        userId: employerId,
+        type: "stale_applications",
+        message,
+        link: "/employer?tab=company",
+        read: false,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      docSnaps.forEach((docSnap) => batch.update(docSnap.ref, { staleReminderSent: true }));
+
+      opsInBatch += opsNeeded;
+      notifiedEmployers += 1;
+    }
+
+    if (opsInBatch > 0) {
+      try {
+        await batch.commit();
+      } catch (err) {
+        logger.error("staleApplicationReminders: فشل batch commit", err);
+      }
+    }
+
+    logger.info(`staleApplicationReminders: اتبعت ${notifiedEmployers} إشعار مجمّع لـ${staleDocs.length} تقديم متأخر`);
+  }
+);
+
 // إيميل متابعة لمرة واحدة بس للحسابات اللي سجّلت دخول (عندها مستند users) بس ماكملتش التسجيل
 // الفعلي (مفيش مستند مطابق بنفس الـuid في job_seekers ولا employers) بعد 3 أيام من تاريخ
 // إنشاء الحساب. signupReminderSent بيتحط على مستند users نفسه بعد الإرسال عشان الإيميل
