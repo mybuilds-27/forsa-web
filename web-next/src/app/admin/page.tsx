@@ -61,6 +61,13 @@ type SignupMethodStats = {
   email: number;
 };
 
+type AuthErrorStats = {
+  phone_send_code: number;
+  phone_verify_code: number;
+  google_popup_signin: number;
+  google_redirect_signin: number;
+};
+
 export default function AdminPage() {
   const [status, setStatus] = useState<"loading" | "denied" | "allowed">("loading");
   const [stats, setStats] = useState<Stats | null>(null);
@@ -68,6 +75,8 @@ export default function AdminPage() {
   const [funnelError, setFunnelError] = useState(false);
   const [signupMethodStats, setSignupMethodStats] = useState<SignupMethodStats | null>(null);
   const [signupMethodError, setSignupMethodError] = useState(false);
+  const [authErrorStats, setAuthErrorStats] = useState<AuthErrorStats | null>(null);
+  const [authErrorStatsError, setAuthErrorStatsError] = useState(false);
   const [visits30d, setVisits30d] = useState<number | null>(null);
   const [visitsError, setVisitsError] = useState(false);
   const [jobViewCounts, setJobViewCounts] = useState<Record<string, number> | null>(null);
@@ -136,6 +145,27 @@ export default function AdminPage() {
       console.error("Admin signup method stats failed", err);
       setSignupMethodStats(null);
       setSignupMethodError(true);
+    }
+  }
+
+  // معزول تمامًا زي باقي الأقسام — بيستخدم logClientError الموجود بالفعل (RegisterForm.tsx)
+  // عشان يشخّص سبب الانسحاب بين "اختار طريقة تسجيل" و"أكمل التسجيل" في قمع التسجيل. نفس
+  // فترة الـ7 أيام بالظبط عشان المقارنة بينهم تبقى منطقية.
+  async function loadAuthErrorStats() {
+    try {
+      const sevenDaysAgo = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+      const snap = await getDocs(query(collection(db, "error_logs"), where("createdAt", ">=", sevenDaysAgo)));
+      setAuthErrorStats({
+        phone_send_code: snap.docs.filter((d) => d.data().step === "phone_send_code").length,
+        phone_verify_code: snap.docs.filter((d) => d.data().step === "phone_verify_code").length,
+        google_popup_signin: snap.docs.filter((d) => d.data().step === "google_popup_signin").length,
+        google_redirect_signin: snap.docs.filter((d) => d.data().step === "google_redirect_signin").length,
+      });
+      setAuthErrorStatsError(false);
+    } catch (err) {
+      console.error("Admin auth error stats failed", err);
+      setAuthErrorStats(null);
+      setAuthErrorStatsError(true);
     }
   }
 
@@ -238,7 +268,7 @@ export default function AdminPage() {
 
   async function loadStats() {
     setLoadingStats(true);
-    await Promise.all([loadCoreStats(), loadFunnelStats(), loadSignupMethodStats(), loadVisitStats(), loadJobViewStats()]);
+    await Promise.all([loadCoreStats(), loadFunnelStats(), loadSignupMethodStats(), loadAuthErrorStats(), loadVisitStats(), loadJobViewStats()]);
     setLoadingStats(false);
   }
 
@@ -365,6 +395,34 @@ export default function AdminPage() {
               <FunnelStepCard label="🔍 جوجل" value={signupMethodStats.google} />
               <FunnelStepCard label="✉️ إيميل" value={signupMethodStats.email} />
             </div>
+          )}
+        </div>
+      )}
+
+      {(authErrorStats || authErrorStatsError) && (
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 16, marginBottom: 12 }}>أخطاء التسجيل (آخر 7 أيام)</h2>
+          {authErrorStatsError && (
+            <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
+              تعذر تحميل بيانات الأخطاء — باقي الإحصائيات تحت شغالة عادي.
+            </div>
+          )}
+          {authErrorStats && (
+            (authErrorStats.phone_send_code +
+              authErrorStats.phone_verify_code +
+              authErrorStats.google_popup_signin +
+              authErrorStats.google_redirect_signin) === 0 ? (
+              <div style={{ fontSize: 13.5, color: "#2F6F4E", background: "rgba(47,111,78,0.1)", borderRadius: 8, padding: "10px 14px" }}>
+                مفيش أخطاء تسجيل مسجّلة آخر 7 أيام 👍
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <FunnelStepCard label="فشل إرسال كود التليفون" value={authErrorStats.phone_send_code} />
+                <FunnelStepCard label="فشل تأكيد كود التليفون" value={authErrorStats.phone_verify_code} />
+                <FunnelStepCard label="فشل نافذة جوجل المنبثقة" value={authErrorStats.google_popup_signin} />
+                <FunnelStepCard label="فشل تسجيل جوجل بالكامل" value={authErrorStats.google_redirect_signin} />
+              </div>
+            )
           )}
         </div>
       )}
