@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, documentId, getDocs, orderBy, query, where, limit, Timestamp } from "firebase/firestore";
+import { collection, doc, documentId, getDocs, orderBy, query, updateDoc, where, limit, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import ShareButton from "@/components/ShareButton";
 import PostJobTab from "../employer/PostJobTab";
@@ -127,6 +127,20 @@ type AuthErrorStats = {
   google_redirect_signin: AuthErrorDetail;
 };
 
+// reviewed مش موجود في المستندات القديمة خالص (لسه محدش راجعها) — undefined بيتعامل معاه
+// زي false في كل مكان هنا، مش حقل لازم يتحط وقت الإنشاء في ReportJobButton.tsx.
+type JobReport = {
+  id: string;
+  jobId: string;
+  employerId: string;
+  jobTitle: string;
+  reason: string;
+  details?: string;
+  reporterId: string | null;
+  createdAt: any;
+  reviewed?: boolean;
+};
+
 export default function AdminPage() {
   const [status, setStatus] = useState<"loading" | "denied" | "allowed">("loading");
   const [stats, setStats] = useState<Stats | null>(null);
@@ -136,6 +150,9 @@ export default function AdminPage() {
   const [signupMethodError, setSignupMethodError] = useState(false);
   const [authErrorStats, setAuthErrorStats] = useState<AuthErrorStats | null>(null);
   const [authErrorStatsError, setAuthErrorStatsError] = useState(false);
+  const [jobReports, setJobReports] = useState<JobReport[] | null>(null);
+  const [jobReportsError, setJobReportsError] = useState(false);
+  const [reviewingReportId, setReviewingReportId] = useState<string | null>(null);
   const [visits30d, setVisits30d] = useState<number | null>(null);
   const [visitsError, setVisitsError] = useState(false);
   const [jobViewCounts, setJobViewCounts] = useState<Record<string, number> | null>(null);
@@ -226,6 +243,31 @@ export default function AdminPage() {
       setAuthErrorStats(null);
       setAuthErrorStatsError(true);
     }
+  }
+
+  // معزول بنفس منطق باقي الأقسام — آخر 50 بلاغ بس (حد أقصى معقول)، الأحدث أول.
+  async function loadJobReports() {
+    try {
+      const snap = await getDocs(query(collection(db, "job_reports"), orderBy("createdAt", "desc"), limit(50)));
+      setJobReports(snap.docs.map((d) => ({ id: d.id, ...d.data() } as JobReport)));
+      setJobReportsError(false);
+    } catch (err) {
+      console.error("Admin job reports failed", err);
+      setJobReports(null);
+      setJobReportsError(true);
+    }
+  }
+
+  async function handleMarkReviewed(reportId: string) {
+    setReviewingReportId(reportId);
+    try {
+      await updateDoc(doc(db, "job_reports", reportId), { reviewed: true });
+      setJobReports((prev) => (prev ? prev.map((r) => (r.id === reportId ? { ...r, reviewed: true } : r)) : prev));
+    } catch (err) {
+      console.error("Mark report reviewed failed", err);
+      alert("حصلت مشكلة، حاول تاني.");
+    }
+    setReviewingReportId(null);
   }
 
   // معزول في تحميله الخاص بنفس منطق loadFunnelStats — لو مجموعة site_visits لسه معندهاش
@@ -327,7 +369,7 @@ export default function AdminPage() {
 
   async function loadStats() {
     setLoadingStats(true);
-    await Promise.all([loadCoreStats(), loadFunnelStats(), loadSignupMethodStats(), loadAuthErrorStats(), loadVisitStats(), loadJobViewStats()]);
+    await Promise.all([loadCoreStats(), loadFunnelStats(), loadSignupMethodStats(), loadAuthErrorStats(), loadJobReports(), loadVisitStats(), loadJobViewStats()]);
     setLoadingStats(false);
   }
 
@@ -377,6 +419,11 @@ export default function AdminPage() {
       </div>
     );
   }
+
+  // reviewed غير موجود بيتعامل معاه زي false — البلاغات الجديدة (لسه محدش راجعها) هي البارزة،
+  // والمتراجعة بتتطوي في قسم صغير منفصل تحت.
+  const pendingReports = jobReports?.filter((r) => !r.reviewed) || [];
+  const reviewedReports = jobReports?.filter((r) => r.reviewed) || [];
 
   return (
     <div dir="rtl" style={{ maxWidth: 900, margin: "0 auto", padding: "30px 20px" }}>
@@ -482,6 +529,45 @@ export default function AdminPage() {
                 <FunnelStepCard label="فشل تسجيل جوجل بالكامل" value={authErrorStats.google_redirect_signin.count} subtitle={authErrorSubtitle(authErrorStats.google_redirect_signin)} />
               </div>
             )
+          )}
+        </div>
+      )}
+
+      {(jobReports || jobReportsError) && (
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 16, marginBottom: 12 }}>بلاغات الوظائف</h2>
+          {jobReportsError && (
+            <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
+              تعذر تحميل بلاغات الوظائف — باقي الإحصائيات تحت شغالة عادي.
+            </div>
+          )}
+          {jobReports && (
+            <>
+              {pendingReports.length === 0 ? (
+                <div style={{ fontSize: 13.5, color: "#2F6F4E", background: "rgba(47,111,78,0.1)", borderRadius: 8, padding: "10px 14px" }}>
+                  مفيش بلاغات جديدة 👍
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {pendingReports.map((r) => (
+                    <JobReportRow key={r.id} report={r} onMarkReviewed={handleMarkReviewed} reviewing={reviewingReportId === r.id} />
+                  ))}
+                </div>
+              )}
+
+              {reviewedReports.length > 0 && (
+                <details style={{ marginTop: 14 }}>
+                  <summary style={{ cursor: "pointer", fontSize: 13.5, fontWeight: 700, color: "#4A5568" }}>
+                    بلاغات اتراجعت ({reviewedReports.length})
+                  </summary>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+                    {reviewedReports.map((r) => (
+                      <JobReportRow key={r.id} report={r} dimmed />
+                    ))}
+                  </div>
+                </details>
+              )}
+            </>
           )}
         </div>
       )}
@@ -724,6 +810,53 @@ function StatCard({ label, value, subtitle }: { label: string; value: number | s
       <div style={{ fontSize: 22, fontWeight: 900 }}>{value}</div>
       <div style={{ fontSize: 12, color: "#4A5568" }}>{label}</div>
       {subtitle && <div style={{ fontSize: 11, color: "#4A5568", marginTop: 4 }}>{subtitle}</div>}
+    </div>
+  );
+}
+
+function JobReportRow({
+  report,
+  onMarkReviewed,
+  reviewing,
+  dimmed,
+}: {
+  report: JobReport;
+  onMarkReviewed?: (id: string) => void;
+  reviewing?: boolean;
+  dimmed?: boolean;
+}) {
+  return (
+    <div style={{ border: "1px solid #14213D22", borderRadius: 8, padding: 14, opacity: dimmed ? 0.6 : 1 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+        <div>
+          <Link href={`/jobs/${report.jobId}`} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: "#14213D", fontSize: 14.5, textDecoration: "none" }}>
+            {report.jobTitle || "وظيفة"}
+          </Link>
+          <div style={{ fontSize: 13, color: "#B03A14", marginTop: 4 }}>السبب: {report.reason}</div>
+          {report.details && <div style={{ fontSize: 13, color: "#4A5568", marginTop: 4 }}>{report.details}</div>}
+          <div style={{ fontSize: 11.5, color: "#4A5568", marginTop: 4 }}>{formatDate(report.createdAt)}</div>
+        </div>
+        {onMarkReviewed && (
+          <button
+            onClick={() => onMarkReviewed(report.id)}
+            disabled={reviewing}
+            style={{
+              padding: "6px 12px",
+              background: "#14213D",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: reviewing ? "wait" : "pointer",
+              opacity: reviewing ? 0.7 : 1,
+              flexShrink: 0,
+            }}
+          >
+            {reviewing ? "جاري الحفظ..." : "✓ تمت المراجعة"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
