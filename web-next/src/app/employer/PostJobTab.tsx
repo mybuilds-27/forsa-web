@@ -22,7 +22,9 @@ type Props = {
   employerPlan: string;
   companyName: string;
   editingPost?: EditingPost;
-  onPosted: () => void;
+  // jobId بيتبعت بس لنشر جديد (مش تعديل) — عشان الصفحة الأب تقدر توجّه المستخدم لتبويب
+  // البحث عن كوادر ويلاقي الوظيفة اللي لسه نشرها محددة افتراضيًا في مودال الدعوة.
+  onPosted: (jobId?: string) => void;
 };
 
 export default function PostJobTab({ employerPlan, companyName, editingPost, onPosted }: Props) {
@@ -233,18 +235,20 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
       if (isEditMode && editingPost) {
         await updateDoc(doc(db, "job_posts", editingPost.id), postData);
         alert("تم حفظ التعديلات ✓");
+        resetForm();
+        onPosted();
       } else {
         const expiry = new Date();
         expiry.setDate(expiry.getDate() + (employerPlan === "premium" ? 60 : 30));
         postData.expiresAt = Timestamp.fromDate(expiry);
-        await addDoc(collection(db, "job_posts"), {
+        const docRef = await addDoc(collection(db, "job_posts"), {
           ...postData,
           createdAt: serverTimestamp(),
         });
         alert("تم نشر الإعلان بنجاح ✓");
+        resetForm();
+        onPosted(docRef.id);
       }
-      resetForm();
-      onPosted();
     } catch (err: any) {
       console.error("Job post save failed", err);
       alert(friendlyErrorMessage(err));

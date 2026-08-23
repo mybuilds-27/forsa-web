@@ -36,10 +36,11 @@ const JOB_TYPE_LABELS: Record<string, string> = {
 type Props = {
   seeker: any;
   employerPlan: string;
+  defaultInviteJobId?: string;
   onClose: () => void;
 };
 
-export default function SeekerDetailModal({ seeker: s, employerPlan, onClose }: Props) {
+export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInviteJobId, onClose }: Props) {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const isPremium = employerPlan === "premium";
@@ -248,6 +249,7 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, onClose }: 
           seekerId={s.id}
           seekerName={s.fullName || ""}
           employerPlan={employerPlan}
+          defaultJobId={defaultInviteJobId}
           onClose={() => setShowInvite(false)}
         />
       )}

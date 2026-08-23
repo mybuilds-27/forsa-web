@@ -133,10 +133,12 @@ function EmployerPageInner() {
             employerPlan={companyData?.plan || "free"}
             companyName={companyData?.companyName || ""}
             editingPost={editingPost}
-            onPosted={() => {
+            onPosted={(jobId) => {
               loadCompany();
               setEditingPost(null);
-              router.push("/employer?tab=company");
+              // jobId موجود بس لنشر جديد (مش تعديل) — نوجّه المستخدم لتبويب البحث عن كوادر
+              // مباشرة بدل ما يستنى المتقدمين يجوله لوحدهم؛ التعديل يرجع لتبويب الشركة زي ما كان.
+              router.push(jobId ? `/employer?tab=talent&justPosted=${jobId}` : "/employer?tab=company");
             }}
           />
         )}

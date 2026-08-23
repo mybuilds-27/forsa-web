@@ -11,10 +11,13 @@ type Props = {
   seekerId: string;
   seekerName: string;
   employerPlan: string;
+  // لو صاحب العمل جاي لتوّه من نشر وظيفة جديدة (شوف TalentSearchTab.tsx)، بنحدد الوظيفة
+  // دي افتراضيًا في القايمة تحت بدل ما يحتاج يدوّر عليها يدوي من بين إعلاناته.
+  defaultJobId?: string;
   onClose: () => void;
 };
 
-export default function InviteToJobModal({ seekerId, seekerName, employerPlan, onClose }: Props) {
+export default function InviteToJobModal({ seekerId, seekerName, employerPlan, defaultJobId, onClose }: Props) {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedJobId, setSelectedJobId] = useState("");
@@ -34,10 +37,17 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, o
           ? query(collection(db, "job_posts"), where("isActive", "==", true))
           : query(collection(db, "job_posts"), where("employerId", "==", user.uid), where("isActive", "==", true))
       );
-      setJobs(snap.docs.map((d) => ({ id: d.id, ...d.data() } as any)));
+      const loadedJobs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
+      setJobs(loadedJobs);
+      // لو الوظيفة الافتراضية موجودة فعليًا بين الوظائف المحمّلة (نشطة ومملوكة له)، بنحددها
+      // على طول بدل ما يسيب القايمة فاضية.
+      if (defaultJobId && loadedJobs.some((j) => j.id === defaultJobId)) {
+        setSelectedJobId(defaultJobId);
+      }
       setLoading(false);
     }
     loadJobs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleSendInvite() {
