@@ -10,7 +10,7 @@ import PublicJobsList from "@/components/PublicJobsList";
 // force-dynamic بيضمن قراءة فريش من Firestore في كل طلب.
 export const dynamic = "force-dynamic";
 
-const POPULAR_COMBOS_COUNT = 8;
+const POPULAR_COMBOS_COUNT = 40;
 
 // [id] هنا هو slug المحافظة (زي القاهرة) — نفس تسمية segment الأب في jobs/[id]/page.tsx.
 // ملحوظة: Next.js بيسيب قيمة الـsegment الأب (id) لسه مشفّرة (percent-encoded) لما توصل

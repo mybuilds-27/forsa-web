@@ -15,7 +15,7 @@ export const metadata = {
 // force-dynamic بيضمن قراءة فريش من Firestore في كل طلب.
 export const dynamic = "force-dynamic";
 
-const POPULAR_COMBOS_COUNT = 8;
+const POPULAR_COMBOS_COUNT = 40;
 
 type Props = {
   searchParams: Promise<{ q?: string; governorate?: string; jobType?: string; specialization?: string }>;
