@@ -37,35 +37,54 @@ function formatDate(ts: any) {
   return d.toLocaleDateString("ar-EG");
 }
 
-// بيحسب عدد مستندات error_logs بـstep معيّن، وأكتر code تكرر بينهم (بدون أي استعلام إضافي —
-// نفس الـdocs المجلوبة أصلًا من loadAuthErrorStats). code == null بيتحسب كقيمة لوحده (يعني
-// "مفيش code مسجل")، فلو ده أكتر قيمة تكررت، topErrorCode بيرجع null والواجهة بتعرض رسالة توضيحية.
-function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
-  const stepDocs = docs.filter((d) => d.data().step === step);
-  const codeCounts = new Map<string | null, number>();
-  stepDocs.forEach((d) => {
-    const code = d.data().code ?? null;
-    codeCounts.set(code, (codeCounts.get(code) || 0) + 1);
-  });
+// أكتر قيمة تكررت في مصفوفة (code أو message)، وعدد تكرارها — null بيتحسب كقيمة لوحدها
+// (يعني "مفيش قيمة مسجلة")، فلو ده الأكتر تكرارًا، القيمة الراجعة بتبقى null.
+function mostFrequentValue(values: (string | null)[]): { value: string | null; count: number } {
+  const counts = new Map<string | null, number>();
+  values.forEach((v) => counts.set(v, (counts.get(v) || 0) + 1));
 
-  let topErrorCode: string | null = null;
-  let topErrorCodeCount = 0;
-  codeCounts.forEach((count, code) => {
-    if (count > topErrorCodeCount) {
-      topErrorCode = code;
-      topErrorCodeCount = count;
+  let value: string | null = null;
+  let count = 0;
+  counts.forEach((c, v) => {
+    if (c > count) {
+      value = v;
+      count = c;
     }
   });
 
-  return { count: stepDocs.length, topErrorCode, topErrorCodeCount };
+  return { value, count };
 }
 
+// بيحسب عدد مستندات error_logs بـstep معيّن، وأكتر code تكرر بينهم، وأكتر message تكرر
+// كـfallback لو مفيش code مسجل خالص (بدون أي استعلام إضافي — نفس الـdocs المجلوبة أصلًا
+// من loadAuthErrorStats).
+function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
+  const stepDocs = docs.filter((d) => d.data().step === step);
+  const topCode = mostFrequentValue(stepDocs.map((d) => d.data().code ?? null));
+  const topMessage = mostFrequentValue(stepDocs.map((d) => d.data().message ?? null));
+
+  return {
+    count: stepDocs.length,
+    topErrorCode: topCode.value,
+    topErrorCodeCount: topCode.count,
+    topErrorMessage: topMessage.value,
+  };
+}
+
+const ERROR_SUBTITLE_MAX_LENGTH = 60;
+
 // نص السطر الصغير تحت كل رقم في بطاقة أخطاء التسجيل — undefined (مفيش سطر خالص) لو الـstep
-// ده معندهوش أي أخطاء أصلًا، عشان ميظهرش "كود مش متسجل" تحت رقم صفر بشكل مضلل.
+// ده معندهوش أي أخطاء أصلًا، عشان ميظهرش "كود مش متسجل" تحت رقم صفر بشكل مضلل. لو مفيش code
+// مسجل، بنرجع لأكتر message تكرر بدل النص الثابت — وبنقصّها لو طويلة عشان متكسرش شكل الكارت.
 function authErrorSubtitle(detail: AuthErrorDetail): string | undefined {
   if (detail.count === 0) return undefined;
-  if (!detail.topErrorCode) return "(كود الخطأ مش متسجل)";
-  return `${detail.topErrorCode} (${detail.topErrorCodeCount} مرة)`;
+  if (detail.topErrorCode) return `${detail.topErrorCode} (${detail.topErrorCodeCount} مرة)`;
+  if (detail.topErrorMessage) {
+    return detail.topErrorMessage.length > ERROR_SUBTITLE_MAX_LENGTH
+      ? `${detail.topErrorMessage.slice(0, ERROR_SUBTITLE_MAX_LENGTH)}...`
+      : detail.topErrorMessage;
+  }
+  return "(كود الخطأ مش متسجل)";
 }
 
 type Stats = {
@@ -94,7 +113,12 @@ type SignupMethodStats = {
 
 // count إجمالي الأخطاء المسجّلة للـstep ده، وtopErrorCode/topErrorCodeCount أكتر code
 // (زي auth/quota-exceeded) تكرر بينهم — null لو كل المستندات معندهاش code مسجل خالص.
-type AuthErrorDetail = { count: number; topErrorCode: string | null; topErrorCodeCount: number };
+type AuthErrorDetail = {
+  count: number;
+  topErrorCode: string | null;
+  topErrorCodeCount: number;
+  topErrorMessage: string | null;
+};
 
 type AuthErrorStats = {
   phone_send_code: AuthErrorDetail;
