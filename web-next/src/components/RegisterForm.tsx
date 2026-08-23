@@ -483,7 +483,14 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
       console.error("Send code failed", err);
       logClientError("phone_send_code", err);
       setError(phoneAuthErrorMessage(err));
-      // نلغي الـ verifier عشان محاولة تانية تعمل واحد جديد صحيح
+      // نلغي الـ verifier عشان محاولة تانية تعمل واحد جديد صحيح — .clear() لازم قبل تصفير
+      // الـref، وإلا الـwidget بيفضل موجود فعليًا جوه #recaptcha-container، وأي RecaptchaVerifier
+      // جديد على نفس العنصر بيفشل بـ"reCAPTCHA has already been rendered in this element".
+      try {
+        recaptchaVerifierRef.current?.clear();
+      } catch (clearErr) {
+        console.warn("Recaptcha clear failed", clearErr);
+      }
       recaptchaVerifierRef.current = null;
     }
     setPhoneLoading(false);
