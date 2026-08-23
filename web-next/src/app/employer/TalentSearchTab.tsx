@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { collection, getDocs, limit, query, startAfter, where, QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -18,6 +19,12 @@ type Props = {
 };
 
 export default function TalentSearchTab({ employerPlan }: Props) {
+  const searchParams = useSearchParams();
+  // موجود بس لما صاحب العمل يجي على طول من نشر وظيفة جديدة (شوف employer/page.tsx) —
+  // مش state دائم، فلو رجع للتبويب من غير ما يمر بنشر وظيفة تاني، مش هيلاقي البانر تاني.
+  const justPostedJobId = searchParams.get("justPosted");
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
   const [specFilter, setSpecFilter] = useState("");
   const [govFilter, setGovFilter] = useState("");
   const [jobTypeFilter, setJobTypeFilter] = useState("");
@@ -34,6 +41,10 @@ export default function TalentSearchTab({ employerPlan }: Props) {
 
   // الحد الأدنى للخبرة لوحده متكفيش لتفعيل البحث — لازم فلتر تاني معاه
   const hasActiveFilter = !!(specFilter || govFilter || jobTypeFilter || jobLevelFilter);
+
+  // البانر بيختفي أوتوماتيك أول ما يبدأ يفلتر (وبالتبعية أي دعوة، لأنها مش متاحة غير بعد
+  // ظهور نتايج بحث فعلية أصلًا)، أو بزرار الإغلاق اليدوي.
+  const showJustPostedBanner = !!justPostedJobId && !bannerDismissed && !hasActiveFilter;
 
   async function fetchSeekers(reset: boolean) {
     if (!hasActiveFilter) {
@@ -90,6 +101,47 @@ export default function TalentSearchTab({ employerPlan }: Props) {
   return (
     <div dir="rtl">
       <h2 style={{ fontSize: 20, marginBottom: 16 }}>🔍 البحث عن كوادر</h2>
+
+      {showJustPostedBanner && (
+        <div
+          style={{
+            position: "relative",
+            background: "rgba(47,111,78,0.1)",
+            border: "1px solid #2F6F4E33",
+            borderRadius: 10,
+            padding: "14px 40px 14px 16px",
+            marginBottom: 20,
+          }}
+        >
+          <button
+            onClick={() => setBannerDismissed(true)}
+            aria-label="إغلاق"
+            style={{
+              position: "absolute",
+              top: 10,
+              left: 10,
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              border: "none",
+              background: "transparent",
+              color: "#4A5568",
+              cursor: "pointer",
+              fontSize: 15,
+              lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
+          <p style={{ margin: 0, fontSize: 14, color: "#14213D", lineHeight: 1.7 }}>
+            🎉 الوظيفة اتنشرت! بدل ما تستنى حد يقدّم، تقدر تدوّر على كوادر مناسبة بنفسك
+            وتبعتلهم دعوة مباشرة للتقديم على الوظيفة دي.
+          </p>
+          <p style={{ margin: "6px 0 0", fontSize: 13, color: "#2F6F4E", fontWeight: 700 }}>
+            {employerPlan === "premium" ? "عندك 30 دعوة مباشرة شهريًا" : "عندك 5 دعوات مباشرة شهريًا"}
+          </p>
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 20 }}>
         <div>
@@ -201,6 +253,7 @@ export default function TalentSearchTab({ employerPlan }: Props) {
         <SeekerDetailModal
           seeker={selectedSeeker}
           employerPlan={employerPlan}
+          defaultInviteJobId={justPostedJobId || undefined}
           onClose={() => setSelectedSeeker(null)}
         />
       )}
