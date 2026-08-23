@@ -25,6 +25,10 @@ import {
   toolBtnStyle,
   dangerToolBtnStyle,
   JOB_TYPE_LABELS,
+  APPLICATION_STATUS_LABELS,
+  APPLICATION_STATUS_ORDER,
+  applicationStatusOf,
+  type ApplicationStatus,
 } from "@/lib/jobCardStyles";
 
 const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
@@ -141,6 +145,8 @@ type JobReport = {
   reviewed?: boolean;
 };
 
+type ApplicationStatusStats = Record<ApplicationStatus, number>;
+
 export default function AdminPage() {
   const [status, setStatus] = useState<"loading" | "denied" | "allowed">("loading");
   const [stats, setStats] = useState<Stats | null>(null);
@@ -153,6 +159,9 @@ export default function AdminPage() {
   const [jobReports, setJobReports] = useState<JobReport[] | null>(null);
   const [jobReportsError, setJobReportsError] = useState(false);
   const [reviewingReportId, setReviewingReportId] = useState<string | null>(null);
+  const [applicationStatusStats, setApplicationStatusStats] = useState<ApplicationStatusStats | null>(null);
+  const [applicationStatusStatsError, setApplicationStatusStatsError] = useState(false);
+  const [staleSubmittedCount, setStaleSubmittedCount] = useState(0);
   const [visits30d, setVisits30d] = useState<number | null>(null);
   const [visitsError, setVisitsError] = useState(false);
   const [jobViewCounts, setJobViewCounts] = useState<Record<string, number> | null>(null);
@@ -270,6 +279,36 @@ export default function AdminPage() {
     setReviewingReportId(null);
   }
 
+  // معزول بنفس منطق باقي الأقسام — applicationStatusOf() هي نفسها المستخدمة في JobsTab.tsx،
+  // من غير أي فلترة يدوية جديدة. ملحوظة: حقل تاريخ التقديم اسمه appliedAt فعليًا (شوف
+  // ApplyButton.tsx)، مش createdAt — استخدمناه هنا عشان يطابق البيانات الحقيقية.
+  async function loadApplicationStatusStats() {
+    try {
+      const snap = await getDocs(collection(db, "applications"));
+      const counts = Object.fromEntries(APPLICATION_STATUS_ORDER.map((s) => [s, 0])) as ApplicationStatusStats;
+      const fiveDaysAgo = Date.now() - 5 * 24 * 60 * 60 * 1000;
+      let staleSubmitted = 0;
+
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        const status = applicationStatusOf(data);
+        counts[status] += 1;
+        if (status === "submitted" && data.appliedAt?.toMillis && data.appliedAt.toMillis() < fiveDaysAgo) {
+          staleSubmitted += 1;
+        }
+      });
+
+      setApplicationStatusStats(counts);
+      setStaleSubmittedCount(staleSubmitted);
+      setApplicationStatusStatsError(false);
+    } catch (err) {
+      console.error("Admin application status stats failed", err);
+      setApplicationStatusStats(null);
+      setStaleSubmittedCount(0);
+      setApplicationStatusStatsError(true);
+    }
+  }
+
   // معزول في تحميله الخاص بنفس منطق loadFunnelStats — لو مجموعة site_visits لسه معندهاش
   // قاعدة أمان مطبّقة (أو أي مشكلة تانية)، القسم ده بس بيفشل من غير ما يأثر على باقي اللوحة.
   async function loadVisitStats() {
@@ -369,7 +408,7 @@ export default function AdminPage() {
 
   async function loadStats() {
     setLoadingStats(true);
-    await Promise.all([loadCoreStats(), loadFunnelStats(), loadSignupMethodStats(), loadAuthErrorStats(), loadJobReports(), loadVisitStats(), loadJobViewStats()]);
+    await Promise.all([loadCoreStats(), loadFunnelStats(), loadSignupMethodStats(), loadAuthErrorStats(), loadJobReports(), loadApplicationStatusStats(), loadVisitStats(), loadJobViewStats()]);
     setLoadingStats(false);
   }
 
@@ -464,6 +503,31 @@ export default function AdminPage() {
       {visitsError && (
         <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px", marginBottom: 20 }}>
           تعذر تحميل عداد الزيارات — باقي الإحصائيات تحت شغالة عادي.
+        </div>
+      )}
+
+      {(applicationStatusStats || applicationStatusStatsError) && (
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 16, marginBottom: 12 }}>توزيع حالة التقديمات</h2>
+          {applicationStatusStatsError && (
+            <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
+              تعذر تحميل توزيع حالة التقديمات — باقي الإحصائيات تحت شغالة عادي.
+            </div>
+          )}
+          {applicationStatusStats && (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                {APPLICATION_STATUS_ORDER.map((status) => (
+                  <FunnelStepCard key={status} label={APPLICATION_STATUS_LABELS[status]} value={applicationStatusStats[status]} />
+                ))}
+              </div>
+              {staleSubmittedCount > 0 && (
+                <div style={{ fontSize: 13, color: "#8A570D", background: "rgba(232,163,61,0.15)", borderRadius: 8, padding: "10px 14px", marginTop: 10 }}>
+                  ⚠️ {staleSubmittedCount} تقديم لسه في انتظار مراجعة من أكتر من 5 أيام
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
