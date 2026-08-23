@@ -55,11 +55,19 @@ type FunnelStats = {
   completed: number;
 };
 
+type SignupMethodStats = {
+  phone: number;
+  google: number;
+  email: number;
+};
+
 export default function AdminPage() {
   const [status, setStatus] = useState<"loading" | "denied" | "allowed">("loading");
   const [stats, setStats] = useState<Stats | null>(null);
   const [funnelStats, setFunnelStats] = useState<FunnelStats | null>(null);
   const [funnelError, setFunnelError] = useState(false);
+  const [signupMethodStats, setSignupMethodStats] = useState<SignupMethodStats | null>(null);
+  const [signupMethodError, setSignupMethodError] = useState(false);
   const [visits30d, setVisits30d] = useState<number | null>(null);
   const [visitsError, setVisitsError] = useState(false);
   const [jobViewCounts, setJobViewCounts] = useState<Record<string, number> | null>(null);
@@ -109,6 +117,25 @@ export default function AdminPage() {
       console.error("Admin funnel stats failed", err);
       setFunnelStats(null);
       setFunnelError(true);
+    }
+  }
+
+  // معزول تمامًا زي loadFunnelStats (وبنفس نمط try/catch)، بس من غير فلتر تاريخ — إجمالي
+  // طرق التسجيل من أول ما بدأ التتبّع، مش آخر 7 أيام بس. نفس الفلترة بعد الجلب (client-side)
+  // زي باقي استخدامات step في loadFunnelStats بالظبط.
+  async function loadSignupMethodStats() {
+    try {
+      const snap = await getDocs(query(collection(db, "registration_funnel_events"), where("step", "==", "method_selected")));
+      setSignupMethodStats({
+        phone: snap.docs.filter((d) => d.data().method === "phone").length,
+        google: snap.docs.filter((d) => d.data().method === "google").length,
+        email: snap.docs.filter((d) => d.data().method === "email").length,
+      });
+      setSignupMethodError(false);
+    } catch (err) {
+      console.error("Admin signup method stats failed", err);
+      setSignupMethodStats(null);
+      setSignupMethodError(true);
     }
   }
 
@@ -211,7 +238,7 @@ export default function AdminPage() {
 
   async function loadStats() {
     setLoadingStats(true);
-    await Promise.all([loadCoreStats(), loadFunnelStats(), loadVisitStats(), loadJobViewStats()]);
+    await Promise.all([loadCoreStats(), loadFunnelStats(), loadSignupMethodStats(), loadVisitStats(), loadJobViewStats()]);
     setLoadingStats(false);
   }
 
@@ -319,6 +346,24 @@ export default function AdminPage() {
               <FunnelStepCard label="اختار طريقة تسجيل" value={funnelStats.methodSelected} />
               <FunnelArrow from={funnelStats.methodSelected} to={funnelStats.completed} />
               <FunnelStepCard label="أكمل التسجيل" value={funnelStats.completed} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {(signupMethodStats || signupMethodError) && (
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 16, marginBottom: 12 }}>طريقة التسجيل (كل الوقت)</h2>
+          {signupMethodError && (
+            <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
+              تعذر تحميل بيانات طرق التسجيل — باقي الإحصائيات تحت شغالة عادي.
+            </div>
+          )}
+          {signupMethodStats && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <FunnelStepCard label="📱 تليفون" value={signupMethodStats.phone} />
+              <FunnelStepCard label="🔍 جوجل" value={signupMethodStats.google} />
+              <FunnelStepCard label="✉️ إيميل" value={signupMethodStats.email} />
             </div>
           )}
         </div>
