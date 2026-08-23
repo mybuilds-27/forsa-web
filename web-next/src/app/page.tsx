@@ -14,7 +14,7 @@ const COLORS = {
 };
 
 const LATEST_JOBS_COUNT = 6;
-const EXAMPLE_COMBOS_COUNT = 6;
+const EXAMPLE_COMBOS_COUNT = 40;
 
 // الصفحة دي بتجيب أحدث الوظائف والـcombos لايف من Firestore، فلازم force-dynamic زي /jobs
 // عشان منقعش في نفس مشكلة الـstatic prerender اللي كانت بتسيب الصفحة فاضلة بالبيانات القديمة
@@ -140,10 +140,10 @@ export default async function HomePage() {
         {exampleCombos.length > 0 && (
           <div style={{ marginBottom: 40 }}>
             <h3 style={{ fontSize: 15, color: COLORS.ink, marginBottom: 4 }}>
-              تصفح حسب المحافظة والتخصص (أمثلة):
+              تصفح حسب المحافظة والتخصص:
             </h3>
             <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 12 }}>
-              دي أمثلة بس من أشهر التخصصات المتاحة — مش كل الاختيارات.
+              كل الوظائف المتاحة حاليًا مقسّمة حسب المحافظة والتخصص.
             </p>
             <BrowseByCombos combos={exampleCombos} variant="inline" />
           </div>
