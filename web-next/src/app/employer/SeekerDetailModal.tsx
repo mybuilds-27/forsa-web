@@ -238,6 +238,14 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
               >
                 🚀 طلب الترقية للباقة المدفوعة
               </button>
+              {/* الدعوة للتقديم متاحة للباقة المجانية كمان (InviteToJobModal بتدعمها فعليًا،
+                  حد 5 دعوات شهريًا) — القيد على المدفوعة بس هو كشف بيانات التواصل فوق. */}
+              <button
+                onClick={() => setShowInvite(true)}
+                style={{ display: "block", marginTop: 10, padding: "8px 16px", background: "#14213D", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13.5 }}
+              >
+                ✉️ ادعُه للتقديم على وظيفة
+              </button>
             </div>
           ) : null}
         </div>
