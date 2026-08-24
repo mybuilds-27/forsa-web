@@ -78,8 +78,10 @@ function salaryText(p: any): string {
 // 1) sanitizeJobDescription بتحول */- في أول السطر لـ• (وتشيل باقي رموز Markdown).
 // 2) لو النتيجة فيها "•"، بتتقسم عليها — .slice(1) بيتجاهل أي مقدمة قبل أول "•" فعلي
 //    (نفس منطق splitBulletItems القديمة اللي كانت هنا وفي page.tsx بالظبط).
-// 3) لو مفيش "•" خالص، بتجرب تقسيم على الأسطر (\n) — كل سطر غير فاضي بيبقى نقطة، بس لو
-//    النتيجة عنصر واحد بس (نص متصل من غير فواصل واضحة) بترجع null بدل ما تعتبره نقطة وهمية.
+// 3) لو مفيش "•" خالص، بتجرب تقسيم على الأسطر (\n) — كل سطر غير فاضي وعدد كلماته 4 أو
+//    أكتر بيبقى نقطة (السطور الأقصر زي "وصف الوظيفة" أو "الشروط" غالبًا عناوين/تسميات
+//    قبل المحتوى الحقيقي، مش نقط فعلية، فبتتشال). لو النتيجة بعد الفلترة دي أقل من عنصرين
+//    (نص متصل من غير فواصل واضحة) بترجع null بدل ما تعتبره نقطة وهمية.
 function extractBulletPoints(rawText: string): string[] | null {
   const sanitized = sanitizeJobDescription(rawText || "");
   if (!sanitized) return null;
@@ -96,7 +98,8 @@ function extractBulletPoints(rawText: string): string[] | null {
   const lines = sanitized
     .split("\n")
     .map((s) => s.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((line) => line.split(/\s+/).filter(Boolean).length >= 4);
   return lines.length >= 2 ? lines : null;
 }
 
