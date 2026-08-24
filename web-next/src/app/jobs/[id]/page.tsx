@@ -9,7 +9,7 @@ import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
 import { EXPERIENCE_LEVELS, findGovernorateBySlug, slugify } from "@/lib/constants";
-import { featuredPillStyle, JOB_TYPE_LABELS, sanitizeJobDescription } from "@/lib/jobCardStyles";
+import { featuredPillStyle, JOB_TYPE_LABELS, salaryText, sanitizeJobDescription } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
@@ -171,14 +171,6 @@ function splitBulletItems(description: string): string[] | null {
     .map((s) => s.trim())
     .filter(Boolean);
   return items.length > 0 ? items : null;
-}
-
-function salaryText(p: any) {
-  if (p.showSalary === false) return "غير محدد";
-  if (p.salaryNegotiable) return "قابل للتفاوض / حسب الخبرة";
-  if (p.salaryFrom && p.salaryTo) return `${p.salaryFrom} - ${p.salaryTo} جنيه`;
-  if (p.salaryFrom) return `يبدأ من ${p.salaryFrom} جنيه`;
-  return "غير محدد";
 }
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {

@@ -13,6 +13,16 @@ export function sanitizeJobDescription(text: string): string {
     .replace(/\*/g, "");
 }
 
+// نفس منطق salaryText اللي كان مكرر كـfunction محلية في jobs/[id]/page.tsx — مستخرجة هنا
+// عشان تتستخدم كمان في JobListItem.tsx (كارت الوظيفة في الصفحة الرئيسية و/jobs) من غير تكرار.
+export function salaryText(p: any): string {
+  if (p.showSalary === false) return "غير محدد";
+  if (p.salaryNegotiable) return "قابل للتفاوض / حسب الخبرة";
+  if (p.salaryFrom && p.salaryTo) return `${p.salaryFrom} - ${p.salaryTo} جنيه`;
+  if (p.salaryFrom) return `يبدأ من ${p.salaryFrom} جنيه`;
+  return "غير محدد";
+}
+
 export const jobCardContainerStyle: CSSProperties = {
   border: "1px solid #14213D33",
   borderRadius: 14,
