@@ -128,7 +128,7 @@ export default async function HomePage() {
             <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 16 }}>
               {topCompanies.length === totalActiveEmployersCount
                 ? "كل الشركات اللي بتوظف عندنا دلوقتي ظاهرة هنا"
-                : `${topCompanies.length} من إجمالي ${totalActiveEmployersCount} شركة بتوظف دلوقتي`}
+                : "وشركات تانية كتير بتوظف عندنا برضه"}
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", alignItems: "center" }}>
               {topCompanies.map((c) => (
@@ -161,6 +161,23 @@ export default async function HomePage() {
                   )}
                 </Link>
               ))}
+            </div>
+            <div style={{ textAlign: "center", marginTop: 20 }}>
+              <Link
+                href="/companies"
+                style={{
+                  display: "inline-block",
+                  padding: "10px 22px",
+                  borderRadius: 8,
+                  border: `1.5px solid ${COLORS.ink}`,
+                  color: COLORS.ink,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                }}
+              >
+                تصفح كل الشركات ←
+              </Link>
             </div>
           </div>
         )}
