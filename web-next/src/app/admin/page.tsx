@@ -2,7 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, doc, documentId, getDocs, orderBy, query, updateDoc, where, limit, Timestamp } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  documentId,
+  getCountFromServer,
+  getDocs,
+  orderBy,
+  query,
+  startAfter,
+  updateDoc,
+  where,
+  limit,
+  Timestamp,
+  type QueryDocumentSnapshot,
+} from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import ShareButton from "@/components/ShareButton";
 import PostJobTab from "../employer/PostJobTab";
@@ -32,6 +46,10 @@ import {
 } from "@/lib/jobCardStyles";
 
 const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
+
+// حجم دفعة "كل الإعلانات المنشورة على الموقع" — نفس الرقم مستخدم في in query لـjob_views/
+// applications تحت (حد الـin في Firestore بيسمح بأكتر بكتير، بس مفيش داعي نتخطى حجم الصفحة نفسها)
+const POSTS_PAGE_SIZE = 10;
 
 type EditingPost = { id: string; data: any } | null;
 
@@ -166,6 +184,9 @@ export default function AdminPage() {
   const [visitsError, setVisitsError] = useState(false);
   const [jobViewCounts, setJobViewCounts] = useState<Record<string, number> | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
+  const [lastVisiblePost, setLastVisiblePost] = useState<QueryDocumentSnapshot | null>(null);
+  const [hasMorePosts, setHasMorePosts] = useState(false);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [seoData, setSeoData] = useState<{ governorates: string[]; specializations: string[]; combos: JobCombo[] } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
   const [editingPost, setEditingPost] = useState<EditingPost>(null);
@@ -327,37 +348,35 @@ export default function AdminPage() {
     }
   }
 
-  // معزول برضو — مقارنة المشاهدات بالتقديمات تحسين إضافي في القايمة، مش لازم يوقف عرض
-  // القايمة نفسها (اسم الوظيفة، عدد المتقدمين، إلخ) لو مجموعة job_views فشلت لأي سبب.
-  async function loadJobViewStats() {
-    try {
-      const snap = await getDocs(collection(db, "job_views"));
-      const counts: Record<string, number> = {};
-      snap.docs.forEach((d) => {
-        counts[d.id] = d.data().count || 0;
-      });
-      setJobViewCounts(counts);
-    } catch (err) {
-      console.error("Admin job view stats failed", err);
-      setJobViewCounts(null);
-    }
-  }
-
   async function loadCoreStats() {
     try {
       const oneDayAgo = Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
-      const [seekersSnap, employersSnap, postsSnap, activePostsSnap, appsSnap, totalUsersSnap, activeUsersSnap, jobsSeoData] =
-        await Promise.all([
-          getDocs(collection(db, "job_seekers")),
-          getDocs(collection(db, "employers")),
-          getDocs(collection(db, "job_posts")),
-          getDocs(query(collection(db, "job_posts"), where("isActive", "==", true))),
-          getDocs(collection(db, "applications")),
-          getDocs(collection(db, "users")),
-          getDocs(query(collection(db, "users"), where("lastActiveAt", ">=", oneDayAgo))),
-          getActiveJobsSeoData(),
-        ]);
+      // allPosts/activePosts/applications بقوا عدّ بس (getCountFromServer) — استعلام رخيص
+      // جدًا مبيجيبش بيانات المستندات خالص، بدل ما نجيب كل المستندات فعليًا بس عشان نعدهم.
+      const [
+        seekersSnap,
+        employersSnap,
+        allPostsCountSnap,
+        activePostsCountSnap,
+        applicationsCountSnap,
+        visibleCompanyPostsSnap,
+        totalUsersSnap,
+        activeUsersSnap,
+        jobsSeoData,
+      ] = await Promise.all([
+        getDocs(collection(db, "job_seekers")),
+        getDocs(collection(db, "employers")),
+        getCountFromServer(collection(db, "job_posts")),
+        getCountFromServer(query(collection(db, "job_posts"), where("isActive", "==", true))),
+        getCountFromServer(collection(db, "applications")),
+        // "شركة ظاهرة للعامة" محتاجة بيانات فعلية (employerId، expiresAt) مش عدّ بس — استعلام
+        // مصغّر (isActive + showCompanyName) بدل جلب كل job_posts زي الأول عشان نوفر قراءات.
+        getDocs(query(collection(db, "job_posts"), where("isActive", "==", true), where("showCompanyName", "==", true))),
+        getDocs(collection(db, "users")),
+        getDocs(query(collection(db, "users"), where("lastActiveAt", ">=", oneDayAgo))),
+        getActiveJobsSeoData(),
+      ]);
 
       setSeoData({
         governorates: jobsSeoData.governorates,
@@ -367,14 +386,14 @@ export default function AdminPage() {
 
       const premiumCount = employersSnap.docs.filter((d) => d.data().plan === "premium").length;
 
-      // "شركة ظاهرة للعامة" — نفس تعريف getCompanies في companies/page.tsx بالظبط: صاحب
-      // عمل عنده على الأقل إعلان نشط، اسمه ظاهر، ومش منتهي الصلاحية. بنحسبها من postsSnap
-      // الموجودة بالفعل هنا بدل ما نعمل query إضافي.
+      // نفس تعريف getCompanies في companies/page.tsx بالظبط: صاحب عمل عنده على الأقل إعلان
+      // نشط، اسمه ظاهر، ومش منتهي الصلاحية. isActive/showCompanyName اتفلتروا في الاستعلام
+      // نفسه فوق، وهنا بس بنفلتر expiresAt (مش قابل لفلترة Firestore بسهولة في نفس الاستعلام).
       const now = Date.now();
       const visibleCompanyIds = new Set(
-        postsSnap.docs
+        visibleCompanyPostsSnap.docs
           .map((d) => d.data() as any)
-          .filter((p) => p.isActive === true && p.showCompanyName === true && (!p.expiresAt || p.expiresAt.toMillis() > now))
+          .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now)
           .map((p) => p.employerId)
       );
 
@@ -383,32 +402,95 @@ export default function AdminPage() {
         employers: employersSnap.size,
         premium: premiumCount,
         visibleCompanies: visibleCompanyIds.size,
-        allPosts: postsSnap.size,
-        activePosts: activePostsSnap.size,
-        applications: appsSnap.size,
+        allPosts: allPostsCountSnap.data().count,
+        activePosts: activePostsCountSnap.data().count,
+        applications: applicationsCountSnap.data().count,
         totalUsers: totalUsersSnap.size,
         activeUsers24h: activeUsersSnap.size,
       });
-
-      const appCounts: Record<string, number> = {};
-      appsSnap.docs.forEach((d) => {
-        const jid = d.data().jobPostId;
-        appCounts[jid] = (appCounts[jid] || 0) + 1;
-      });
-
-      const postsList = postsSnap.docs
-        .map((d) => ({ id: d.id, ...d.data(), applicantCount: appCounts[d.id] || 0 } as any))
-        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-
-      setPosts(postsList);
     } catch (err) {
       console.error("Admin stats failed", err);
     }
   }
 
+  // job_views وapplications للدفعة الحالية بس (مش المجموعة كاملة) — أقصى POSTS_PAGE_SIZE
+  // (10) IDs في المرة الواحدة، متوافق مع limit الصفحة نفسها. معزولين عن بعض بـtry/catch
+  // منفصل، عشان فشل واحد فيهم (زي عدد المشاهدات) ميمنعش عرض عدد المتقدمين والعكس.
+  async function fetchJobViewsAndAppCounts(postIds: string[]) {
+    const views: Record<string, number> = {};
+    const appCounts: Record<string, number> = {};
+    if (postIds.length === 0) return { views, appCounts };
+
+    try {
+      const viewsSnap = await getDocs(query(collection(db, "job_views"), where(documentId(), "in", postIds)));
+      viewsSnap.docs.forEach((d) => {
+        views[d.id] = d.data().count || 0;
+      });
+    } catch (err) {
+      console.error("Admin job views (page) failed", err);
+    }
+
+    try {
+      const appsSnap = await getDocs(query(collection(db, "applications"), where("jobPostId", "in", postIds)));
+      appsSnap.docs.forEach((d) => {
+        const jid = d.data().jobPostId;
+        appCounts[jid] = (appCounts[jid] || 0) + 1;
+      });
+    } catch (err) {
+      console.error("Admin applications (page) failed", err);
+    }
+
+    return { views, appCounts };
+  }
+
+  // أول صفحة من "كل الإعلانات المنشورة على الموقع" — orderBy(createdAt desc) + limit بدل
+  // جلب كل job_posts زي الأول. معزولة عن loadCoreStats (فشلها ميأثرش على كروت الإحصائيات).
+  async function loadJobsList() {
+    try {
+      const snap = await getDocs(query(collection(db, "job_posts"), orderBy("createdAt", "desc"), limit(POSTS_PAGE_SIZE)));
+      const docs = snap.docs;
+      const postIds = docs.map((d) => d.id);
+      const { views, appCounts } = await fetchJobViewsAndAppCounts(postIds);
+
+      const postsList = docs.map((d) => ({ id: d.id, ...d.data(), applicantCount: appCounts[d.id] || 0 } as any));
+
+      setPosts(postsList);
+      setJobViewCounts(views);
+      setLastVisiblePost(docs.length > 0 ? docs[docs.length - 1] : null);
+      setHasMorePosts(docs.length === POSTS_PAGE_SIZE);
+    } catch (err) {
+      console.error("Admin jobs list failed", err);
+    }
+  }
+
+  // "تحميل المزيد" — بيضيف للقايمة الموجودة بدل ما يستبديها، وبيدمج job_views/appCounts
+  // الجداد مع الموجودين بدل الاستبدال.
+  async function loadMoreJobPosts() {
+    if (!hasMorePosts || loadingMorePosts || !lastVisiblePost) return;
+    setLoadingMorePosts(true);
+    try {
+      const snap = await getDocs(
+        query(collection(db, "job_posts"), orderBy("createdAt", "desc"), startAfter(lastVisiblePost), limit(POSTS_PAGE_SIZE))
+      );
+      const docs = snap.docs;
+      const postIds = docs.map((d) => d.id);
+      const { views, appCounts } = await fetchJobViewsAndAppCounts(postIds);
+
+      const newPosts = docs.map((d) => ({ id: d.id, ...d.data(), applicantCount: appCounts[d.id] || 0 } as any));
+
+      setPosts((prev) => [...prev, ...newPosts]);
+      setJobViewCounts((prev) => ({ ...(prev || {}), ...views }));
+      if (docs.length > 0) setLastVisiblePost(docs[docs.length - 1]);
+      setHasMorePosts(docs.length === POSTS_PAGE_SIZE);
+    } catch (err) {
+      console.error("Admin load more jobs failed", err);
+    }
+    setLoadingMorePosts(false);
+  }
+
   async function loadStats() {
     setLoadingStats(true);
-    await Promise.all([loadCoreStats(), loadFunnelStats(), loadSignupMethodStats(), loadAuthErrorStats(), loadJobReports(), loadApplicationStatusStats(), loadVisitStats(), loadJobViewStats()]);
+    await Promise.all([loadCoreStats(), loadJobsList(), loadFunnelStats(), loadSignupMethodStats(), loadAuthErrorStats(), loadJobReports(), loadApplicationStatusStats(), loadVisitStats()]);
     setLoadingStats(false);
   }
 
@@ -810,6 +892,25 @@ export default function AdminPage() {
           );
         })}
       </div>
+
+      {hasMorePosts && (
+        <div style={{ textAlign: "center", marginTop: 20 }}>
+          <button
+            onClick={loadMoreJobPosts}
+            disabled={loadingMorePosts}
+            style={{
+              padding: "10px 24px",
+              border: "1px solid #14213D",
+              background: "transparent",
+              borderRadius: 6,
+              cursor: loadingMorePosts ? "wait" : "pointer",
+              opacity: loadingMorePosts ? 0.7 : 1,
+            }}
+          >
+            {loadingMorePosts ? "جاري التحميل..." : "تحميل المزيد"}
+          </button>
+        </div>
+      )}
 
       {editingPost && (
         <div
