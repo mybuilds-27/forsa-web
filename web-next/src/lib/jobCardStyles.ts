@@ -1,5 +1,18 @@
 import type { CSSProperties } from "react";
 
+// بعض أصحاب العمل بيلصقوا وصف الوظيفة زي ما هو من ChatGPT، فبيفضل فيه رموز Markdown
+// حرفية (##, **نص**, سطور بـ*/-) بدل ما تتحول لتنسيق حقيقي. الدالة دي بتنضف العرض بس
+// (النص الخام في Firestore متتغيرش) — وبتحول سطور القوائم لنفس رمز "•" اللي splitBulletItems
+// بتفهمه، عشان استخراج النقط يشتغل حتى لو الوصف الأصلي كان بـ*/- بدل •.
+export function sanitizeJobDescription(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/^[*-]\s+/gm, "• ")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*/g, "");
+}
+
 export const jobCardContainerStyle: CSSProperties = {
   border: "1px solid #14213D33",
   borderRadius: 14,
