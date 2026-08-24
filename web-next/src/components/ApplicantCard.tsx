@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "@/lib/firebase";
 import { normalizeEntries, SkillEntry } from "@/lib/profileFields";
 import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS } from "@/lib/constants";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
@@ -200,12 +201,12 @@ function AutoCVModal({ seekerId, onClose }: { seekerId: string; onClose: () => v
   useEffect(() => {
     (async () => {
       try {
-        const snap = await getDoc(doc(db, "job_seekers", seekerId));
-        if (!snap.exists()) {
-          setState("error");
-          return;
-        }
-        const seekerData = snap.data();
+        // مش قراءة مباشرة من job_seekers (قاعدة الأمان بتمنعها لغير الباحث نفسه/الأدمن) —
+        // Cloud Function بتتحقق من السيرفر إن صاحب العمل الحالي فعلاً عنده تقديم من الباحث
+        // ده على وظايفه قبل ما ترجع أي بيانات.
+        const getProfile = httpsCallable(functions, "getApplicantProfileForAutoCV");
+        const result = await getProfile({ seekerId });
+        const seekerData = result.data as any;
         if (calculateProfileCompletion(seekerData) < MIN_COMPLETION_FOR_AUTO_CV) {
           setState("low-completion");
           return;

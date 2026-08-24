@@ -1793,6 +1793,61 @@ exports.firstJobPostReminders = onSchedule(
   }
 );
 
+// زرار "عرض سيرة ذاتية تلقائية" في ApplicantCard.tsx كان بيحاول يقرا job_seekers/{seekerId}
+// مباشرة من الكلاينت، وده فاشل بـpermission-denied لأي متقدم عادي (consentToShare == false
+// أو مش موجود) — قاعدة job_seekers الحالية بتسمح بالقراءة للباحث نفسه، أو consentToShare
+// == true، أو الأدمن بس. الحل مش فتح قاعدة job_seekers (هيكسر الخصوصية)، لكن الدالة دي:
+// بتتحقق من العلاقة الفعلية (صاحب العمل ده اتقدّم عليه الباحث ده) على السيرفر بالـAdmin
+// SDK، وترجع بيانات البروفايل بس لو العلاقة دي موجودة فعلًا (أو المستخدم أدمن). قاعدة
+// Firestore لـjob_seekers نفسها متلمستش خالص.
+exports.getApplicantProfileForAutoCV = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "لازم تسجل دخول الأول");
+  }
+
+  const seekerId = typeof request.data?.seekerId === "string" ? request.data.seekerId.trim() : "";
+  if (!seekerId) {
+    throw new HttpsError("invalid-argument", "seekerId ناقص");
+  }
+
+  const db = getFirestore();
+  const isAdmin = ADMIN_EMAILS.includes(request.auth.token.email || "");
+
+  if (!isAdmin) {
+    try {
+      // مفيش orderBy هنا، بس equality filters على حقلين — مفيش داعي لأي composite index
+      // إضافي (Firestore بيغطي الحالة دي تلقائيًا).
+      const appsSnap = await db
+        .collection("applications")
+        .where("employerId", "==", request.auth.uid)
+        .where("seekerId", "==", seekerId)
+        .limit(1)
+        .get();
+      if (appsSnap.empty) {
+        throw new HttpsError("permission-denied", "مفيش تقديم من الباحث ده على وظايفك");
+      }
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      logger.error("getApplicantProfileForAutoCV: فشل التحقق من علاقة التقديم", err);
+      throw new HttpsError("internal", "حصلت مشكلة في التحقق، حاول تاني");
+    }
+  }
+
+  try {
+    const seekerSnap = await db.collection("job_seekers").doc(seekerId).get();
+    if (!seekerSnap.exists) {
+      throw new HttpsError("not-found", "بيانات الباحث مش موجودة");
+    }
+    // بيانات البروفايل كاملة — نفس اللي CVPreview.tsx وcalculateProfileCompletion كانوا
+    // بيستخدموها أصلًا لما القراءة كانت مباشرة من الكلاينت، من غير انتقاء حقول معينة.
+    return seekerSnap.data();
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    logger.error("getApplicantProfileForAutoCV: فشل جلب بيانات الباحث", err);
+    throw new HttpsError("internal", "حصلت مشكلة في جلب البيانات، حاول تاني");
+  }
+});
+
 // بيتأكد إن رقم التليفون ده مش مرتبط بحساب باحث أو صاحب عمل موجود بالفعل تحت UID تاني —
 // بيتنادى من /register قبل ما نبعت كود الـOTP، عشان نمنع حساب مزدوج لو حد اتسجل قبل كده
 // بجوجل أو الإيميل وبعدين حاول يسجل تاني بنفس رقم تليفونه (كل طريقة دخول في فايربيز بتعمل
