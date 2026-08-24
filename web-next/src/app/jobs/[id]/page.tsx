@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/firebase";
 import ApplyButton from "./ApplyButton";
 import ShareButton from "@/components/ShareButton";
+import ShareImageButton from "@/components/ShareImageButton";
 import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
@@ -296,6 +297,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           <ApplyButton jobId={job.id} employerId={job.employerId} screeningQuestions={job.screeningQuestions || []} />
         )}
         <ShareButton
+          jobId={job.id}
+          title={job.title}
+          style={{ background: "transparent", border: "1px solid #14213D33", color: "#4A5568", fontSize: 11.5, padding: "3px 9px" }}
+        />
+        <ShareImageButton
           jobId={job.id}
           title={job.title}
           style={{ background: "transparent", border: "1px solid #14213D33", color: "#4A5568", fontSize: 11.5, padding: "3px 9px" }}
