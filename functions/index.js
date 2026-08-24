@@ -214,6 +214,78 @@ function buildJobReportEmailText({ jobTitle, reason, details, jobLink }) {
   ].join("\n");
 }
 
+function buildPremiumExpiryEmailHtml({ employers }) {
+  const rows = employers
+    .map(
+      (e) => `
+                <tr>
+                  <td style="padding:10px 0;border-bottom:1px solid #DED2B5;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:14px;color:#14213D;text-align:right;">
+                    ${escapeHtml(e.companyName)}
+                  </td>
+                  <td style="padding:10px 0;border-bottom:1px solid #DED2B5;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:14px;color:${e.daysLeft < 0 ? "#B03A14" : "#8A570D"};text-align:left;white-space:nowrap;">
+                    ${e.daysLeft < 0 ? `منتهية من ${Math.abs(e.daysLeft)} يوم` : e.daysLeft === 0 ? "بتنتهي النهاردة" : `باقي ${e.daysLeft} يوم`}
+                  </td>
+                </tr>`
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>باقات مدفوعة قربت تخلص</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background-color:#FAF6EC;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FAF6EC;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:14px;border:1px solid #DED2B5;">
+          <tr>
+            ${buildEmailHeader()}
+          </tr>
+          <tr>
+            <td style="padding:28px;direction:rtl;text-align:right;">
+              <p style="margin:0 0 18px;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:15px;color:#14213D;line-height:1.8;">
+                ⏰ الباقات المدفوعة دي قربت تخلص (أو خلصت) — لازم تتابعها:
+              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F1EAD9;border-radius:10px;padding:4px 18px;">
+                ${rows}
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 28px;background-color:#F1EAD9;text-align:center;border-radius:0 0 14px 14px;">
+              <div style="font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:12px;color:#4A5568;">
+                الشغل — موقع توظيف مصري ·
+                <a href="https://www.elshoghl.com" style="color:#14213D;text-decoration:underline;">elshoghl.com</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function buildPremiumExpiryEmailText({ employers }) {
+  return [
+    "الباقات المدفوعة دي قربت تخلص (أو خلصت) — لازم تتابعها:",
+    "",
+    ...employers.map(
+      (e) =>
+        `- ${e.companyName}: ${
+          e.daysLeft < 0 ? `منتهية من ${Math.abs(e.daysLeft)} يوم` : e.daysLeft === 0 ? "بتنتهي النهاردة" : `باقي ${e.daysLeft} يوم`
+        }`
+    ),
+    "",
+    "الشغل — موقع توظيف مصري · elshoghl.com",
+  ].join("\n");
+}
+
 function buildDailySummaryEmailHtml({ totalCount, jobs }) {
   const jobRows = jobs
     .map(
@@ -1412,6 +1484,69 @@ exports.staleApplicationReminders = onSchedule(
     }
 
     logger.info(`staleApplicationReminders: اتبعت ${notifiedEmployers} إشعار مجمّع لـ${staleDocs.length} تقديم متأخر`);
+  }
+);
+
+// تذكير للأدمن (مش للعميل نفسه خالص) بالباقات المدفوعة اللي قربت تخلص أو خلصت بالفعل —
+// تمهيدًا لموضوع فترة اشتراك 3 شهور. planExpiresAt بيتحط يدويًا في Firestore وقت ما نفعّل
+// أي عميل (مفيش أي واجهة أو تعديل تاني مرتبط بيه لسه). expiryReminderSent بيتحط بعد
+// الإرسال عشان مبعتش نفس التذكير كل يوم لنفس الشركة — مرة واحدة بس لكل عميل، زي
+// staleReminderSent/firstJobReminderSent بالظبط.
+exports.premiumExpiryReminders = onSchedule(
+  { schedule: "0 13 * * *", timeZone: "Africa/Cairo", secrets: [RESEND_API_KEY] },
+  async () => {
+    const db = getFirestore();
+
+    let premiumSnap;
+    try {
+      premiumSnap = await db.collection("employers").where("plan", "==", "premium").get();
+    } catch (err) {
+      logger.error("premiumExpiryReminders: فشل جلب employers بالباقة المدفوعة", err);
+      return;
+    }
+    if (premiumSnap.empty) return;
+
+    const now = Date.now();
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+    const candidates = [];
+    premiumSnap.docs.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (!data.planExpiresAt) return;
+      if (data.expiryReminderSent === true) return;
+      const daysLeft = Math.ceil((data.planExpiresAt.toMillis() - now) / 86400000);
+      // بيشمل السالب (باقة خلصت بالفعل) كمان، مش بس اللي لسه قربت
+      if (daysLeft > 7) return;
+      candidates.push({ ref: docSnap.ref, companyName: data.companyName || "شركة غير معلنة", daysLeft });
+    });
+
+    if (candidates.length === 0) {
+      logger.info("premiumExpiryReminders: مفيش باقات مدفوعة قربت تخلص النهاردة");
+      return;
+    }
+
+    try {
+      await sendViaResend({
+        to: ADMIN_EMAILS,
+        subject: `⏰ ${candidates.length} باقة مدفوعة قربت تخلص أو خلصت`,
+        html: buildPremiumExpiryEmailHtml({ employers: candidates }),
+        text: buildPremiumExpiryEmailText({ employers: candidates }),
+        logPrefix: "premiumExpiryReminders",
+      });
+    } catch (err) {
+      logger.error("premiumExpiryReminders: فشل إرسال الإيميل", err);
+      return;
+    }
+
+    const batch = db.batch();
+    candidates.forEach((c) => batch.update(c.ref, { expiryReminderSent: true }));
+    try {
+      await batch.commit();
+    } catch (err) {
+      logger.error("premiumExpiryReminders: فشل batch commit لتعليم expiryReminderSent", err);
+    }
+
+    logger.info(`premiumExpiryReminders: اتبعت إيميل واحد للأدمن عن ${candidates.length} باقة مدفوعة`);
   }
 );
 
