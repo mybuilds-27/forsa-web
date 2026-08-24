@@ -161,11 +161,13 @@ function isArabicText(text: string): boolean {
 // دي موجودة فعلًا، بنقسم النص لعناصر قايمة حقيقية (list-style من CSS بدل الرمز اليدوي) —
 // ده بيحل مشكلة اتجاه الرمز (bidi) تلقائيًا لأن نقطة الـCSS مالهاش اتجاه نصي يتأثر بيه،
 // عكس "•" لما يتكتب كحرف عادي جوه نص وارث dir="rtl". لو مفيش "•" في النص، الوصف بيتعرض
-// كفقرة عادية زي ما كان.
+// كفقرة عادية زي ما كان. أي نص قبل أول "•" (مقدمة عادية قبل ما البولت الأول يبدأ) بيتجاهل
+// تمامًا (.slice(1)) ومبيتحسبش كنقطة أولى وهمية.
 function splitBulletItems(description: string): string[] | null {
   if (!description.includes("•")) return null;
   const items = description
     .split("•")
+    .slice(1)
     .map((s) => s.trim())
     .filter(Boolean);
   return items.length > 0 ? items : null;

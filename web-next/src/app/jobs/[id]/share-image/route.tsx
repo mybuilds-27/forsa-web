@@ -15,6 +15,7 @@ export const contentType = "image/png";
 const SITE_NAME = "الشغل";
 const DOMAIN = "elshoghl.com";
 const NOT_AVAILABLE_MESSAGE = "الوظيفة دي مش متاحة";
+const MAX_HIGHLIGHT_POINTS = 15;
 
 // UA بتاع Safari قديم — بيخلي جوجل فونتس يرجع صيغة خط satori (اللي بيستخدمها ImageResponse)
 // قادرة تقرأها (woff/truetype/opentype) بدل الـwoff2 الحديثة اللي بترجع للمتصفحات العادية.
@@ -72,11 +73,12 @@ function salaryText(p: any): string {
   return "غير محدد";
 }
 
-// نفس منطق splitBulletItems الموجود في page.tsx بالظبط.
+// نفس منطق splitBulletItems الموجود في page.tsx بالظبط (بما فيه تجاهل أي نص قبل أول "•").
 function splitBulletItems(description: string): string[] | null {
   if (!description.includes("•")) return null;
   const items = description
     .split("•")
+    .slice(1)
     .map((s) => s.trim())
     .filter(Boolean);
   return items.length > 0 ? items : null;
@@ -162,29 +164,39 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const salary = salaryText(job);
   const showSalary = salary !== "غير محدد";
 
-  // أهم 3 نقط من الوصف (لو مكتوب بصيغة "• نقطة • نقطة")، وإلا الشروط كـfallback، وإلا مفيش
+  // كل نقط الوصف (لو مكتوب بصيغة "• نقطة • نقطة")، وإلا كل نقط الشروط كـfallback، وإلا مفيش
   // قسم نقط خالص. sanitizeJobDescription بتحول سطور الـ*/- (اللي بعض أصحاب العمل بيلصقوها
-  // من ChatGPT) لنفس رمز "•" اللي splitBulletItems بتفهمه — الشروط نفسها ممكن تتكتب بنقط
-  // برضو، فبناخد منها أول 3 عناصر بدل ما ناخد النص الخام كله كنقطة وحيدة ضخمة.
+  // من ChatGPT) لنفس رمز "•" اللي splitBulletItems بتفهمه — الشروط نفسها ممكن تتكتب بنقط برضو.
   const bulletItems = splitBulletItems(sanitizeJobDescription(job.description || ""));
   let highlightSource: string[];
   if (bulletItems) {
-    highlightSource = bulletItems.slice(0, 3);
+    highlightSource = bulletItems;
   } else {
     const sanitizedRequirements = sanitizeJobDescription(job.requirements || "");
     const requirementsBulletItems = splitBulletItems(sanitizedRequirements);
-    highlightSource = requirementsBulletItems ? requirementsBulletItems.slice(0, 3) : sanitizedRequirements ? [sanitizedRequirements] : [];
+    highlightSource = requirementsBulletItems ? requirementsBulletItems : sanitizedRequirements ? [sanitizedRequirements] : [];
   }
-  const highlightPoints = highlightSource.map((item) => truncate(item, 40));
+  // حد أقصى أمان (15 نقطة) لمنع وصف شاذ فيه عشرات النقط من إطالة الصورة بلا حدود — أي زيادة
+  // عن الحد بتتلخص في سطر "+ N نقطة إضافية" بدل ما تتقطع فجأة.
+  const extraPointsCount = Math.max(0, highlightSource.length - MAX_HIGHLIGHT_POINTS);
+  const highlightPoints = highlightSource.slice(0, MAX_HIGHLIGHT_POINTS).map((item) => truncate(item, 40));
+  const extraPointsLine = extraPointsCount > 0 ? `+ ${extraPointsCount} نقطة إضافية` : "";
 
   const hasDirectContact = job.receiveMethod === "contact" && !!job.contactValue;
   const contactLabel = hasDirectContact ? CONTACT_METHOD_LABELS[job.contactMethod] || job.contactMethod : "";
   const bottomLine = hasDirectContact ? `التواصل (${contactLabel}): ${job.contactValue}` : `قدّم دلوقتي على ${DOMAIN}`;
 
+  // الصورة بتطول ديناميكيًا حسب عدد النقط بدل ما تفضل ثابتة 630 دايمًا: 480 بيغطي الهيدر
+  // والعنوان والشركة والموقع والراتب، +32px لكل سطر نقطة (نفس تقريبًا ارتفاع سطرها الفعلي)،
+  // +110px هامش سفلي كافي لسطر التواصل/الدومين. لو مفيش نقط خالص، بترجع للارتفاع القديم
+  // الثابت (630) من غير أي حساب — التطويل الديناميكي ده بس لما فيه نقط فعلية.
+  const pointsLineCount = highlightPoints.length + (extraPointsLine ? 1 : 0);
+  const imageHeight = pointsLineCount > 0 ? 480 + pointsLineCount * 32 + 110 : 630;
+
   // نفس فكرة الـsubsetting في opengraph-image.tsx — نحمّل خط Cairo بوزنين بس بالحروف
   // المستخدمة فعليًا في الصورة دي (تختلف كل مرة حسب بيانات الوظيفة).
   const boldText = SITE_NAME + title + DOMAIN + (job.featured ? featuredBadge : "") + (showSalary ? salary : "");
-  const mediumText = companyName + location + metaLine + highlightPoints.join("") + bottomLine;
+  const mediumText = companyName + location + metaLine + highlightPoints.join("") + extraPointsLine + bottomLine;
   const [cairoBold, cairoMedium] = await Promise.all([
     loadCairoFont(boldText, 800),
     loadCairoFont(mediumText, 500),
@@ -280,6 +292,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
                   <div style={{ display: "flex", ...textDirStyle(point) }}>{displayText(point)}</div>
                 </div>
               ))}
+              {extraPointsLine && (
+                <div style={{ display: "flex", fontSize: 15, fontWeight: 500, color: "#8A8F98", marginTop: 2, ...textDirStyle(extraPointsLine) }}>
+                  {displayText(extraPointsLine)}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -294,7 +311,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       </div>
     ),
     {
-      ...size,
+      width: 1200,
+      height: imageHeight,
       fonts: [
         { name: "Cairo", data: cairoBold, weight: 800, style: "normal" },
         { name: "Cairo", data: cairoMedium, weight: 500, style: "normal" },
