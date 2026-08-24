@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getCompanies } from "@/lib/companiesQuery";
 
 export const metadata = {
   title: "الشركات اللي بتوظف دلوقتي في مصر - موقع الشغل",
@@ -13,56 +12,6 @@ export const metadata = {
 // حتى لو حساب العدد نفسه لايف وصحيح 100%. force-dynamic بيضمن قراءة فريش من Firestore
 // في كل طلب.
 export const dynamic = "force-dynamic";
-
-type CompanyCard = {
-  employerId: string;
-  companyName: string;
-  count: number;
-  logoURL?: string | null;
-};
-
-async function getCompanies(): Promise<CompanyCard[]> {
-  const q = query(
-    collection(db, "job_posts"),
-    where("isActive", "==", true),
-    where("showCompanyName", "==", true)
-  );
-  const snap = await getDocs(q);
-  const now = Date.now();
-  const activeJobs = snap.docs
-    .map((d) => ({ id: d.id, ...d.data() } as any))
-    .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now);
-
-  const byEmployer = new Map<string, CompanyCard>();
-  for (const job of activeJobs) {
-    const existing = byEmployer.get(job.employerId);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      byEmployer.set(job.employerId, {
-        employerId: job.employerId,
-        companyName: job.companyName || "شركة",
-        count: 1,
-      });
-    }
-  }
-
-  const companies = Array.from(byEmployer.values());
-
-  const withLogos = await Promise.all(
-    companies.map(async (c) => {
-      try {
-        const empSnap = await getDoc(doc(db, "employers", c.employerId));
-        return { ...c, logoURL: empSnap.exists() ? (empSnap.data() as any).logoURL : null };
-      } catch (err) {
-        console.error(`Failed to load employer ${c.employerId}`, err);
-        return { ...c, logoURL: null };
-      }
-    })
-  );
-
-  return withLogos.sort((a, b) => b.count - a.count);
-}
 
 export default async function CompaniesPage() {
   const companies = await getCompanies();
