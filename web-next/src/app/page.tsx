@@ -2,6 +2,7 @@ import Link from "next/link";
 import BrowseByCombos from "@/components/BrowseByCombos";
 import PublicJobsList from "@/components/PublicJobsList";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
+import { getCompanies } from "@/lib/companiesQuery";
 import { GOVERNORATES, SPECIALIZATION_OPTIONS } from "@/lib/constants";
 import { JOB_TYPE_LABELS, tagStyle } from "@/lib/jobCardStyles";
 
@@ -15,6 +16,7 @@ const COLORS = {
 
 const LATEST_JOBS_COUNT = 6;
 const EXAMPLE_COMBOS_COUNT = 40;
+const HOME_COMPANIES_COUNT = 12;
 
 // الصفحة دي بتجيب أحدث الوظائف والـcombos لايف من Firestore، فلازم force-dynamic زي /jobs
 // عشان منقعش في نفس مشكلة الـstatic prerender اللي كانت بتسيب الصفحة فاضلة بالبيانات القديمة
@@ -22,7 +24,7 @@ const EXAMPLE_COMBOS_COUNT = 40;
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [jobs, seoData] = await Promise.all([getActivePublicJobs(), getActiveJobsSeoData()]);
+  const [jobs, seoData, companies] = await Promise.all([getActivePublicJobs(), getActiveJobsSeoData(), getCompanies()]);
   // getActivePublicJobs() بترجع الوظايف المميزة الأول دايمًا (حق مدفوع فعلي، ومطلوب يفضل
   // كده في /jobs وباقي الصفحات) — بس قسم "أحدث الوظائف" هنا لازم يبقى بالمعنى الحرفي
   // للأحدث، فبنعمل نسخة منفصلة مرتبة بالتاريخ بس قبل الاقتطاع، من غير ما نلمس الأراي الأصلي.
@@ -30,6 +32,8 @@ export default async function HomePage() {
     .sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0))
     .slice(0, LATEST_JOBS_COUNT);
   const exampleCombos = seoData.combos.slice(0, EXAMPLE_COMBOS_COUNT);
+  // getCompanies() بترجع الشركات مرتبة بعدد الوظائف النشطة (الأكتر الأول) بالفعل.
+  const topCompanies = companies.slice(0, HOME_COMPANIES_COUNT);
 
   return (
     <div dir="rtl">
@@ -133,6 +137,41 @@ export default async function HomePage() {
               >
                 تصفح كل الوظائف ←
               </Link>
+            </div>
+          </div>
+        )}
+
+        {topCompanies.length > 0 && (
+          <div style={{ marginBottom: 40 }}>
+            <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>شركات بتوظف عندنا دلوقتي</h2>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", alignItems: "center" }}>
+              {topCompanies.map((c) => (
+                <Link
+                  key={c.employerId}
+                  href={`/companies/${c.employerId}`}
+                  title={c.companyName}
+                  style={{ display: "flex", textDecoration: "none" }}
+                >
+                  {c.logoURL ? (
+                    <img
+                      src={c.logoURL}
+                      alt={c.companyName}
+                      style={{
+                        width: 64,
+                        height: 64,
+                        objectFit: "cover",
+                        borderRadius: "50%",
+                        border: `1px solid ${COLORS.ink}22`,
+                        background: "#fff",
+                      }}
+                    />
+                  ) : (
+                    <span style={{ ...tagStyle, padding: "10px 18px", fontSize: 14, color: COLORS.ink }}>
+                      {c.companyName}
+                    </span>
+                  )}
+                </Link>
+              ))}
             </div>
           </div>
         )}
