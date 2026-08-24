@@ -58,6 +58,27 @@ function truncate(text: string, max: number): string {
   return text.length > max ? text.slice(0, max).trim() + "…" : text;
 }
 
+// نفس منطق salaryText الموجود في page.tsx بالظبط.
+function salaryText(p: any): string {
+  if (p.showSalary === false) return "غير محدد";
+  if (p.salaryNegotiable) return "قابل للتفاوض / حسب الخبرة";
+  if (p.salaryFrom && p.salaryTo) return `${p.salaryFrom} - ${p.salaryTo} جنيه`;
+  if (p.salaryFrom) return `يبدأ من ${p.salaryFrom} جنيه`;
+  return "غير محدد";
+}
+
+// نفس منطق splitBulletItems الموجود في page.tsx بالظبط.
+function splitBulletItems(description: string): string[] | null {
+  if (!description.includes("•")) return null;
+  const items = description
+    .split("•")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return items.length > 0 ? items : null;
+}
+
+const CONTACT_METHOD_LABELS: Record<string, string> = { email: "إيميل", whatsapp: "واتساب", phone: "تليفون" };
+
 const LOGO_PATHS = (
   <g>
     <g transform="translate(95,95)" fill="none" stroke="#FAF6EC" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round">
@@ -133,10 +154,24 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const metaLine = [jobTypeLabel, levelLabel].filter(Boolean).join(" · ");
   const featuredBadge = "⭐ مميز";
 
+  const salary = salaryText(job);
+  const showSalary = salary !== "غير محدد";
+
+  // أهم 3 نقط من الوصف (لو مكتوب بصيغة "• نقطة • نقطة")، وإلا الشروط كـfallback نقطة
+  // واحدة بدل ما نسيب القسم فاضي، وإلا مفيش قسم نقط خالص.
+  const bulletItems = splitBulletItems(job.description || "");
+  const highlightPoints = (bulletItems ? bulletItems.slice(0, 3) : job.requirements ? [job.requirements] : []).map((item) =>
+    truncate(item, 40)
+  );
+
+  const hasDirectContact = job.receiveMethod === "contact" && !!job.contactValue;
+  const contactLabel = hasDirectContact ? CONTACT_METHOD_LABELS[job.contactMethod] || job.contactMethod : "";
+  const bottomLine = hasDirectContact ? `التواصل (${contactLabel}): ${job.contactValue}` : `قدّم دلوقتي على ${DOMAIN}`;
+
   // نفس فكرة الـsubsetting في opengraph-image.tsx — نحمّل خط Cairo بوزنين بس بالحروف
   // المستخدمة فعليًا في الصورة دي (تختلف كل مرة حسب بيانات الوظيفة).
-  const boldText = SITE_NAME + title + DOMAIN + (job.featured ? featuredBadge : "");
-  const mediumText = companyName + location + metaLine;
+  const boldText = SITE_NAME + title + DOMAIN + (job.featured ? featuredBadge : "") + (showSalary ? salary : "");
+  const mediumText = companyName + location + metaLine + highlightPoints.join("") + bottomLine;
   const [cairoBold, cairoMedium] = await Promise.all([
     loadCairoFont(boldText, 800),
     loadCairoFont(mediumText, 500),
@@ -152,25 +187,25 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           flexDirection: "column",
           justifyContent: "space-between",
           background: "#FAF6EC",
-          padding: "48px 56px",
+          padding: "36px 56px",
           fontFamily: "Cairo",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
-          <Logo size={56} />
-          <div style={{ display: "flex", fontSize: 26, fontWeight: 800, color: "#14213D" }}>{SITE_NAME}</div>
+        <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+          <Logo size={40} />
+          <div style={{ display: "flex", fontSize: 20, fontWeight: 800, color: "#14213D" }}>{SITE_NAME}</div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
           {job.featured && (
             <div
               style={{
                 display: "flex",
-                fontSize: 20,
+                fontSize: 16,
                 fontWeight: 700,
                 background: "rgba(232,163,61,0.25)",
                 color: "#8A570D",
-                padding: "6px 18px",
+                padding: "5px 16px",
                 borderRadius: 999,
               }}
             >
@@ -183,9 +218,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
               display: "flex",
               width: 1000,
               justifyContent: "flex-end",
-              fontSize: 54,
+              fontSize: 42,
               fontWeight: 800,
-              lineHeight: 1.25,
+              lineHeight: 1.2,
               color: "#14213D",
               textAlign: "right",
               ...textDirStyle(title),
@@ -194,27 +229,54 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
             {displayText(title)}
           </div>
 
-          <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 8, fontSize: 30, fontWeight: 500, color: "#4A5568" }}>
+          <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 8, fontSize: 24, fontWeight: 500, color: "#4A5568" }}>
             <div style={{ display: "flex" }}>🏢</div>
             <div style={{ display: "flex", ...textDirStyle(companyName) }}>{displayText(companyName)}</div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 24 }}>
-            <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 8, fontSize: 24, fontWeight: 500, color: "#4A5568" }}>
+          <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 20 }}>
+            <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 8, fontSize: 19, fontWeight: 500, color: "#4A5568" }}>
               <div style={{ display: "flex" }}>📍</div>
               <div style={{ display: "flex", ...textDirStyle(location) }}>{displayText(location)}</div>
             </div>
             {metaLine && (
-              <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 8, fontSize: 24, fontWeight: 500, color: "#4A5568" }}>
+              <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 8, fontSize: 19, fontWeight: 500, color: "#4A5568" }}>
                 <div style={{ display: "flex" }}>🕒</div>
                 <div style={{ display: "flex", ...textDirStyle(metaLine) }}>{displayText(metaLine)}</div>
               </div>
             )}
           </div>
+
+          {showSalary && (
+            <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 8, fontSize: 22, fontWeight: 800, color: "#2F6F4E" }}>
+              <div style={{ display: "flex" }}>💰</div>
+              <div style={{ display: "flex", ...textDirStyle(salary) }}>{displayText(salary)}</div>
+            </div>
+          )}
+
+          {highlightPoints.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, marginTop: 2 }}>
+              {highlightPoints.map((point, i) => (
+                <div
+                  key={i}
+                  style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 8, fontSize: 18, fontWeight: 500, color: "#4A5568" }}
+                >
+                  {/* إيموجي مش حرف عادي — بيترسم عن طريق twemoji (نفس آلية باقي الأيقونات
+                      في الصورة دي)، مش عن طريق خط Cairo، فمش محتاج يتضاف لأي subset فوق. */}
+                  <div style={{ display: "flex" }}>✅</div>
+                  <div style={{ display: "flex", ...textDirStyle(point) }}>{displayText(point)}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <div style={{ display: "flex", fontSize: 24, fontWeight: 800, color: "#B03A14" }}>{DOMAIN}</div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+          <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 8, fontSize: 19, fontWeight: 500, color: "#4A5568" }}>
+            {hasDirectContact && <div style={{ display: "flex" }}>📞</div>}
+            <div style={{ display: "flex", ...textDirStyle(bottomLine) }}>{displayText(bottomLine)}</div>
+          </div>
+          <div style={{ display: "flex", fontSize: 21, fontWeight: 800, color: "#B03A14" }}>{DOMAIN}</div>
         </div>
       </div>
     ),
