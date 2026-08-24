@@ -122,6 +122,49 @@ export default async function HomePage() {
           </button>
         </form>
 
+        {topCompanies.length > 0 && (
+          <div style={{ marginBottom: 40 }}>
+            <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 4 }}>شركات بتوظف عندنا دلوقتي</h2>
+            <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 16 }}>
+              {topCompanies.length === totalActiveEmployersCount
+                ? "كل الشركات اللي بتوظف عندنا دلوقتي ظاهرة هنا"
+                : `${topCompanies.length} من إجمالي ${totalActiveEmployersCount} شركة بتوظف دلوقتي`}
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", alignItems: "center" }}>
+              {topCompanies.map((c) => (
+                <Link
+                  key={c.employerId}
+                  href={`/companies/${c.employerId}`}
+                  title={c.companyName}
+                  style={{ display: "flex", textDecoration: "none" }}
+                >
+                  {c.logoURL ? (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 92 }}>
+                      <img
+                        src={c.logoURL}
+                        alt={c.companyName}
+                        style={{
+                          width: 64,
+                          height: 64,
+                          objectFit: "cover",
+                          borderRadius: "50%",
+                          border: `1px solid ${COLORS.ink}22`,
+                          background: "#fff",
+                        }}
+                      />
+                      <span style={{ fontSize: 11.5, color: COLORS.inkSoft, textAlign: "center" }}>{c.companyName}</span>
+                    </div>
+                  ) : (
+                    <span style={{ ...tagStyle, padding: "10px 18px", fontSize: 14, color: COLORS.ink }}>
+                      {c.companyName}
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {latestJobs.length > 0 && (
           <div style={{ marginBottom: 40 }}>
             <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>أحدث الوظائف</h2>
@@ -142,46 +185,6 @@ export default async function HomePage() {
               >
                 تصفح كل الوظائف ←
               </Link>
-            </div>
-          </div>
-        )}
-
-        {topCompanies.length > 0 && (
-          <div style={{ marginBottom: 40 }}>
-            <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 4 }}>شركات بتوظف عندنا دلوقتي</h2>
-            <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 16 }}>
-              {topCompanies.length === totalActiveEmployersCount
-                ? "كل الشركات اللي بتوظف عندنا دلوقتي ظاهرة هنا"
-                : `${topCompanies.length} من إجمالي ${totalActiveEmployersCount} شركة بتوظف دلوقتي`}
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", alignItems: "center" }}>
-              {topCompanies.map((c) => (
-                <Link
-                  key={c.employerId}
-                  href={`/companies/${c.employerId}`}
-                  title={c.companyName}
-                  style={{ display: "flex", textDecoration: "none" }}
-                >
-                  {c.logoURL ? (
-                    <img
-                      src={c.logoURL}
-                      alt={c.companyName}
-                      style={{
-                        width: 64,
-                        height: 64,
-                        objectFit: "cover",
-                        borderRadius: "50%",
-                        border: `1px solid ${COLORS.ink}22`,
-                        background: "#fff",
-                      }}
-                    />
-                  ) : (
-                    <span style={{ ...tagStyle, padding: "10px 18px", fontSize: 14, color: COLORS.ink }}>
-                      {c.companyName}
-                    </span>
-                  )}
-                </Link>
-              ))}
             </div>
           </div>
         )}
