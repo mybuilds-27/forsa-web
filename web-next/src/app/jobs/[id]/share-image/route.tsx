@@ -73,15 +73,31 @@ function salaryText(p: any): string {
   return "غير محدد";
 }
 
-// نفس منطق splitBulletItems الموجود في page.tsx بالظبط (بما فيه تجاهل أي نص قبل أول "•").
-function splitBulletItems(description: string): string[] | null {
-  if (!description.includes("•")) return null;
-  const items = description
-    .split("•")
-    .slice(1)
+// دالة عامة واحدة لاستخراج نقط من نص حر — مش مربوطة بحالة معينة (بولت صريح أو أسطر منفصلة
+// بس)، بتجرب أي تنسيق منطقي شائع بالترتيب ده:
+// 1) sanitizeJobDescription بتحول */- في أول السطر لـ• (وتشيل باقي رموز Markdown).
+// 2) لو النتيجة فيها "•"، بتتقسم عليها — .slice(1) بيتجاهل أي مقدمة قبل أول "•" فعلي
+//    (نفس منطق splitBulletItems القديمة اللي كانت هنا وفي page.tsx بالظبط).
+// 3) لو مفيش "•" خالص، بتجرب تقسيم على الأسطر (\n) — كل سطر غير فاضي بيبقى نقطة، بس لو
+//    النتيجة عنصر واحد بس (نص متصل من غير فواصل واضحة) بترجع null بدل ما تعتبره نقطة وهمية.
+function extractBulletPoints(rawText: string): string[] | null {
+  const sanitized = sanitizeJobDescription(rawText || "");
+  if (!sanitized) return null;
+
+  if (sanitized.includes("•")) {
+    const items = sanitized
+      .split("•")
+      .slice(1)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return items.length > 0 ? items : null;
+  }
+
+  const lines = sanitized
+    .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
-  return items.length > 0 ? items : null;
+  return lines.length >= 2 ? lines : null;
 }
 
 const CONTACT_METHOD_LABELS: Record<string, string> = { email: "إيميل", whatsapp: "واتساب", phone: "تليفون" };
@@ -164,18 +180,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const salary = salaryText(job);
   const showSalary = salary !== "غير محدد";
 
-  // كل نقط الوصف (لو مكتوب بصيغة "• نقطة • نقطة")، وإلا كل نقط الشروط كـfallback، وإلا مفيش
-  // قسم نقط خالص. sanitizeJobDescription بتحول سطور الـ*/- (اللي بعض أصحاب العمل بيلصقوها
-  // من ChatGPT) لنفس رمز "•" اللي splitBulletItems بتفهمه — الشروط نفسها ممكن تتكتب بنقط برضو.
-  const bulletItems = splitBulletItems(sanitizeJobDescription(job.description || ""));
-  let highlightSource: string[];
-  if (bulletItems) {
-    highlightSource = bulletItems;
-  } else {
-    const sanitizedRequirements = sanitizeJobDescription(job.requirements || "");
-    const requirementsBulletItems = splitBulletItems(sanitizedRequirements);
-    highlightSource = requirementsBulletItems ? requirementsBulletItems : sanitizedRequirements ? [sanitizedRequirements] : [];
-  }
+  // كل نقط الوصف لو extractBulletPoints لقت حاجة فيه، وإلا كل نقط الشروط كـfallback، وإلا
+  // مفيش قسم نقط خالص.
+  const highlightSource = extractBulletPoints(job.description || "") ?? extractBulletPoints(job.requirements || "") ?? [];
   // حد أقصى أمان (15 نقطة) لمنع وصف شاذ فيه عشرات النقط من إطالة الصورة بلا حدود — أي زيادة
   // عن الحد بتتلخص في سطر "+ N نقطة إضافية" بدل ما تتقطع فجأة.
   const extraPointsCount = Math.max(0, highlightSource.length - MAX_HIGHLIGHT_POINTS);
