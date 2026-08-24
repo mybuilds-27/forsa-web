@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { jobCardContainerStyle, tagStyle, featuredPillStyle, JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
+import { jobCardContainerStyle, tagStyle, featuredPillStyle, JOB_TYPE_LABELS, salaryText } from "@/lib/jobCardStyles";
+import { EXPERIENCE_LEVELS } from "@/lib/constants";
 import ShareButton from "@/components/ShareButton";
 
 // "من 3 أيام" / "من ساعتين" — بصيغة عربية سليمة (مفرد/مثنى/جمع) بدل "منذ" الفصحى الجافة،
@@ -36,6 +37,8 @@ type Props = {
 
 export default function JobListItem({ job, saved, onToggleSave }: Props) {
   const postedDate = job.createdAt?.toDate ? job.createdAt.toDate() : null;
+  const salary = salaryText(job);
+  const showSalary = salary !== "غير محدد";
 
   return (
     <Link
@@ -89,9 +92,11 @@ export default function JobListItem({ job, saved, onToggleSave }: Props) {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid #14213D14" }}>
         {job.specialization && <span style={tagStyle}>التخصص: {job.specialization}</span>}
         <span style={tagStyle}>🕐 {JOB_TYPE_LABELS[job.jobType] || job.jobType}</span>
+        {job.jobLevel && <span style={tagStyle}>📊 {EXPERIENCE_LEVELS[job.jobLevel] || job.jobLevel}</span>}
+        {showSalary && <span style={tagStyle}>💰 {salary}</span>}
       </div>
       {/* تلميح بسيط إن الكارت كله قابل للدوسة ووراه تفاصيل أكتر — مش زرار منفصل */}
-      <div style={{ marginTop: 10, fontSize: 11.5, color: "#4A5568", opacity: 0.75 }}>
+      <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: "#14213D" }}>
         عرض التفاصيل الكاملة ←
       </div>
     </Link>
