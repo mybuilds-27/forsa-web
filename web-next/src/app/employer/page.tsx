@@ -133,6 +133,7 @@ function EmployerPageInner() {
             employerPlan={companyData?.plan || "free"}
             companyName={companyData?.companyName || ""}
             editingPost={editingPost}
+            showCompanyNameDefault={companyData?.showCompanyNameDefault}
             onPosted={(jobId) => {
               loadCompany();
               setEditingPost(null);

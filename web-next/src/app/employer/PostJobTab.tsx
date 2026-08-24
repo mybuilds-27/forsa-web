@@ -22,12 +22,15 @@ type Props = {
   employerPlan: string;
   companyName: string;
   editingPost?: EditingPost;
+  // إعداد "أظهر اسم شركتي افتراضيًا" من بروفايل الشركة (EmployerOnboardingForm) — بيحدد
+  // القيمة الابتدائية لـshowCompanyName في وضع النشر الجديد بس (مش وضع التعديل).
+  showCompanyNameDefault?: boolean;
   // jobId بيتبعت بس لنشر جديد (مش تعديل) — عشان الصفحة الأب تقدر توجّه المستخدم لتبويب
   // البحث عن كوادر ويلاقي الوظيفة اللي لسه نشرها محددة افتراضيًا في مودال الدعوة.
   onPosted: (jobId?: string) => void;
 };
 
-export default function PostJobTab({ employerPlan, companyName, editingPost, onPosted }: Props) {
+export default function PostJobTab({ employerPlan, companyName, editingPost, showCompanyNameDefault, onPosted }: Props) {
   const [title, setTitle] = useState("");
   const [specSelect, setSpecSelect] = useState("");
   const [specOther, setSpecOther] = useState("");
@@ -62,7 +65,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
   const [newQuestionSelect, setNewQuestionSelect] = useState("");
   const [newQuestionOther, setNewQuestionOther] = useState("");
 
-  const [showCompanyName, setShowCompanyName] = useState(false);
+  const [showCompanyName, setShowCompanyName] = useState(showCompanyNameDefault ?? true);
   const [receiveMethod, setReceiveMethod] = useState<"platform" | "contact">("platform");
   const [contactMethod, setContactMethod] = useState("");
   const [contactValue, setContactValue] = useState("");
@@ -289,7 +292,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
     setScreeningQuestions([]);
     setNewQuestionSelect("");
     setNewQuestionOther("");
-    setShowCompanyName(false);
+    setShowCompanyName(showCompanyNameDefault ?? true);
     setReceiveMethod("platform");
     setContactMethod("");
     setContactValue("");
