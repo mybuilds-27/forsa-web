@@ -2,7 +2,7 @@ import Link from "next/link";
 import BrowseByCombos from "@/components/BrowseByCombos";
 import PublicJobsList from "@/components/PublicJobsList";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
-import { getCompanies } from "@/lib/companiesQuery";
+import { getCompanies, getTotalActiveEmployersCount } from "@/lib/companiesQuery";
 import { GOVERNORATES, SPECIALIZATION_OPTIONS } from "@/lib/constants";
 import { JOB_TYPE_LABELS, tagStyle } from "@/lib/jobCardStyles";
 
@@ -24,7 +24,12 @@ const HOME_COMPANIES_COUNT = 12;
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [jobs, seoData, companies] = await Promise.all([getActivePublicJobs(), getActiveJobsSeoData(), getCompanies()]);
+  const [jobs, seoData, companies, totalActiveEmployersCount] = await Promise.all([
+    getActivePublicJobs(),
+    getActiveJobsSeoData(),
+    getCompanies(),
+    getTotalActiveEmployersCount(),
+  ]);
   // getActivePublicJobs() بترجع الوظايف المميزة الأول دايمًا (حق مدفوع فعلي، ومطلوب يفضل
   // كده في /jobs وباقي الصفحات) — بس قسم "أحدث الوظائف" هنا لازم يبقى بالمعنى الحرفي
   // للأحدث، فبنعمل نسخة منفصلة مرتبة بالتاريخ بس قبل الاقتطاع، من غير ما نلمس الأراي الأصلي.
@@ -143,7 +148,12 @@ export default async function HomePage() {
 
         {topCompanies.length > 0 && (
           <div style={{ marginBottom: 40 }}>
-            <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>شركات بتوظف عندنا دلوقتي</h2>
+            <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 4 }}>شركات بتوظف عندنا دلوقتي</h2>
+            <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 16 }}>
+              {topCompanies.length === totalActiveEmployersCount
+                ? "كل الشركات اللي بتوظف عندنا دلوقتي ظاهرة هنا"
+                : `${topCompanies.length} من إجمالي ${totalActiveEmployersCount} شركة بتوظف دلوقتي`}
+            </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", alignItems: "center" }}>
               {topCompanies.map((c) => (
                 <Link

@@ -52,3 +52,19 @@ export async function getCompanies(): Promise<CompanyCard[]> {
 
   return withLogos.sort((a, b) => b.count - a.count);
 }
+
+// نفس منطق getCompanies تقريبًا، بس من غير فلتر showCompanyName (يعني بيحسب كمان الشركات
+// اللي مخفيين اسمهم في الإعلان)، وبيرجع العدد بس مش قايمة كاملة — مستخدمة في رسالة الشفافية
+// "X من إجمالي Y شركة" في الصفحة الرئيسية.
+export async function getTotalActiveEmployersCount(): Promise<number> {
+  const q = query(collection(db, "job_posts"), where("isActive", "==", true));
+  const snap = await getDocs(q);
+  const now = Date.now();
+  const employerIds = new Set(
+    snap.docs
+      .map((d) => d.data() as any)
+      .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now)
+      .map((p) => p.employerId)
+  );
+  return employerIds.size;
+}
