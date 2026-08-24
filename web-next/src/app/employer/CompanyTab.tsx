@@ -6,6 +6,7 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
   doc,
   updateDoc,
 } from "firebase/firestore";
@@ -91,6 +92,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
   const [posts, setPosts] = useState<JobPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [applicantCounts, setApplicantCounts] = useState<Record<string, number>>({});
+  const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
   const [openApplicantsFor, setOpenApplicantsFor] = useState<string | null>(null);
   const [applicants, setApplicants] = useState<any[]>([]);
   const [loadingApplicants, setLoadingApplicants] = useState(false);
@@ -116,6 +118,22 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
       }
 
       setPosts(list);
+
+      // عدد المشاهدات لكل وظيفة (job_views/{jobPostId})، قراءة منفصلة لكل وظيفة (مش استعلام
+      // على المجموعة كلها) عشان تتوافق مع قاعدة الأمان اللي بتسمح بقراءة مستند وظيفة واحدة
+      // بس لصاحبها (أو الأدمن) — Promise.allSettled عشان فشل وظيفة واحدة ميمنعش باقي الأعداد.
+      try {
+        const viewResults = await Promise.allSettled(list.map((p) => getDoc(doc(db, "job_views", p.id))));
+        const views: Record<string, number> = {};
+        viewResults.forEach((result, i) => {
+          if (result.status === "fulfilled") {
+            views[list[i].id] = result.value.exists() ? result.value.data().count || 0 : 0;
+          }
+        });
+        setViewCounts(views);
+      } catch (err) {
+        console.error("[loadMyJobPosts] فشل جلب عدد المشاهدات (job_views)", err);
+      }
     } catch (err) {
       console.error("[loadMyJobPosts] فشل استعلام job_posts", err);
     }
@@ -225,6 +243,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {posts.map((p) => {
           const appCount = applicantCounts[p.id] || 0;
+          const views = viewCounts[p.id];
           const daysLeft = p.expiresAt ? Math.ceil((p.expiresAt.toMillis() - Date.now()) / 86400000) : null;
           const isPaused = p.isActive === false;
           return (
@@ -269,6 +288,9 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
 
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
                     <span style={applicantBadgeStyle}>👥 {appCount} متقدم</span>
+                    {views !== undefined && (
+                      <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>👁️ {views} مشاهدة</span>
+                    )}
                     <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>
                       {formatDate(p.createdAt)}
                       {!isPaused && daysLeft !== null ? ` · باقي ${daysLeft} يوم` : ""}
