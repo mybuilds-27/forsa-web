@@ -160,78 +160,80 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const user = auth.currentUser;
-    if (!user) return;
+    // بيتقفل فورًا لحظة الضغط، قبل حتى فحص حد النشر الشهري (استعلام غير متزامن تحت) —
+    // من غيره الزرار فاضل شغال أثناء الفحص وممكن يتضغط تاني بسرعة (خصوصًا على الموبايل)
+    // ويسبب نشر مكرر. finally تحت بيضمن إعادة فتحه في كل الحالات (نجاح، فشل، أو أي return مبكر).
+    setSubmitting(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
 
-    // حد النشر الشهري بيتفعّل بس وقت النشر الجديد، مش وقت التعديل
-    if (!isEditMode) {
-      const monthlyLimit = employerPlan === "premium" ? 10 : 5;
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
+      // حد النشر الشهري بيتفعّل بس وقت النشر الجديد، مش وقت التعديل
+      if (!isEditMode) {
+        const monthlyLimit = employerPlan === "premium" ? 10 : 5;
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
 
-      const allPostsSnap = await getDocs(query(collection(db, "job_posts"), where("employerId", "==", user.uid)));
-      const postsThisMonth = allPostsSnap.docs.filter((d) => {
-        const t = d.data().createdAt;
-        return t && t.toMillis() >= startOfMonth.getTime();
-      });
-      if (postsThisMonth.length >= monthlyLimit) {
-        alert(
-          employerPlan === "premium"
-            ? `وصلت للحد الأقصى (${monthlyLimit} إعلانات) للباقة المدفوعة الشهر ده.`
-            : `الباقة المجانية بتسمح بحد أقصى ${monthlyLimit} إعلانات جديدة شهريًا، وإنت وصلت للحد ده الشهر ده.`
-        );
+        const allPostsSnap = await getDocs(query(collection(db, "job_posts"), where("employerId", "==", user.uid)));
+        const postsThisMonth = allPostsSnap.docs.filter((d) => {
+          const t = d.data().createdAt;
+          return t && t.toMillis() >= startOfMonth.getTime();
+        });
+        if (postsThisMonth.length >= monthlyLimit) {
+          alert(
+            employerPlan === "premium"
+              ? `وصلت للحد الأقصى (${monthlyLimit} إعلانات) للباقة المدفوعة الشهر ده.`
+              : `الباقة المجانية بتسمح بحد أقصى ${monthlyLimit} إعلانات جديدة شهريًا، وإنت وصلت للحد ده الشهر ده.`
+          );
+          return;
+        }
+      }
+
+      if (receiveMethod === "contact" && (!contactMethod || !contactValue.trim())) {
+        alert('اخترت "إظهار وسيلة تواصل" — لازم تحدد طريقة التواصل وتكتب بياناتها.');
         return;
       }
-    }
 
-    if (receiveMethod === "contact" && (!contactMethod || !contactValue.trim())) {
-      alert('اخترت "إظهار وسيلة تواصل" — لازم تحدد طريقة التواصل وتكتب بياناتها.');
-      return;
-    }
+      const finalCity = citySelect === "other" ? cityOther.trim() : citySelect;
+      const finalSpecialization = specSelect === "other" ? specOther.trim() : specSelect;
 
-    setSubmitting(true);
+      const postData: any = {
+        employerId: isEditMode && editingPost ? editingPost.data.employerId : user.uid,
+        companyName,
+        showCompanyName,
+        title,
+        specialization: finalSpecialization,
+        jobType,
+        jobLevel,
+        governorate,
+        city: finalCity,
+        vacancies: Number(vacancies || 1),
+        salaryNegotiable,
+        salaryFrom: salaryNegotiable ? null : (salaryFrom ? Number(salaryFrom) : null),
+        salaryTo: salaryNegotiable ? null : (salaryTo ? Number(salaryTo) : null),
+        showSalary,
+        description,
+        hoursPerDay: hoursPerDay ? Number(hoursPerDay) : null,
+        daysOffPerMonth: daysOffPerMonth ? Number(daysOffPerMonth) : null,
+        socialInsurance,
+        privateHealthInsurance,
+        transportationAvailable,
+        transportationAreas: transportationAreas || "",
+        housingForExpats,
+        ageFrom: ageFrom ? Number(ageFrom) : null,
+        ageTo: ageTo ? Number(ageTo) : null,
+        needsCar: needsCar || "",
+        requirements: requirements || "",
+        receiveMethod,
+        contactMethod: receiveMethod === "contact" ? contactMethod : "",
+        contactValue: receiveMethod === "contact" ? contactValue : "",
+        additionalBenefits: additionalBenefits || "",
+        screeningQuestions,
+        featured: employerPlan === "premium",
+        isActive: true,
+      };
 
-    const finalCity = citySelect === "other" ? cityOther.trim() : citySelect;
-    const finalSpecialization = specSelect === "other" ? specOther.trim() : specSelect;
-
-    const postData: any = {
-      employerId: isEditMode && editingPost ? editingPost.data.employerId : user.uid,
-      companyName,
-      showCompanyName,
-      title,
-      specialization: finalSpecialization,
-      jobType,
-      jobLevel,
-      governorate,
-      city: finalCity,
-      vacancies: Number(vacancies || 1),
-      salaryNegotiable,
-      salaryFrom: salaryNegotiable ? null : (salaryFrom ? Number(salaryFrom) : null),
-      salaryTo: salaryNegotiable ? null : (salaryTo ? Number(salaryTo) : null),
-      showSalary,
-      description,
-      hoursPerDay: hoursPerDay ? Number(hoursPerDay) : null,
-      daysOffPerMonth: daysOffPerMonth ? Number(daysOffPerMonth) : null,
-      socialInsurance,
-      privateHealthInsurance,
-      transportationAvailable,
-      transportationAreas: transportationAreas || "",
-      housingForExpats,
-      ageFrom: ageFrom ? Number(ageFrom) : null,
-      ageTo: ageTo ? Number(ageTo) : null,
-      needsCar: needsCar || "",
-      requirements: requirements || "",
-      receiveMethod,
-      contactMethod: receiveMethod === "contact" ? contactMethod : "",
-      contactValue: receiveMethod === "contact" ? contactValue : "",
-      additionalBenefits: additionalBenefits || "",
-      screeningQuestions,
-      featured: employerPlan === "premium",
-      isActive: true,
-    };
-
-    try {
       if (isEditMode && editingPost) {
         await updateDoc(doc(db, "job_posts", editingPost.id), postData);
         alert("تم حفظ التعديلات ✓");
@@ -252,8 +254,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, onP
     } catch (err: any) {
       console.error("Job post save failed", err);
       alert(friendlyErrorMessage(err));
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   }
 
   function resetForm() {
