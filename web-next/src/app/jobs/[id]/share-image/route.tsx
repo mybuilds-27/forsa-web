@@ -4,6 +4,11 @@ import { db } from "@/lib/firebase";
 import { EXPERIENCE_LEVELS } from "@/lib/constants";
 import { JOB_TYPE_LABELS, sanitizeJobDescription } from "@/lib/jobCardStyles";
 
+// نفس مشكلة الـstatic prerender اللي لقيناها في jobs/[id]/page.tsx وjobs/page.tsx وغيرهم —
+// من غيرها الصورة ممكن تتجمد على أول نسخة اتولدت وقت أول زيارة للرابط، وتفضل قديمة حتى لو
+// بيانات الوظيفة اتغيرت بعد كده. force-dynamic بيضمن قراءة فريش من Firestore في كل طلب.
+export const dynamic = "force-dynamic";
+
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
