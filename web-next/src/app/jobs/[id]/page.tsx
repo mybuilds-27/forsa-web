@@ -255,6 +255,14 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const descriptionIsArabic = isArabicText(description);
   const descriptionBulletItems = splitBulletItems(description);
 
+  // نفس مشكلة الوصف بالظبط موجودة في "الشروط" و"مزايا إضافية" (نفس النسخ واللصق من
+  // ChatGPT)، فبتتنضف بنفس sanitizeJobDescription. "الشروط" كمان ممكن تتكتب كنقط، فبتتحول
+  // لقايمة زي الوصف لو فيها "•" بعد التنضيف.
+  const requirements = sanitizeJobDescription(job.requirements || "");
+  const requirementsIsArabic = isArabicText(requirements);
+  const requirementsBulletItems = splitBulletItems(requirements);
+  const additionalBenefits = sanitizeJobDescription(job.additionalBenefits || "");
+
   return (
     <div dir="rtl" style={{ width: "100%", maxWidth: 1020, margin: "0 auto", padding: "40px 20px" }}>
       <JobViewTracker jobId={job.id} />
@@ -368,11 +376,33 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <DetailRow label="سكن المغتربين" value={job.housingForExpats === "yes" ? "متوفر ✓" : job.housingForExpats === "no" ? "غير متوفر" : undefined} />
       </div>
 
-      {job.requirements && (
-        <p style={{ marginBottom: 10 }}><strong>الشروط:</strong> {job.requirements}</p>
+      {requirements && (
+        requirementsBulletItems ? (
+          <div style={{ marginBottom: 10 }}>
+            <strong>الشروط:</strong>
+            <ul
+              dir={requirementsIsArabic ? "rtl" : "ltr"}
+              style={{
+                lineHeight: 1.8,
+                marginTop: 4,
+                textAlign: requirementsIsArabic ? "right" : "left",
+                paddingInlineStart: 20,
+                listStyleType: "disc",
+              }}
+            >
+              {requirementsBulletItems.map((item, i) => (
+                <li key={i} style={{ whiteSpace: "pre-wrap", marginBottom: 4 }}>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p style={{ marginBottom: 10, whiteSpace: "pre-wrap" }}><strong>الشروط:</strong> {requirements}</p>
+        )
       )}
-      {job.additionalBenefits && (
-        <p style={{ marginBottom: 20 }}><strong>مزايا إضافية:</strong> {job.additionalBenefits}</p>
+      {additionalBenefits && (
+        <p style={{ marginBottom: 20, whiteSpace: "pre-wrap" }}><strong>مزايا إضافية:</strong> {additionalBenefits}</p>
       )}
 
       <RelatedJobs jobId={job.id} specialization={job.specialization} governorate={job.governorate} />

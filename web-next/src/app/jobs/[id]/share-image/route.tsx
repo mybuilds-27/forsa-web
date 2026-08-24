@@ -157,14 +157,20 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const salary = salaryText(job);
   const showSalary = salary !== "غير محدد";
 
-  // أهم 3 نقط من الوصف (لو مكتوب بصيغة "• نقطة • نقطة")، وإلا الشروط كـfallback نقطة
-  // واحدة بدل ما نسيب القسم فاضي، وإلا مفيش قسم نقط خالص. sanitizeJobDescription بتحول
-  // سطور الـ*/- (اللي بعض أصحاب العمل بيلصقوها من ChatGPT) لنفس رمز "•" اللي splitBulletItems
-  // بتفهمه، عشان استخراج النقط يشتغل حتى لو الوصف الأصلي متكتبش بـ• صراحة.
+  // أهم 3 نقط من الوصف (لو مكتوب بصيغة "• نقطة • نقطة")، وإلا الشروط كـfallback، وإلا مفيش
+  // قسم نقط خالص. sanitizeJobDescription بتحول سطور الـ*/- (اللي بعض أصحاب العمل بيلصقوها
+  // من ChatGPT) لنفس رمز "•" اللي splitBulletItems بتفهمه — الشروط نفسها ممكن تتكتب بنقط
+  // برضو، فبناخد منها أول 3 عناصر بدل ما ناخد النص الخام كله كنقطة وحيدة ضخمة.
   const bulletItems = splitBulletItems(sanitizeJobDescription(job.description || ""));
-  const highlightPoints = (bulletItems ? bulletItems.slice(0, 3) : job.requirements ? [job.requirements] : []).map((item) =>
-    truncate(item, 40)
-  );
+  let highlightSource: string[];
+  if (bulletItems) {
+    highlightSource = bulletItems.slice(0, 3);
+  } else {
+    const sanitizedRequirements = sanitizeJobDescription(job.requirements || "");
+    const requirementsBulletItems = splitBulletItems(sanitizedRequirements);
+    highlightSource = requirementsBulletItems ? requirementsBulletItems.slice(0, 3) : sanitizedRequirements ? [sanitizedRequirements] : [];
+  }
+  const highlightPoints = highlightSource.map((item) => truncate(item, 40));
 
   const hasDirectContact = job.receiveMethod === "contact" && !!job.contactValue;
   const contactLabel = hasDirectContact ? CONTACT_METHOD_LABELS[job.contactMethod] || job.contactMethod : "";
