@@ -9,7 +9,7 @@ import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
 import { EXPERIENCE_LEVELS, findGovernorateBySlug, slugify } from "@/lib/constants";
-import { featuredPillStyle, JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
+import { featuredPillStyle, JOB_TYPE_LABELS, sanitizeJobDescription } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     return { title: "وظيفة غير متاحة - الشغل" };
   }
   const title = `${job.title} - وظيفة على موقع الشغل`;
-  const description = `${job.title} في ${job.city} - ${job.governorate}. ${(job.description || "").slice(0, 120)}`;
+  const description = `${job.title} في ${job.city} - ${job.governorate}. ${sanitizeJobDescription(job.description || "").slice(0, 120)}`;
   const companyName = job.showCompanyName && job.companyName ? job.companyName : "شركة غير معلنة";
   const ogTitle = `${job.title} - ${companyName}`;
   const url = `https://www.elshoghl.com/jobs/${job.id}`;
@@ -110,7 +110,7 @@ function buildJobPostingJsonLd(job: any) {
     "@context": "https://schema.org/",
     "@type": "JobPosting",
     title: job.title,
-    description: job.description || job.title,
+    description: sanitizeJobDescription(job.description || "") || job.title,
     identifier: { "@type": "PropertyValue", name: "الشغل", value: job.id },
     datePosted: job.createdAt.toDate().toISOString(),
     ...(job.expiresAt?.toDate ? { validThrough: job.expiresAt.toDate().toISOString() } : {}),
@@ -249,8 +249,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const seoData = await getActiveJobsSeoData();
   const popularCombos = seoData.combos.slice(0, POPULAR_COMBOS_COUNT);
   const jobPostingJsonLd = buildJobPostingJsonLd(job);
-  const descriptionIsArabic = isArabicText(job.description || "");
-  const descriptionBulletItems = splitBulletItems(job.description || "");
+  // تنضيف رموز Markdown اللي بعض أصحاب العمل بيسيبوها زي ما هي لما بيلصقوا وصف من
+  // ChatGPT (##, **نص**, سطور بـ*/-) — النص الأصلي في Firestore زي ما هو، ده بس للعرض.
+  const description = sanitizeJobDescription(job.description || "");
+  const descriptionIsArabic = isArabicText(description);
+  const descriptionBulletItems = splitBulletItems(description);
 
   return (
     <div dir="rtl" style={{ width: "100%", maxWidth: 1020, margin: "0 auto", padding: "40px 20px" }}>
@@ -339,7 +342,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             textAlign: descriptionIsArabic ? "right" : "left",
           }}
         >
-          {job.description}
+          {description}
         </p>
       )}
 

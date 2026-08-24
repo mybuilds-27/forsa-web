@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { EXPERIENCE_LEVELS } from "@/lib/constants";
-import { JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
+import { JOB_TYPE_LABELS, sanitizeJobDescription } from "@/lib/jobCardStyles";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -158,8 +158,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const showSalary = salary !== "غير محدد";
 
   // أهم 3 نقط من الوصف (لو مكتوب بصيغة "• نقطة • نقطة")، وإلا الشروط كـfallback نقطة
-  // واحدة بدل ما نسيب القسم فاضي، وإلا مفيش قسم نقط خالص.
-  const bulletItems = splitBulletItems(job.description || "");
+  // واحدة بدل ما نسيب القسم فاضي، وإلا مفيش قسم نقط خالص. sanitizeJobDescription بتحول
+  // سطور الـ*/- (اللي بعض أصحاب العمل بيلصقوها من ChatGPT) لنفس رمز "•" اللي splitBulletItems
+  // بتفهمه، عشان استخراج النقط يشتغل حتى لو الوصف الأصلي متكتبش بـ• صراحة.
+  const bulletItems = splitBulletItems(sanitizeJobDescription(job.description || ""));
   const highlightPoints = (bulletItems ? bulletItems.slice(0, 3) : job.requirements ? [job.requirements] : []).map((item) =>
     truncate(item, 40)
   );
