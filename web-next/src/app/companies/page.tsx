@@ -23,9 +23,6 @@ export default async function CompaniesPage() {
   return (
     <div dir="rtl" style={{ maxWidth: 1200, width: "100%", margin: "0 auto", padding: "40px 20px" }}>
       <h1 style={{ fontSize: 26, marginBottom: 6 }}>الشركات</h1>
-      <p style={{ color: "#4A5568", marginBottom: 24 }}>
-        {companies.length} شركة بتوظف حاليًا على موقع الشغل
-      </p>
 
       {companies.length === 0 && (
         <div style={{ padding: 30, textAlign: "center", color: "#4A5568" }}>
