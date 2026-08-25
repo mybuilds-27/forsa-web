@@ -2,9 +2,10 @@ import { collection, getDocs, limit, orderBy, query, where, type QueryConstraint
 import { db } from "./firebase";
 import { GOVERNORATES, SPECIALIZATION_OPTIONS } from "./constants";
 
-export async function getActivePublicJobs(filters: { governorate?: string; specialization?: string } = {}) {
+export async function getActivePublicJobs(filters: { governorate?: string; city?: string; specialization?: string } = {}) {
   const constraints: QueryConstraint[] = [where("isActive", "==", true)];
   if (filters.governorate) constraints.push(where("governorate", "==", filters.governorate));
+  if (filters.city) constraints.push(where("city", "==", filters.city));
   if (filters.specialization) constraints.push(where("specialization", "==", filters.specialization));
   constraints.push(orderBy("createdAt", "desc"), limit(50));
 
