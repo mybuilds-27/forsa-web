@@ -63,13 +63,15 @@ function textDirStyle(text: string): React.CSSProperties {
 // بتقطع عند حدود الكلمات بس — قص حرفي عند حرف رقم max بالظبط ممكن يقطع في نص كلمة (خصوصًا
 // مع displayText اللي بتقلب ترتيب الكلمات للنص العربي، فالكلمة المبتورة بتطلع مشوّهة زي
 // "...مج" بدل قص نضيف). لو مفيش مسافة خالص قبل نقطة القطع (كلمة واحدة أطول من max)، بترجع
-// للقص الحرفي كـfallback بدل ما ترجع نص فاضي.
+// للقص الحرفي كـfallback. بترجع النص المقطوع بس، من غير أي "…" ملزوقة — لو "…" اتلزقت هنا
+// وبعدين عدّت على displayText، بتتحسب كجزء من آخر "كلمة" (نص+رمز مختلط)، وده بيكسر مكانها
+// البصري لما ترتيب الكلمات بينعكس. المستدعي هو اللي بيقرر يعرض "…" كعنصر JSX منفصل تمامًا.
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   const sliced = text.slice(0, max);
   const lastSpace = sliced.lastIndexOf(" ");
   const cut = lastSpace > 0 ? sliced.slice(0, lastSpace) : sliced;
-  return cut.trim() + "…";
+  return cut.trim();
 }
 
 // نفس منطق salaryText الموجود في page.tsx بالظبط.
@@ -180,7 +182,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return unavailableImage();
   }
 
-  const title = truncate(job.title || "", 70);
+  const rawTitle = job.title || "";
+  const title = truncate(rawTitle, 70);
+  const titleTruncated = title.length < rawTitle.length;
   const companyName = job.showCompanyName && job.companyName ? job.companyName : "شركة غير معلنة";
   const location = `${job.city || ""} - ${job.governorate || ""}`;
   const jobTypeLabel = JOB_TYPE_LABELS[job.jobType] || job.jobType || "";
@@ -197,7 +201,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   // حد أقصى أمان (15 نقطة) لمنع وصف شاذ فيه عشرات النقط من إطالة الصورة بلا حدود — أي زيادة
   // عن الحد بتتلخص في سطر "+ N نقطة إضافية" بدل ما تتقطع فجأة.
   const extraPointsCount = Math.max(0, highlightSource.length - MAX_HIGHLIGHT_POINTS);
-  const highlightPoints = highlightSource.slice(0, MAX_HIGHLIGHT_POINTS).map((item) => truncate(item, 40));
+  const highlightPoints = highlightSource.slice(0, MAX_HIGHLIGHT_POINTS).map((item) => {
+    const text = truncate(item, 40);
+    return { text, truncated: text.length < item.length };
+  });
   const extraPointsLine = extraPointsCount > 0 ? `+ ${extraPointsCount} نقطة إضافية` : "";
 
   const hasDirectContact = job.receiveMethod === "contact" && !!job.contactValue;
@@ -212,9 +219,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const imageHeight = pointsLineCount > 0 ? 480 + pointsLineCount * 32 + 110 : 630;
 
   // نفس فكرة الـsubsetting في opengraph-image.tsx — نحمّل خط Cairo بوزنين بس بالحروف
-  // المستخدمة فعليًا في الصورة دي (تختلف كل مرة حسب بيانات الوظيفة).
-  const boldText = SITE_NAME + title + DOMAIN + (job.featured ? featuredBadge : "") + (showSalary ? salary : "");
-  const mediumText = companyName + location + metaLine + highlightPoints.join("") + extraPointsLine + bottomLine;
+  // المستخدمة فعليًا في الصورة دي (تختلف كل مرة حسب بيانات الوظيفة). "…" بقت بتترسم كعنصر
+  // JSX منفصل (مش ملزوقة جوه أي نص)، فبنضيفها هنا صراحة في الوزنين عشان نضمن وجودها في الـ
+  // subset حتى لو مفيش أي نص تاني فيه فعلًا — نفس درس الرمز "✓" اللي واجهنا فشل تحميله قبل كده.
+  const boldText = SITE_NAME + title + DOMAIN + (job.featured ? featuredBadge : "") + (showSalary ? salary : "") + "…";
+  const mediumText = companyName + location + metaLine + highlightPoints.map((p) => p.text).join("") + extraPointsLine + bottomLine + "…";
   const [cairoBold, cairoMedium] = await Promise.all([
     loadCairoFont(boldText, 800),
     loadCairoFont(mediumText, 500),
@@ -256,20 +265,28 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
             </div>
           )}
 
-          <div
-            style={{
-              display: "flex",
-              width: 1000,
-              justifyContent: "flex-end",
-              fontSize: 42,
-              fontWeight: 800,
-              lineHeight: 1.2,
-              color: "#14213D",
-              textAlign: "right",
-              ...textDirStyle(title),
-            }}
-          >
-            {displayText(title)}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", width: 1000 }}>
+            <div
+              style={{
+                display: "flex",
+                width: "100%",
+                justifyContent: "flex-end",
+                fontSize: 42,
+                fontWeight: 800,
+                lineHeight: 1.2,
+                color: "#14213D",
+                textAlign: "right",
+                ...textDirStyle(title),
+              }}
+            >
+              {displayText(title)}
+            </div>
+            {/* "…" عنصر منفصل تمامًا عن displayText — لو اتلزقت جوه النص المقلوب هتتحسب
+                جزء من آخر "كلمة" وتتحرك مكانها غلط بصريًا. العنوان بيلف على أكتر من سطر
+                فمفيش طريقة نخليها "تكمل" آخر سطر تلقائيًا زي text-overflow، فبتظهر تحته مباشرة. */}
+            {titleTruncated && (
+              <div style={{ display: "flex", fontSize: 32, fontWeight: 800, color: "#14213D", marginTop: -6 }}>…</div>
+            )}
           </div>
 
           <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 8, fontSize: 24, fontWeight: 500, color: "#4A5568" }}>
@@ -307,7 +324,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
                   {/* إيموجي مش حرف عادي — بيترسم عن طريق twemoji (نفس آلية باقي الأيقونات
                       في الصورة دي)، مش عن طريق خط Cairo، فمش محتاج يتضاف لأي subset فوق. */}
                   <div style={{ display: "flex" }}>✅</div>
-                  <div style={{ display: "flex", ...textDirStyle(point) }}>{displayText(point)}</div>
+                  {/* "…" عنصر JSX منفصل عن point.text — لو اتلزقت جوه النص قبل ما يعدي على
+                      displayText، بتتحسب جزء من آخر "كلمة" (نص عربي + رمز مختلط) وتتحرك
+                      مكانها غلط بصريًا لما ترتيب الكلمات بينعكس. هنا ثابتة دايمًا آخر السطر. */}
+                  <div style={{ display: "flex", flexDirection: "row-reverse", alignItems: "center", gap: 1 }}>
+                    <div style={{ display: "flex", ...textDirStyle(point.text) }}>{displayText(point.text)}</div>
+                    {point.truncated && <div style={{ display: "flex" }}>…</div>}
+                  </div>
                 </div>
               ))}
               {extraPointsLine && (
