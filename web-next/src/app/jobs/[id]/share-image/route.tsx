@@ -60,8 +60,16 @@ function textDirStyle(text: string): React.CSSProperties {
   return isArabicText(text) ? { direction: "ltr", unicodeBidi: "bidi-override" } : { direction: "ltr" };
 }
 
+// بتقطع عند حدود الكلمات بس — قص حرفي عند حرف رقم max بالظبط ممكن يقطع في نص كلمة (خصوصًا
+// مع displayText اللي بتقلب ترتيب الكلمات للنص العربي، فالكلمة المبتورة بتطلع مشوّهة زي
+// "...مج" بدل قص نضيف). لو مفيش مسافة خالص قبل نقطة القطع (كلمة واحدة أطول من max)، بترجع
+// للقص الحرفي كـfallback بدل ما ترجع نص فاضي.
 function truncate(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max).trim() + "…" : text;
+  if (text.length <= max) return text;
+  const sliced = text.slice(0, max);
+  const lastSpace = sliced.lastIndexOf(" ");
+  const cut = lastSpace > 0 ? sliced.slice(0, lastSpace) : sliced;
+  return cut.trim() + "…";
 }
 
 // نفس منطق salaryText الموجود في page.tsx بالظبط.
