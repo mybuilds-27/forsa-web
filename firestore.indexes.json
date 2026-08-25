@@ -189,6 +189,14 @@
       ]
     },
     {
+      "collectionGroup": "job_posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "employerId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "job_seekers",
       "queryScope": "COLLECTION",
       "fields": [
