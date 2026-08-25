@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, query, where, getCountFromServer, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 
 const AGE_OPTIONS = Array.from({ length: 50 }, (_, i) => 16 + i);
+
+// نفس فكرة الـrace مع timeout في ReportJobButton.tsx — لو addDoc/updateDoc اتعلقت لأي سبب
+// (شبكة بطيئة، إضافة adblock، إلخ)، بعد 15 ثانية بنوريه رسالة واضحة بدل "جاري الحفظ..."
+// معلّقة للأبد من غير أي تفسير.
+const SAVE_TIMEOUT_MS = 15000;
 
 type EditingPost = { id: string; data: any } | null;
 
@@ -167,6 +172,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     // من غيره الزرار فاضل شغال أثناء الفحص وممكن يتضغط تاني بسرعة (خصوصًا على الموبايل)
     // ويسبب نشر مكرر. finally تحت بيضمن إعادة فتحه في كل الحالات (نجاح، فشل، أو أي return مبكر).
     setSubmitting(true);
+    let saveTimeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       const user = auth.currentUser;
       if (!user) return;
@@ -178,12 +184,17 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
 
-        const allPostsSnap = await getDocs(query(collection(db, "job_posts"), where("employerId", "==", user.uid)));
-        const postsThisMonth = allPostsSnap.docs.filter((d) => {
-          const t = d.data().createdAt;
-          return t && t.toMillis() >= startOfMonth.getTime();
-        });
-        if (postsThisMonth.length >= monthlyLimit) {
+        // getCountFromServer بدل جلب كل إعلانات صاحب العمل من أول يوم وفلترتها بعد الجلب —
+        // استعلام العدّ ده بيرجع الرقم بس من غير ما يجيب أي مستند فعليًا (نفس فكرة لوحة
+        // الإدارة). محتاج composite index جديد (employerId + createdAt) — راجع firestore.indexes.json.
+        const countSnap = await getCountFromServer(
+          query(
+            collection(db, "job_posts"),
+            where("employerId", "==", user.uid),
+            where("createdAt", ">=", Timestamp.fromDate(startOfMonth))
+          )
+        );
+        if (countSnap.data().count >= monthlyLimit) {
           alert(
             employerPlan === "premium"
               ? `وصلت للحد الأقصى (${monthlyLimit} إعلانات) للباقة المدفوعة الشهر ده.`
@@ -237,8 +248,19 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         isActive: true,
       };
 
+      // Promise.race مع مهلة 15 ثانية — لو addDoc/updateDoc اتعلقت، بنرفض بـSAVE_TIMEOUT بدل
+      // ما نسيب "جاري الحفظ..." معلّقة للأبد من غير أي رسالة.
+      function withSaveTimeout<T>(promise: Promise<T>): Promise<T> {
+        return Promise.race([
+          promise,
+          new Promise<T>((_, reject) => {
+            saveTimeoutId = setTimeout(() => reject(new Error("SAVE_TIMEOUT")), SAVE_TIMEOUT_MS);
+          }),
+        ]);
+      }
+
       if (isEditMode && editingPost) {
-        await updateDoc(doc(db, "job_posts", editingPost.id), postData);
+        await withSaveTimeout(updateDoc(doc(db, "job_posts", editingPost.id), postData));
         alert("تم حفظ التعديلات ✓");
         resetForm();
         onPosted();
@@ -246,18 +268,25 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         const expiry = new Date();
         expiry.setDate(expiry.getDate() + (employerPlan === "premium" ? 60 : 30));
         postData.expiresAt = Timestamp.fromDate(expiry);
-        const docRef = await addDoc(collection(db, "job_posts"), {
-          ...postData,
-          createdAt: serverTimestamp(),
-        });
+        const docRef = await withSaveTimeout(
+          addDoc(collection(db, "job_posts"), {
+            ...postData,
+            createdAt: serverTimestamp(),
+          })
+        );
         alert("تم نشر الإعلان بنجاح ✓");
         resetForm();
         onPosted(docRef.id);
       }
     } catch (err: any) {
       console.error("Job post save failed", err);
-      alert(friendlyErrorMessage(err));
+      if (err instanceof Error && err.message === "SAVE_TIMEOUT") {
+        alert("الطلب مستني كتير — جرب تعمل ريفريش للصفحة وحاول تاني");
+      } else {
+        alert(friendlyErrorMessage(err));
+      }
     } finally {
+      clearTimeout(saveTimeoutId);
       setSubmitting(false);
     }
   }
