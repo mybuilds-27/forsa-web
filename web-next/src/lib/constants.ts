@@ -106,3 +106,38 @@ export function findGovernorateBySlug(slug: string): string | null {
 export function findSpecialtyBySlug(slug: string): string | null {
   return SPECIALIZATION_OPTIONS.find((s) => slugify(s) === slug) || null;
 }
+
+// قائمة ابتدائية لصفحات SEO على مستوى المنطقة/الحي (أدق من صفحة المحافظة الكاملة) — أهم
+// 20 منطقة من الأكبر كثافة سكانية/وظائف في أكبر 5 محافظات بس، مش كل مدينة في
+// GOVERNORATE_CITIES لكل الـ27 محافظة دفعة واحدة. بنزود تدريجيًا بعدين.
+export const SEO_AREAS: { governorate: string; city: string }[] = [
+  { governorate: "القاهرة", city: "مدينة نصر" },
+  { governorate: "القاهرة", city: "المعادي" },
+  { governorate: "القاهرة", city: "مصر الجديدة" },
+  { governorate: "القاهرة", city: "التجمع الخامس" },
+  { governorate: "القاهرة", city: "شبرا" },
+  { governorate: "القاهرة", city: "حلوان" },
+  { governorate: "الجيزة", city: "الدقي" },
+  { governorate: "الجيزة", city: "المهندسين" },
+  { governorate: "الجيزة", city: "6 أكتوبر" },
+  { governorate: "الجيزة", city: "الشيخ زايد" },
+  { governorate: "الجيزة", city: "الهرم" },
+  { governorate: "الجيزة", city: "فيصل" },
+  { governorate: "الإسكندرية", city: "سيدي جابر" },
+  { governorate: "الإسكندرية", city: "سموحة" },
+  { governorate: "الإسكندرية", city: "المنتزه" },
+  { governorate: "الإسكندرية", city: "العجمي" },
+  { governorate: "الإسكندرية", city: "محرم بك" },
+  { governorate: "الإسكندرية", city: "الرمل" },
+  { governorate: "الشرقية", city: "العاشر من رمضان" },
+  { governorate: "القليوبية", city: "العبور" },
+];
+
+export function findAreaBySlug(governorate: string, citySlug: string): string | null {
+  const area = SEO_AREAS.find((a) => a.governorate === governorate && slugify(a.city) === citySlug);
+  return area ? area.city : null;
+}
+
+export function getAreasForGovernorate(governorate: string): string[] {
+  return SEO_AREAS.filter((a) => a.governorate === governorate).map((a) => a.city);
+}

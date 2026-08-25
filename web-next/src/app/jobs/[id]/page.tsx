@@ -7,7 +7,7 @@ import ShareButton from "@/components/ShareButton";
 import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
-import { EXPERIENCE_LEVELS, findGovernorateBySlug, slugify } from "@/lib/constants";
+import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify } from "@/lib/constants";
 import { featuredPillStyle, JOB_TYPE_LABELS, salaryText, sanitizeJobDescription } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseSidebar from "@/components/BrowseSidebar";
@@ -185,6 +185,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     const specialtiesForGovernorate = seoData.combos
       .filter((c) => c.governorate === governorate)
       .sort((a, b) => b.count - a.count);
+    // مفيش عدد وظائف لكل منطقة هنا (مكانش هيستاهل استعلام إضافي لكل منطقة) — بس أسماء
+    // المناطق المعرّفة لنفس المحافظة دي (SEO_AREAS)، وبيرجع array فاضية للمحافظات اللي
+    // معندهاش مناطق معرّفة لسه، فالقسم بيختفي تلقائيًا.
+    const areasForGovernorate = getAreasForGovernorate(governorate);
     return (
       <div dir="rtl" style={{ width: "100%", maxWidth: 1120, margin: "0 auto", padding: "40px 20px" }}>
         <h1 style={{ fontSize: 26, marginBottom: 6 }}>وظائف في {governorate}</h1>
@@ -220,6 +224,30 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                       }}
                     >
                       {c.specialization} ({c.count})
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {areasForGovernorate.length > 0 && (
+              <div style={{ marginTop: 30, paddingTop: 20, borderTop: "1px solid #DED2B5" }}>
+                <h2 style={{ fontSize: 16, marginBottom: 12 }}>وظائف {governorate} حسب المنطقة</h2>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {areasForGovernorate.map((city) => (
+                    <Link
+                      key={city}
+                      href={`/jobs/${slugify(governorate)}/area/${slugify(city)}`}
+                      style={{
+                        fontSize: 13,
+                        background: "#F0EDE3",
+                        padding: "6px 14px",
+                        borderRadius: 999,
+                        color: "#14213D",
+                        textDecoration: "none",
+                      }}
+                    >
+                      {city}
                     </Link>
                   ))}
                 </div>

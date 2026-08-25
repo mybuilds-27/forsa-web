@@ -14,6 +14,16 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "governorate", "order": "ASCENDING" },
+        { "fieldPath": "city", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "job_posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "governorate", "order": "ASCENDING" },
         { "fieldPath": "isActive", "order": "ASCENDING" },
         { "fieldPath": "featured", "order": "DESCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
