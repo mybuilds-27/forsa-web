@@ -76,6 +76,9 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
 
   const [isWebView, setIsWebView] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  // البانر الكبير مفروض يظهر بس لو المستخدم فعليًا مختار أو بيحاول يستخدم "المتابعة بجوجل"
+  // (المشكلة الحقيقية خاصة بيها بس)، مش لأي حد فاتح الرابط من WebView بغض النظر عن اختياره.
+  const [googleAttempted, setGoogleAttempted] = useState(false);
 
   useEffect(() => {
     setIsWebView(isInAppWebView());
@@ -184,6 +187,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
 
   async function handleGoogleSignIn() {
     setError("");
+    setGoogleAttempted(true);
     setGoogleLoading(true);
     authInProgressRef.current = true;
     (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "google" });
@@ -597,45 +601,6 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
         )}
       </div>
 
-      {isWebView && (
-        <div
-          style={{
-            background: "rgba(232,163,61,0.15)",
-            border: "1px solid #E8A33D66",
-            borderRadius: 10,
-            padding: "14px 16px",
-            marginBottom: 18,
-            fontSize: 13.5,
-            color: COLORS.ink,
-            lineHeight: 1.8,
-          }}
-        >
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>
-            ⚠️ إنت فاتح الرابط من جوه تطبيق (فيسبوك/إنستجرام)
-          </div>
-          <div style={{ marginBottom: 10 }}>
-            عشان تسجّل بسهولة وأمان، افتح الرابط في متصفحك العادي (كروم أو سفاري): دوس على
-            أيقونة الثلات نقط <strong>⋮</strong> فوق يمين الشاشة واختار <strong>"افتح في المتصفح"</strong>.
-          </div>
-          <button
-            type="button"
-            onClick={handleCopyLink}
-            style={{
-              background: "#fff",
-              border: "1px solid #E8A33D",
-              borderRadius: 6,
-              padding: "6px 12px",
-              fontSize: 12.5,
-              fontWeight: 700,
-              color: "#8A570D",
-              cursor: "pointer",
-            }}
-          >
-            {linkCopied ? "✓ اتنسخ الرابط" : "📋 انسخ رابط الصفحة"}
-          </button>
-        </div>
-      )}
-
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 4 }}>
         {/* التسجيل بالاسم ورقم الموبايل هو الاختيار الأساسي الظاهر فوق — جوجل والإيميل
             بدائل تحت خط "أو". ده بس ترتيب عرض بصري، المنطق والسلوك (فحص تضارب الحسابات،
@@ -735,10 +700,51 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
         </div>
 
         <AuthOptionButton onClick={handleGoogleSignIn} disabled={googleLoading} icon={<GoogleIcon />} label="المتابعة بجوجل" />
-        {isWebView && (
+        {isWebView && googleAttempted && (
+          // البانر الكبير الكامل — بيظهر بس بعد ما المستخدم فعليًا دوس "المتابعة بجوجل"
+          // (المشكلة الحقيقية خاصة بيها بس، مش بتليفون أو إيميل).
+          <div
+            style={{
+              background: "rgba(232,163,61,0.15)",
+              border: "1px solid #E8A33D66",
+              borderRadius: 10,
+              padding: "14px 16px",
+              marginTop: -2,
+              fontSize: 13.5,
+              color: COLORS.ink,
+              lineHeight: 1.8,
+            }}
+          >
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              ⚠️ إنت فاتح الرابط من جوه تطبيق (فيسبوك/إنستجرام)
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              عشان تسجّل بسهولة وأمان، افتح الرابط في متصفحك العادي (كروم أو سفاري): دوس على
+              أيقونة الثلات نقط <strong>⋮</strong> فوق يمين الشاشة واختار <strong>"افتح في المتصفح"</strong>.
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              style={{
+                background: "#fff",
+                border: "1px solid #E8A33D",
+                borderRadius: 6,
+                padding: "6px 12px",
+                fontSize: 12.5,
+                fontWeight: 700,
+                color: "#8A570D",
+                cursor: "pointer",
+              }}
+            >
+              {linkCopied ? "✓ اتنسخ الرابط" : "📋 انسخ رابط الصفحة"}
+            </button>
+          </div>
+        )}
+        {isWebView && !googleAttempted && (
+          // سطر أصغر وأقل إلحاحًا — ظاهر افتراضيًا (قبل أي محاولة فعلية لجوجل)، لطرق
+          // التسجيل التانية (تليفون/إيميل) اللي مش متأثرة بمشكلة WebView خالص.
           <div style={{ fontSize: 12, color: "#8A570D", marginTop: -4 }}>
-            ⚠️ ممكن ما يشتغلش صح من جوه التطبيق — الأفضل تفتح الرابط في المتصفح زي فوق، أو
-            جرّب الإيميل تحت
+            ⚠️ جوجل ممكن ميشتغلش من التطبيق ده، جرب تليفون أو إيميل بدلًا
           </div>
         )}
 
