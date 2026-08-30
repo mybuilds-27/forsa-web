@@ -182,7 +182,9 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, d
                 >
                   <option value="">اختر وظيفة</option>
                   {jobs.map((j) => (
-                    <option key={j.id} value={j.id}>{j.title}</option>
+                    <option key={j.id} value={j.id}>
+                      {j.title} — {j.showCompanyName && j.companyName ? j.companyName : "شركة غير معلنة"} — {j.city} - {j.governorate}
+                    </option>
                   ))}
                 </select>
               </div>
