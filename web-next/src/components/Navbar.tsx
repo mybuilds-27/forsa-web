@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import NotificationBell from "./NotificationBell";
 import LogoMark from "./LogoMark";
 
@@ -23,22 +24,29 @@ export default function Navbar() {
   const [userLabel, setUserLabel] = useState("");
   const [employerPlan, setEmployerPlan] = useState<string | null>(null);
   const [signedIn, setSignedIn] = useState(false);
+  // null يعني "لسه معرفناش" (مش باحث عن عمل أصلًا، أو لسه بيحمّل) — مبيظهرش أي شارة في
+  // الحالة دي، بس لو رقم فعلي وأقل من 100 هيظهر تنبيه الاستكمال.
+  const [profileCompletion, setProfileCompletion] = useState<number | null>(null);
 
   useEffect(() => {
     let unsubscribeUserDoc: (() => void) | null = null;
     let unsubscribeEmployerDoc: (() => void) | null = null;
+    let unsubscribeSeekerDoc: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       unsubscribeUserDoc?.();
       unsubscribeUserDoc = null;
       unsubscribeEmployerDoc?.();
       unsubscribeEmployerDoc = null;
+      unsubscribeSeekerDoc?.();
+      unsubscribeSeekerDoc = null;
 
       if (!user) {
         setSignedIn(false);
         setUserType(null);
         setIsAdmin(false);
         setEmployerPlan(null);
+        setProfileCompletion(null);
         return;
       }
       setSignedIn(true);
@@ -70,6 +78,8 @@ export default function Navbar() {
 
           unsubscribeEmployerDoc?.();
           unsubscribeEmployerDoc = null;
+          unsubscribeSeekerDoc?.();
+          unsubscribeSeekerDoc = null;
 
           if (type === "employer") {
             unsubscribeEmployerDoc = onSnapshot(
@@ -84,6 +94,23 @@ export default function Navbar() {
           } else {
             setEmployerPlan(null);
           }
+
+          // نفس onSnapshot المشترك اللي بيحدد نوع الحساب — بيضيف قراءة job_seekers/{uid} بس
+          // لباحث عن شغل، عشان نحسب نسبة اكتمال البروفايل ونعرض تنبيه استكمال دائم في كل
+          // صفحات الموقع (مش مربوط بصفحة /seeker بس)، من غير ما نزوّد useEffect منفصل.
+          if (type === "job_seeker") {
+            unsubscribeSeekerDoc = onSnapshot(
+              doc(db, "job_seekers", user.uid),
+              (seekerDoc) => {
+                setProfileCompletion(calculateProfileCompletion(seekerDoc.exists() ? seekerDoc.data() : null));
+              },
+              (err) => {
+                console.error("[Navbar] فشل قراءة job_seekers/{uid} لحساب نسبة اكتمال البروفايل", err);
+              }
+            );
+          } else {
+            setProfileCompletion(null);
+          }
         },
         (err) => {
           console.error("[Navbar] فشل قراءة users/{uid} لمعرفة نوع الحساب", err);
@@ -95,6 +122,7 @@ export default function Navbar() {
       unsubscribeAuth();
       unsubscribeUserDoc?.();
       unsubscribeEmployerDoc?.();
+      unsubscribeSeekerDoc?.();
     };
   }, []);
 
@@ -140,6 +168,13 @@ export default function Navbar() {
             <Link href="/seeker?tab=saved" style={linkStyle}>🔖 الوظائف المحفوظة</Link>
             <Link href="/seeker?tab=profile" style={linkStyle}>👤 بروفايلي</Link>
           </>
+        )}
+        {/* مش مربوطة بـshowSeekerItems (يعني مش مقتصرة على صفحات الباحث) — لازم تفضل ظاهرة
+            في كل صفحات الموقع طول ما الباحث لسه بروفايله ناقص، وتختفي تلقائيًا لو وصل 100%. */}
+        {userType === "job_seeker" && profileCompletion !== null && profileCompletion < 100 && (
+          <Link href="/seeker?tab=profile" style={profileNudgeStyle}>
+            ⚠️ بياناتك {profileCompletion}% مكتملة — كمّل دلوقتي
+          </Link>
         )}
         {showEmployerItems && (
           <span style={isPremium ? premiumBadgeStyle : freeBadgeStyle}>
@@ -200,6 +235,17 @@ export const linkStyle: React.CSSProperties = {
   fontSize: 14,
   fontWeight: 600,
   border: "1px solid #14213D22",
+};
+
+const profileNudgeStyle: React.CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 999,
+  textDecoration: "none",
+  color: "#8A570D",
+  background: "rgba(232,163,61,0.2)",
+  border: "1px solid #E8A33D",
+  fontSize: 13,
+  fontWeight: 700,
 };
 
 const freeBadgeStyle: React.CSSProperties = { fontSize: 12, background: "#F0EDE3", padding: "3px 10px", borderRadius: 999, fontWeight: 700 };
