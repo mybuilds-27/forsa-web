@@ -1,17 +1,28 @@
-import Link from "next/link";
 import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { jobCardContainerStyle, tagStyle, JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
+import JobListItem from "@/app/jobs/JobListItem";
 
 const RESULT_COUNT = 4;
 
+// كل الحقول اللي JobListItem.tsx بتستخدمها (العنوان، الشركة، الموقع، الوقت النسبي، الشارات،
+// التخصص، المستوى، الراتب) — الاستعلام تحت أصلًا بيجيب المستند كامل ({ id, ...d.data() })،
+// فمفيش حاجة ناقصة فعليًا في البيانات نفسها، بس الـtype القديم كان ناقص تعريف باقي الحقول دي.
 type RelatedJob = {
   id: string;
   title: string;
   companyName?: string;
   showCompanyName?: boolean;
   governorate: string;
+  city?: string;
   jobType: string;
+  jobLevel?: string;
+  specialization?: string;
+  featured?: boolean;
+  createdAt?: any;
+  showSalary?: boolean;
+  salaryNegotiable?: boolean;
+  salaryFrom?: number;
+  salaryTo?: number;
   expiresAt?: any;
 };
 
@@ -104,28 +115,9 @@ export default async function RelatedJobs({
   return (
     <div style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid #DED2B5" }}>
       <h2 style={{ fontSize: 18, marginBottom: 16 }}>وظائف ذات صلة</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
         {jobs.map((job) => (
-          <Link
-            key={job.id}
-            href={`/jobs/${job.id}`}
-            style={{
-              ...jobCardContainerStyle,
-              display: "block",
-              padding: 14,
-              textDecoration: "none",
-              color: "inherit",
-            }}
-          >
-            <h4 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 800, color: "#14213D" }}>{job.title}</h4>
-            <div style={{ fontSize: 12, color: "#4A5568", marginBottom: 10 }}>
-              {job.showCompanyName && job.companyName ? job.companyName : "شركة غير معلنة"}
-            </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingTop: 10, borderTop: "1px solid #14213D14" }}>
-              <span style={tagStyle}>📍 {job.governorate}</span>
-              <span style={tagStyle}>🕐 {JOB_TYPE_LABELS[job.jobType] || job.jobType}</span>
-            </div>
-          </Link>
+          <JobListItem key={job.id} job={job} />
         ))}
       </div>
     </div>
