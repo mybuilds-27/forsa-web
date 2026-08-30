@@ -14,6 +14,11 @@ import InviteToJobModal from "./InviteToJobModal";
 // شهريًا مش 30 دوسة.
 const MONTHLY_CONTACT_REVEAL_LIMIT = 30;
 
+// نفس القايمة المستخدمة في InviteToJobModal.tsx وgetApplicantProfileForAutoCV — الأدمن
+// مستثنى تمامًا من حد الكشف الشهري (أغراض مراجعة وإشراف)، بغض النظر عن قيمة employerPlan
+// اللي وصلته (ممكن يكون عنده حساب صاحب عمل خاص بيه بأي باقة).
+const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
+
 const EDUCATION_LABELS: Record<string, string> = {
   none: "بدون مؤهل دراسي",
   literacy: "محو أمية",
@@ -44,12 +49,15 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const isPremium = employerPlan === "premium";
+  const isAdmin = ADMIN_EMAILS.includes(auth.currentUser?.email || "");
   const [contactState, setContactState] = useState<"loading" | "allowed" | "limit-reached">(
-    isPremium ? "loading" : "allowed"
+    isPremium && !isAdmin ? "loading" : "allowed"
   );
 
   useEffect(() => {
-    if (!isPremium) {
+    // الأدمن بيتجاهل منطق الحد الشهري بالكامل — مبيتفحصش العداد ولا بيتسجّل له contact_reveals
+    // خالص، زي ما لو كان دايمًا "allowed" بغض النظر عن employerPlan اللي وصله.
+    if (isAdmin || !isPremium) {
       setContactState("allowed");
       return;
     }
@@ -90,8 +98,7 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPremium, s.id]);
+  }, [isPremium, isAdmin, s.id]);
 
   const skills = normalizeEntries(s.skills);
   const languages = normalizeEntries(s.languages);
@@ -210,7 +217,10 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
             </div>
           )}
 
-          {isPremium && contactState === "allowed" ? (
+          {/* الأدمن بيشوف بيانات التواصل دايمًا زي isPremium && contactState === "allowed"،
+              بغض النظر عن employerPlan اللي وصله فعليًا (ممكن يكون "free" لو حسابه الشخصي
+              مش مدفوع) — مستثنى تمامًا من فحص الحد الشهري، مش بس من العداد نفسه. */}
+          {isAdmin || (isPremium && contactState === "allowed") ? (
             <div>
               <h3 style={{ fontSize: 15, marginBottom: 10 }}>بيانات التواصل</h3>
               <div style={{ fontSize: 14.5, marginBottom: 6 }}>📞 <strong>{s.phone || "—"}</strong></div>
@@ -227,7 +237,7 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
                 ✉️ ادعُه للتقديم على وظيفة
               </button>
             </div>
-          ) : !isPremium ? (
+          ) : !isAdmin && !isPremium ? (
             <div style={{ background: "#F5EFDE", padding: 16, borderRadius: 8 }}>
               <p style={{ fontSize: 13.5, color: "#4A5568", marginBottom: 12 }}>
                 التواصل المباشر مع الكوادر (تليفون، إيميل، السيرة الذاتية) متاح بس للباقة المدفوعة.
