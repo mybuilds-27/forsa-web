@@ -13,6 +13,12 @@ const AGE_OPTIONS = Array.from({ length: 50 }, (_, i) => 16 + i);
 // معلّقة للأبد من غير أي تفسير.
 const SAVE_TIMEOUT_MS = 15000;
 
+// مسودة الفورم بتتحفظ محليًا (وضع النشر الجديد بس، مش التعديل) عشان لو حصل ريفريش بالغلط
+// أثناء الكتابة متضيعش كل البيانات. مفيش أي حاجة حساسة بتتخزن هنا — نفس حقول الفورم العادية
+// بس (مش uid المستخدم ولا أي بيانات تسجيل دخول)، وبتتمسح فورًا بعد ما النشر ينجح فعليًا.
+const DRAFT_STORAGE_KEY = "postJobDraft";
+const DRAFT_SAVE_DEBOUNCE_MS = 500;
+
 type EditingPost = { id: string; data: any } | null;
 
 type ScreeningQuestion = { id: string; text: string; type: "text" | "number"; required: boolean };
@@ -79,10 +85,11 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
 
   const isEditMode = !!editingPost;
 
-  // تعبئة الاستمارة ببيانات الوظيفة لو إحنا في وضع تعديل
+  // تعبئة الاستمارة ببيانات الوظيفة لو إحنا في وضع تعديل، وإلا نجرب نسترجع مسودة محفوظة
+  // محليًا (لو موجودة) بدل ما نبدأ بفورم فاضي — نفس فكرة استرجاع الفورم بعد ريفريش بالغلط.
   useEffect(() => {
     if (!editingPost) {
-      resetForm();
+      loadDraftOrReset();
       return;
     }
     const p = editingPost.data;
@@ -133,6 +140,84 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setContactMethod(p.contactMethod || "");
     setContactValue(p.contactValue || "");
   }, [editingPost]);
+
+  // كل حقول الفورم بتتحفظ في localStorage تحت مفتاح ثابت (debounce نص ثانية عشان منكتبش
+  // مع كل حرف)، بس في وضع النشر الجديد — وضع التعديل بياخد بياناته من الوظيفة الأصلية
+  // زي ما هو فوق، فمفيش داعي وملوش لازمة نستخدم localStorage هناك خالص.
+  useEffect(() => {
+    if (isEditMode) return;
+    const timeoutId = setTimeout(() => {
+      const draft = {
+        title, specSelect, specOther, jobType, jobLevel, governorate, citySelect, cityOther,
+        description, vacancies, salaryNegotiable, salaryFrom, salaryTo, showSalary,
+        ageFrom, ageTo, needsCar, requirements, hoursPerDay, daysOffPerMonth,
+        socialInsurance, privateHealthInsurance, transportationAvailable, transportationAreas,
+        housingForExpats, additionalBenefits, screeningQuestions, newQuestionSelect, newQuestionOther,
+        showCompanyName, receiveMethod, contactMethod, contactValue,
+      };
+      try {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      } catch {
+        // localStorage ممكن يكون مش متاح (وضع تصفح خاص، أو مساحة ممتلئة) — مش حرج، نتجاهله
+      }
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timeoutId);
+  }, [
+    isEditMode, title, specSelect, specOther, jobType, jobLevel, governorate, citySelect, cityOther,
+    description, vacancies, salaryNegotiable, salaryFrom, salaryTo, showSalary,
+    ageFrom, ageTo, needsCar, requirements, hoursPerDay, daysOffPerMonth,
+    socialInsurance, privateHealthInsurance, transportationAvailable, transportationAreas,
+    housingForExpats, additionalBenefits, screeningQuestions, newQuestionSelect, newQuestionOther,
+    showCompanyName, receiveMethod, contactMethod, contactValue,
+  ]);
+
+  // بيحاول يسترجع مسودة محفوظة (لو موجودة وسليمة) بدل فورم فاضي، وإلا بيرجع لـresetForm العادية.
+  function loadDraftOrReset() {
+    let draft: any = null;
+    try {
+      const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+      draft = raw ? JSON.parse(raw) : null;
+    } catch {
+      draft = null;
+    }
+    if (!draft) {
+      resetForm();
+      return;
+    }
+    setTitle(draft.title || "");
+    setSpecSelect(draft.specSelect || "");
+    setSpecOther(draft.specOther || "");
+    setJobType(draft.jobType || "");
+    setJobLevel(draft.jobLevel || "");
+    setGovernorate(draft.governorate || "");
+    setCitySelect(draft.citySelect || "");
+    setCityOther(draft.cityOther || "");
+    setDescription(draft.description || "");
+    setVacancies(draft.vacancies || "1");
+    setSalaryNegotiable(!!draft.salaryNegotiable);
+    setSalaryFrom(draft.salaryFrom || "");
+    setSalaryTo(draft.salaryTo || "");
+    setShowSalary(draft.showSalary !== false);
+    setAgeFrom(draft.ageFrom || "");
+    setAgeTo(draft.ageTo || "");
+    setNeedsCar(draft.needsCar || "");
+    setRequirements(draft.requirements || "");
+    setHoursPerDay(draft.hoursPerDay || "");
+    setDaysOffPerMonth(draft.daysOffPerMonth || "");
+    setSocialInsurance(draft.socialInsurance || "");
+    setPrivateHealthInsurance(draft.privateHealthInsurance || "");
+    setTransportationAvailable(draft.transportationAvailable || "");
+    setTransportationAreas(draft.transportationAreas || "");
+    setHousingForExpats(draft.housingForExpats || "");
+    setAdditionalBenefits(draft.additionalBenefits || "");
+    setScreeningQuestions(Array.isArray(draft.screeningQuestions) ? draft.screeningQuestions : []);
+    setNewQuestionSelect(draft.newQuestionSelect || "");
+    setNewQuestionOther(draft.newQuestionOther || "");
+    setShowCompanyName(draft.showCompanyName ?? (showCompanyNameDefault ?? true));
+    setReceiveMethod(draft.receiveMethod === "contact" ? "contact" : "platform");
+    setContactMethod(draft.contactMethod || "");
+    setContactValue(draft.contactValue || "");
+  }
 
   const cities = governorate ? GOVERNORATE_CITIES[governorate] || [] : [];
 
@@ -276,6 +361,12 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         );
         alert("تم نشر الإعلان بنجاح ✓");
         resetForm();
+        // النشر نجح فعليًا، فمفيش داعي نفضل محتفظين بالمسودة المحلية بعد كده.
+        try {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch {
+          // متجاهلينها زي أي فشل تاني في localStorage
+        }
         onPosted(docRef.id);
       }
     } catch (err: any) {
