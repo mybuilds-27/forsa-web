@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, where, getCountFromServer, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, query, where, getCountFromServer, getDocs, limit, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
@@ -286,6 +286,27 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
               : `الباقة المجانية بتسمح بحد أقصى ${monthlyLimit} إعلانات جديدة شهريًا، وإنت وصلت للحد ده الشهر ده.`
           );
           return;
+        }
+
+        // فحص نشر مكرر: لو صاحب العمل بعت نفس العنوان بالظبط خلال آخر 10 دقايق (غالبًا بسبب
+        // إعادة محاولة يدوية بعد بطء أو timeout حصل في الحفظ)، بنأكد منه قبل ما نكمل — بدل ما
+        // نمنعه خالص، لأن ممكن يكون فعلاً قاصد ينشر نفس الوظيفة تاني (فرصة تانية بنفس المسمى).
+        const tenMinutesAgo = new Date();
+        tenMinutesAgo.setMinutes(tenMinutesAgo.getMinutes() - 10);
+        const duplicateSnap = await getDocs(
+          query(
+            collection(db, "job_posts"),
+            where("employerId", "==", user.uid),
+            where("title", "==", title),
+            where("createdAt", ">=", Timestamp.fromDate(tenMinutesAgo)),
+            limit(1)
+          )
+        );
+        if (!duplicateSnap.empty) {
+          const confirmed = window.confirm(
+            "يبدو إنك نشرت وظيفة بنفس الاسم ده قبل شوية، متأكد عايز تنشر تاني؟"
+          );
+          if (!confirmed) return;
         }
       }
 
