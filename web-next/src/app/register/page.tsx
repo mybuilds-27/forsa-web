@@ -106,17 +106,21 @@ function RegisterPageInner() {
           type="button"
           onClick={() => setLoginSignal((n) => n + 1)}
           style={{
-            background: "none",
-            border: "none",
-            fontSize: 13.5,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: "#fff",
+            border: `1.5px solid ${COLORS.stamp}66`,
+            borderRadius: 999,
+            padding: "8px 16px",
+            fontSize: 14.5,
             fontWeight: 700,
             color: COLORS.stamp,
-            textDecoration: "underline",
             cursor: "pointer",
             fontFamily: "inherit",
           }}
         >
-          عندك حساب بالفعل؟ سجل دخول من هنا
+          <span>🔑</span> عندك حساب بالفعل؟ سجل دخول من هنا
         </button>
       </div>
 
