@@ -119,6 +119,10 @@ type Stats = {
   applications: number;
   totalUsers: number;
   activeUsers24h: number;
+  // تفصيل لنفس الرقم أعلاه: "جديد" يعني اتسجل وقعّل نشط في نفس الجلسة تقريبًا (مش عائد
+  // فعليًا)، و"عائد" يعني حساب قديم رجع يستخدم الموقع. شوف الحساب في loadCoreStats.
+  activeUsers24hNew: number;
+  activeUsers24hReturning: number;
 };
 
 type FunnelStats = {
@@ -397,6 +401,23 @@ export default function AdminPage() {
           .map((p) => p.employerId)
       );
 
+      // تفصيل "نشطين آخر 24 ساعة": مستخدم "جديد" لو سجّل حسابه وبقى نشط في نفس الجلسة
+      // تقريبًا (فرق أقل من ساعة بين createdAt وlastActiveAt) — من غير كده بيتحسب "عائد".
+      // مستخدم من غير createdAt أصلًا (سجلات قديمة جدًا) بيتحسب عائد افتراضيًا، مش جديد.
+      const NEW_USER_WINDOW_MS = 60 * 60 * 1000;
+      let activeUsers24hNew = 0;
+      let activeUsers24hReturning = 0;
+      for (const d of activeUsersSnap.docs) {
+        const data = d.data() as any;
+        const lastActiveMs = data.lastActiveAt?.toMillis?.();
+        const createdMs = data.createdAt?.toMillis?.();
+        if (createdMs != null && lastActiveMs != null && lastActiveMs - createdMs < NEW_USER_WINDOW_MS) {
+          activeUsers24hNew += 1;
+        } else {
+          activeUsers24hReturning += 1;
+        }
+      }
+
       setStats({
         seekers: seekersSnap.size,
         employers: employersSnap.size,
@@ -407,6 +428,8 @@ export default function AdminPage() {
         applications: applicationsCountSnap.data().count,
         totalUsers: totalUsersSnap.size,
         activeUsers24h: activeUsersSnap.size,
+        activeUsers24hNew,
+        activeUsers24hReturning,
       });
     } catch (err) {
       console.error("Admin stats failed", err);
@@ -576,7 +599,11 @@ export default function AdminPage() {
             marginBottom: 20,
           }}
         >
-          <StatCard label="نشطين آخر 24 ساعة" value={stats.activeUsers24h} />
+          <StatCard
+            label="نشطين آخر 24 ساعة"
+            value={stats.activeUsers24h}
+            subtitle={`منهم ${stats.activeUsers24hNew} جدد، ${stats.activeUsers24hReturning} عائدين`}
+          />
           <StatCard label="إجمالي المستخدمين المسجلين" value={stats.totalUsers} />
           <StatCard
             label="معدل إتمام التسجيل"
