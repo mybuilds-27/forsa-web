@@ -225,7 +225,13 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     (q) => !screeningQuestions.some((added) => added.text === q.text)
   );
 
-  const readyToPost = title.trim() !== "" && governorate !== "";
+  const missingRequiredFields: string[] = [];
+  if (title.trim() === "") missingRequiredFields.push("العنوان");
+  if (governorate === "") missingRequiredFields.push("المحافظة");
+  if (specSelect === "" || (specSelect === "other" && specOther.trim() === "")) missingRequiredFields.push("التخصص");
+  if (jobType === "") missingRequiredFields.push("نوع الدوام");
+
+  const readyToPost = missingRequiredFields.length === 0;
 
   function addScreeningQuestion() {
     const isOther = newQuestionSelect === "other";
@@ -467,7 +473,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
 
       <div style={progressBarStyle}>
         <span style={readyToPost ? readyBadgeStyle : pendingBadgeStyle}>
-          {readyToPost ? "✓ الحد الأدنى للنشر جاهز" : "أكمل المسمى الوظيفي والمحافظة"}
+          {readyToPost ? "✓ الحد الأدنى للنشر جاهز" : `أكمل ${missingRequiredFields.join(" و")}`}
         </span>
         <span style={{ color: "#4A5568", fontSize: 12.5 }}>باقي التفاصيل تحت اختيارية بالكامل</span>
       </div>
@@ -481,8 +487,8 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
               <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="مثال: محاسب أول" style={inputStyle} />
             </div>
             <div>
-              <label style={labelStyle}>التخصص (اختياري)</label>
-              <select value={specSelect} onChange={(e) => setSpecSelect(e.target.value)} style={inputStyle}>
+              <label style={labelStyle}>التخصص</label>
+              <select value={specSelect} onChange={(e) => setSpecSelect(e.target.value)} required style={inputStyle}>
                 <option value="">اختر التخصص</option>
                 {SPECIALIZATION_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                 <option value="other">أخرى</option>
@@ -491,13 +497,13 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             {specSelect === "other" && (
               <div>
                 <label style={labelStyle}>اكتب التخصص</label>
-                <input type="text" value={specOther} onChange={(e) => setSpecOther(e.target.value)} style={inputStyle} />
+                <input type="text" value={specOther} onChange={(e) => setSpecOther(e.target.value)} required style={inputStyle} />
               </div>
             )}
             <div>
-              <label style={labelStyle}>نوع الدوام (اختياري)</label>
-              <select value={jobType} onChange={(e) => setJobType(e.target.value)} style={inputStyle}>
-                <option value="">غير محدد</option>
+              <label style={labelStyle}>نوع الدوام</label>
+              <select value={jobType} onChange={(e) => setJobType(e.target.value)} required style={inputStyle}>
+                <option value="">اختر نوع الدوام</option>
                 <option value="full_time">دوام كامل</option>
                 <option value="part_time">دوام جزئي</option>
                 <option value="remote">عن بعد</option>
