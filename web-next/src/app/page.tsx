@@ -1,6 +1,7 @@
 import Link from "next/link";
 import BrowseByCombos from "@/components/BrowseByCombos";
 import PublicJobsList from "@/components/PublicJobsList";
+import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import { getCompanies } from "@/lib/companiesQuery";
 import { GOVERNORATES, SPECIALIZATION_OPTIONS } from "@/lib/constants";
@@ -278,6 +279,7 @@ export default async function HomePage() {
           </Link>
         </div>
       </main>
+      <WhatsAppFloatingButton />
     </div>
   );
 }
