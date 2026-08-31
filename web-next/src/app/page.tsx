@@ -58,6 +58,76 @@ export default async function HomePage() {
           </span>
         </div>
 
+        <div className="role-options-row" style={{ display: "flex", gap: 16, maxWidth: 820, margin: "0 auto 48px" }}>
+          <div
+            style={{
+              flex: "1 1 0",
+              minWidth: 0,
+              border: `2px solid ${COLORS.success}`,
+              borderRadius: 14,
+              padding: 24,
+              background: "#fff",
+            }}
+          >
+            <h3 style={{ fontSize: 18, color: COLORS.ink, marginBottom: 14 }}>دوّر على شغلك دلوقتي</h3>
+            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ تصفح آلاف الوظائف مجانًا</li>
+              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ قدّم بضغطة واحدة</li>
+              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ سيرة ذاتية تلقائية من بروفايلك</li>
+            </ul>
+            <Link
+              href="/register?role=job_seeker"
+              style={{
+                display: "block",
+                textAlign: "center",
+                padding: "13px 20px",
+                borderRadius: 8,
+                background: COLORS.success,
+                color: "#fff",
+                fontSize: 15,
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              سجّل كباحث عن عمل ←
+            </Link>
+          </div>
+
+          <div
+            style={{
+              flex: "1 1 0",
+              minWidth: 0,
+              border: `2px solid ${COLORS.ink}`,
+              borderRadius: 14,
+              padding: 24,
+              background: "#fff",
+            }}
+          >
+            <h3 style={{ fontSize: 18, color: COLORS.ink, marginBottom: 14 }}>وظّف الكوادر اللي محتاجها</h3>
+            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ 5 إعلانات وظايف مجانًا كل شهر</li>
+              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ دعوة كوادر مباشرة</li>
+              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ من غير أي مستندات أو رسوم</li>
+            </ul>
+            <Link
+              href="/register?role=employer"
+              style={{
+                display: "block",
+                textAlign: "center",
+                padding: "13px 20px",
+                borderRadius: 8,
+                background: COLORS.ink,
+                color: "#fff",
+                fontSize: 15,
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              سجّل كصاحب عمل ←
+            </Link>
+          </div>
+        </div>
+
         <form
           action="/jobs"
           method="GET"
