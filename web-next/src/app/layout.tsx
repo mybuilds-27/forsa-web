@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import SiteVisitTracker from "@/components/SiteVisitTracker";
 
 const META_PIXEL_ID = "1678267889939692";
+const GA_MEASUREMENT_ID = "G-3J7CEB9JRC";
 
 const cairo = Cairo({
   variable: "--font-cairo",
@@ -87,6 +88,19 @@ export default function RootLayout({
             alt=""
           />
         </noscript>
+        <Script
+          id="ga-gtag-src"
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="ga-gtag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_MEASUREMENT_ID}');
+          `}
+        </Script>
         <SiteVisitTracker />
         <Navbar />
         {children}
