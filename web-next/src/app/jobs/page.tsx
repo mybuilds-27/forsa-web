@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { getFilteredPublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseByCombos from "@/components/BrowseByCombos";
+import { getAreasForGovernorate, slugify } from "@/lib/constants";
 import JobsFilterBar from "./JobsFilterBar";
 import PaginatedJobsList from "./PaginatedJobsList";
 
@@ -30,6 +32,9 @@ export default async function JobsListPage({ searchParams }: Props) {
     getActiveJobsSeoData(),
   ]);
   const popularCombos = seoData.combos.slice(0, POPULAR_COMBOS_COUNT);
+  // بنعرض شيبس المناطق بس لو فيه محافظة متفلترة فعليًا (السيرش بارام)، ومعندهاش مناطق
+  // معرّفة في SEO_AREAS بيرجع array فاضية فالقسم بيختفي تلقائيًا — نفس منطق jobs/[id]/page.tsx.
+  const areasForGovernorate = governorate ? getAreasForGovernorate(governorate) : [];
 
   return (
     <div dir="rtl" style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px" }}>
@@ -51,6 +56,30 @@ export default async function JobsListPage({ searchParams }: Props) {
         <div style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid #DED2B5" }}>
           <h2 style={{ fontSize: 18, marginBottom: 16 }}>تصفح حسب المحافظة والتخصص</h2>
           <BrowseByCombos combos={popularCombos} variant="inline" />
+        </div>
+      )}
+
+      {governorate && areasForGovernorate.length > 0 && (
+        <div style={{ marginTop: 30, paddingTop: 20, borderTop: "1px solid #DED2B5" }}>
+          <h2 style={{ fontSize: 16, marginBottom: 12 }}>وظائف {governorate} حسب المنطقة</h2>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {areasForGovernorate.map((city) => (
+              <Link
+                key={city}
+                href={`/jobs/${slugify(governorate)}/area/${slugify(city)}`}
+                style={{
+                  fontSize: 13,
+                  background: "#F0EDE3",
+                  padding: "6px 14px",
+                  borderRadius: 999,
+                  color: "#14213D",
+                  textDecoration: "none",
+                }}
+              >
+                {city}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
     </div>
