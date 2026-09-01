@@ -81,7 +81,13 @@ function SeekerPageInner() {
   return (
     <div dir="rtl">
       <div style={{ width: "100%", maxWidth: 900, margin: "0 auto", padding: "24px 20px 60px" }}>
-        {activeTab === "jobs" && <JobsTab completionPercent={completionPercent} />}
+        {activeTab === "jobs" && (
+          <JobsTab
+            completionPercent={completionPercent}
+            specialization={profileData.specialization}
+            keywords={profileData.keywords}
+          />
+        )}
         {activeTab === "saved" && <SavedJobsTab />}
         {activeTab === "profile" && (
           <ProfileTab data={profileData} onUpdated={loadProfile} />
