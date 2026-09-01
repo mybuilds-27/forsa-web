@@ -322,7 +322,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
       {Array.isArray(job.keywords) && job.keywords.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12.5, color: "#2D3748", fontWeight: 600, marginBottom: 6 }}>المهارات المطلوبة</div>
+          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>المهارات المطلوبة</h2>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {job.keywords.map((keyword: string) => (
               <span key={keyword} style={tagStyle}>{keyword}</span>
@@ -371,6 +371,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       <div style={{ marginBottom: 20 }}>
         <ReportJobButton jobId={job.id} employerId={job.employerId} jobTitle={job.title} />
       </div>
+
+      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>وصف الوظيفة</h2>
 
       {descriptionBulletItems ? (
         <ul
