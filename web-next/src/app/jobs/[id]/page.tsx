@@ -8,7 +8,7 @@ import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
 import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify } from "@/lib/constants";
-import { featuredPillStyle, JOB_TYPE_LABELS, salaryText, sanitizeJobDescription } from "@/lib/jobCardStyles";
+import { featuredPillStyle, JOB_TYPE_LABELS, salaryText, sanitizeJobDescription, tagStyle } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
@@ -319,6 +319,17 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         )}
         {job.specialization && <InfoChip icon="🏷️" label="التخصص" value={job.specialization} />}
       </div>
+
+      {Array.isArray(job.keywords) && job.keywords.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12.5, color: "#2D3748", fontWeight: 600, marginBottom: 6 }}>المهارات المطلوبة</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {job.keywords.map((keyword: string) => (
+              <span key={keyword} style={tagStyle}>{keyword}</span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
         {job.receiveMethod === "contact" && job.contactMethod === "whatsapp" && job.contactValue ? (
