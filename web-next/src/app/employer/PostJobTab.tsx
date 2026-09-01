@@ -5,6 +5,7 @@ import { collection, query, where, getCountFromServer, getDocs, limit, addDoc, u
 import { auth, db } from "@/lib/firebase";
 import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
+import KeywordsPicker from "@/components/KeywordsPicker";
 
 const AGE_OPTIONS = Array.from({ length: 50 }, (_, i) => 16 + i);
 
@@ -45,6 +46,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
   const [title, setTitle] = useState("");
   const [specSelect, setSpecSelect] = useState("");
   const [specOther, setSpecOther] = useState("");
+  const [keywords, setKeywords] = useState<string[]>([]);
   const [jobType, setJobType] = useState("");
   const [jobLevel, setJobLevel] = useState("");
   const [governorate, setGovernorate] = useState("");
@@ -103,6 +105,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       setSpecSelect(savedSpec);
     }
 
+    setKeywords(Array.isArray(p.keywords) ? p.keywords : []);
     setJobType(p.jobType || "");
     setJobLevel(p.jobLevel || "");
     setGovernorate(p.governorate || "");
@@ -148,7 +151,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     if (isEditMode) return;
     const timeoutId = setTimeout(() => {
       const draft = {
-        title, specSelect, specOther, jobType, jobLevel, governorate, citySelect, cityOther,
+        title, specSelect, specOther, keywords, jobType, jobLevel, governorate, citySelect, cityOther,
         description, vacancies, salaryNegotiable, salaryFrom, salaryTo, showSalary,
         ageFrom, ageTo, needsCar, requirements, hoursPerDay, daysOffPerMonth,
         socialInsurance, privateHealthInsurance, transportationAvailable, transportationAreas,
@@ -163,7 +166,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timeoutId);
   }, [
-    isEditMode, title, specSelect, specOther, jobType, jobLevel, governorate, citySelect, cityOther,
+    isEditMode, title, specSelect, specOther, keywords, jobType, jobLevel, governorate, citySelect, cityOther,
     description, vacancies, salaryNegotiable, salaryFrom, salaryTo, showSalary,
     ageFrom, ageTo, needsCar, requirements, hoursPerDay, daysOffPerMonth,
     socialInsurance, privateHealthInsurance, transportationAvailable, transportationAreas,
@@ -187,6 +190,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setTitle(draft.title || "");
     setSpecSelect(draft.specSelect || "");
     setSpecOther(draft.specOther || "");
+    setKeywords(Array.isArray(draft.keywords) ? draft.keywords : []);
     setJobType(draft.jobType || "");
     setJobLevel(draft.jobLevel || "");
     setGovernorate(draft.governorate || "");
@@ -330,6 +334,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         showCompanyName,
         title,
         specialization: finalSpecialization,
+        keywords,
         jobType,
         jobLevel,
         governorate,
@@ -413,6 +418,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setTitle("");
     setSpecSelect("");
     setSpecOther("");
+    setKeywords([]);
     setJobType("");
     setJobLevel("");
     setGovernorate("");
@@ -500,6 +506,10 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
                 <input type="text" value={specOther} onChange={(e) => setSpecOther(e.target.value)} required style={inputStyle} />
               </div>
             )}
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>الكلمات المفتاحية (اختياري) — بتساعد تظهر الوظيفة للباحثين المناسبين أكتر</label>
+              <KeywordsPicker value={keywords} onChange={setKeywords} />
+            </div>
             <div>
               <label style={labelStyle}>نوع الدوام</label>
               <select value={jobType} onChange={(e) => setJobType(e.target.value)} required style={inputStyle}>

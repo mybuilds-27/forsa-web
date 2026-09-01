@@ -27,9 +27,90 @@ import { tagStyle, ApplicationStatus, applicationStatusOf } from "@/lib/jobCardS
 import ScreeningQuestionsModal from "@/components/ScreeningQuestionsModal";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import ProfileCompletionBar from "@/components/ProfileCompletionBar";
+import JobListItem from "@/app/jobs/JobListItem";
 
 const PAGE_SIZE = 12;
 const POPULAR_COMBOS_COUNT = 40;
+const RECOMMENDED_COUNT = 6;
+
+// كل الحقول اللي JobListItem.tsx محتاجها لعرض الكارت — نفس فكرة RelatedJobs.tsx بالظبط.
+type RecommendedJob = {
+  id: string;
+  title: string;
+  companyName?: string;
+  showCompanyName?: boolean;
+  governorate: string;
+  city?: string;
+  jobType: string;
+  jobLevel?: string;
+  specialization?: string;
+  featured?: boolean;
+  createdAt?: any;
+  showSalary?: boolean;
+  salaryNegotiable?: boolean;
+  salaryFrom?: number;
+  salaryTo?: number;
+  expiresAt?: any;
+};
+
+async function fetchActiveJobsFor(constraints: any[]) {
+  const snap = await getDocs(query(collection(db, "job_posts"), ...constraints));
+  const now = Date.now();
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as RecommendedJob))
+    .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now);
+}
+
+// أولوية: (1) نفس التخصص بالظبط، (2) لو مفيش كفاية، وظائف فيها كلمات مفتاحية بتتقاطع مع
+// كلمات الباحث — نفس منطق RelatedJobs.tsx (jobs/[id]/RelatedJobs.tsx) بس من غير الطبقة
+// الثالثة "أحدث الوظائف" اللي هو بيستخدمها كـfallback أخير، لأن المفروض هنا القسم يختفي
+// تمامًا لو مفيش تطابق حقيقي (مش نعرض وظائف عشوائية تحت مسمى "موصى بيها").
+async function getRecommendedJobs(specialization: string, keywords: string[]): Promise<RecommendedJob[]> {
+  const results: RecommendedJob[] = [];
+  const seen = new Set<string>();
+
+  function addJobs(jobs: RecommendedJob[]) {
+    for (const job of jobs) {
+      if (results.length >= RECOMMENDED_COUNT) break;
+      if (!seen.has(job.id)) {
+        results.push(job);
+        seen.add(job.id);
+      }
+    }
+  }
+
+  if (specialization) {
+    try {
+      addJobs(
+        await fetchActiveJobsFor([
+          where("isActive", "==", true),
+          where("specialization", "==", specialization),
+          orderBy("createdAt", "desc"),
+          limit(RECOMMENDED_COUNT),
+        ])
+      );
+    } catch (err) {
+      console.error("Recommended jobs (specialization) failed", err);
+    }
+  }
+
+  if (results.length < RECOMMENDED_COUNT && keywords.length > 0) {
+    try {
+      addJobs(
+        await fetchActiveJobsFor([
+          where("isActive", "==", true),
+          where("keywords", "array-contains-any", keywords.slice(0, 10)),
+          orderBy("createdAt", "desc"),
+          limit(RECOMMENDED_COUNT),
+        ])
+      );
+    } catch (err) {
+      console.error("Recommended jobs (keywords) failed", err);
+    }
+  }
+
+  return results.slice(0, RECOMMENDED_COUNT);
+}
 
 const JOB_TYPE_LABELS: Record<string, string> = {
   full_time: "دوام كامل",
@@ -40,10 +121,13 @@ const JOB_TYPE_LABELS: Record<string, string> = {
 
 type Props = {
   completionPercent?: number;
+  specialization?: string;
+  keywords?: string[];
 };
 
-export default function JobsTab({ completionPercent }: Props) {
+export default function JobsTab({ completionPercent, specialization, keywords }: Props) {
   const [jobs, setJobs] = useState<JobPost[]>([]);
+  const [recommendedJobs, setRecommendedJobs] = useState<RecommendedJob[]>([]);
   const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -152,6 +236,14 @@ export default function JobsTab({ completionPercent }: Props) {
       .catch((err) => console.error("Popular combos fetch failed", err));
   }, []);
 
+  useEffect(() => {
+    // getRecommendedJobs بترجع [] لوحدها لو مفيش specialization ولا keywords (مفيش داعي
+    // لفحص مبكر هنا) — طالما مفيش حاجة نطابق عليها، بترجع نتيجة فاضية من غير أي استعلام.
+    getRecommendedJobs(specialization || "", Array.isArray(keywords) ? keywords : [])
+      .then(setRecommendedJobs)
+      .catch((err) => console.error("Recommended jobs fetch failed", err));
+  }, [specialization, keywords]);
+
   async function handleLoadMore() {
     setLoadingMore(true);
     await fetchJobs(false);
@@ -223,6 +315,18 @@ export default function JobsTab({ completionPercent }: Props) {
       {typeof completionPercent === "number" && completionPercent < 100 && (
         <ProfileCompletionBar percent={completionPercent} />
       )}
+
+      {recommendedJobs.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <h2 style={{ fontSize: 18, marginBottom: 12 }}>🎯 وظائف موصى بيها ليك</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+            {recommendedJobs.map((job) => (
+              <JobListItem key={job.id} job={job} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* الفلاتر */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 20 }}>
         <div>

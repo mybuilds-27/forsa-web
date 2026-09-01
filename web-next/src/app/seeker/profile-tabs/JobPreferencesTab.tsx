@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS } from "@/lib/constants";
+import KeywordsPicker from "@/components/KeywordsPicker";
 import { h3Style, descStyle, gridStyle, labelStyle, inputStyle, saveBtnStyle, savedMsgStyle } from "./sharedStyles";
 
 type Props = {
@@ -22,6 +23,7 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
   const [jobLevel, setJobLevel] = useState("");
   const [expectedSalary, setExpectedSalary] = useState("");
   const [showSalary, setShowSalary] = useState(false);
+  const [keywords, setKeywords] = useState<string[]>([]);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -41,6 +43,7 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
     setJobLevel(initialData.jobLevel || "");
     setExpectedSalary(initialData.expectedSalary?.toString() || "");
     setShowSalary(!!initialData.showSalaryToEmployers);
+    setKeywords(Array.isArray(initialData.keywords) ? initialData.keywords : []);
   }, [initialData]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -62,6 +65,7 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
       jobLevel,
       expectedSalary: expectedSalary ? Number(expectedSalary) : null,
       showSalaryToEmployers: showSalary,
+      keywords,
       updatedAt: serverTimestamp(),
       ...(isNewProfile ? { consentToShare: true } : {}),
     };
@@ -97,6 +101,10 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
             <input type="text" value={specOther} onChange={(e) => setSpecOther(e.target.value)} placeholder="مثال: تخصص نادر مش موجود في القايمة" style={inputStyle} />
           </div>
         )}
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label style={labelStyle}>الكلمات المفتاحية (اختياري) — بتساعدنا نرشّحلك وظايف مناسبة أكتر</label>
+          <KeywordsPicker value={keywords} onChange={setKeywords} />
+        </div>
         <div>
           <label style={labelStyle}>سنوات الخبرة (اختياري)</label>
           <input type="number" min="0" value={yearsOfExperience} onChange={(e) => setYearsOfExperience(e.target.value)} style={inputStyle} />
