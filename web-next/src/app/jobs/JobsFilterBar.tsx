@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { GOVERNORATES, SPECIALIZATION_OPTIONS } from "@/lib/constants";
+import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS } from "@/lib/constants";
 import { JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
 
 const inputStyle: React.CSSProperties = {
@@ -20,6 +20,8 @@ export default function JobsFilterBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [q, setQ] = useState(searchParams.get("q") || "");
+  const governorate = searchParams.get("governorate") || "";
+  const cities = governorate ? GOVERNORATE_CITIES[governorate] || [] : [];
 
   // بنعدّل الـURL مباشرة (مش form عادي) عشان الصفحة تفضل قابلة للفهرسة والمشاركة — كل
   // فلترة بتبقى رابط مستقل بدل ما تتخزن في state داخلي بس.
@@ -60,8 +62,8 @@ export default function JobsFilterBar() {
         style={inputStyle}
       />
       <select
-        value={searchParams.get("governorate") || ""}
-        onChange={(e) => applyFilters({ governorate: e.target.value })}
+        value={governorate}
+        onChange={(e) => applyFilters({ governorate: e.target.value, city: "" })}
         style={selectStyle}
       >
         <option value="">كل المحافظات</option>
@@ -69,6 +71,18 @@ export default function JobsFilterBar() {
           <option key={g} value={g}>{g}</option>
         ))}
       </select>
+      {governorate && (
+        <select
+          value={searchParams.get("city") || ""}
+          onChange={(e) => applyFilters({ city: e.target.value })}
+          style={selectStyle}
+        >
+          <option value="">كل المدن/المناطق</option>
+          {cities.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      )}
       <select
         value={searchParams.get("jobType") || ""}
         onChange={(e) => applyFilters({ jobType: e.target.value })}

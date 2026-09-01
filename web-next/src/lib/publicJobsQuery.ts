@@ -19,16 +19,21 @@ export async function getActivePublicJobs(filters: { governorate?: string; city?
 
 // نفس شكل استعلام JobsTab.tsx بالظبط (isActive + orderBy(featured) + orderBy(createdAt) +
 // فلاتر equality اختيارية بينهم) عشان يستخدم نفس composite indexes الموجودة بالفعل في
-// firestore.indexes.json من غير ما نحتاج نضيف indexes جديدة. q (بحث حر) مش قابل للفلترة
-// من Firestore نفسه، فبيتطبق بعد الجلب زي ما JobsTab.tsx بتعمل بالظبط مع specOther.
+// firestore.indexes.json من غير ما نحتاج نضيف indexes جديدة. q (بحث حر) وcity مش قابلين
+// للفلترة من Firestore نفسه (city عشان مفيش composite index جاهز لكل تركيبة فلاتر ممكنة
+// معاه، وضيفه هيحتاج indexes كتير جدًا)، فبيتطبقوا بعد الجلب زي ما JobsTab.tsx بتعمل
+// بالظبط مع specOther.
 export async function getFilteredPublicJobs(
-  filters: { governorate?: string; jobType?: string; specialization?: string; q?: string } = {}
+  filters: { governorate?: string; jobType?: string; specialization?: string; city?: string; q?: string } = {}
 ) {
+  // city بيتفلتر client-side بعد الجلب، فمحتاجين نجيب عدد أكبر من الـ50 المعروضة عادي عشان
+  // الفلترة بعد الجلب متقلّلش النتايج الفعلية المعروضة (نفس الفكرة اللي اتعملت مع فلتر الراتب).
+  const fetchLimit = filters.city ? 150 : 50;
   const constraints: QueryConstraint[] = [
     where("isActive", "==", true),
     orderBy("featured", "desc"),
     orderBy("createdAt", "desc"),
-    limit(50),
+    limit(fetchLimit),
   ];
   if (filters.governorate) constraints.splice(1, 0, where("governorate", "==", filters.governorate));
   if (filters.jobType) constraints.splice(1, 0, where("jobType", "==", filters.jobType));
@@ -40,6 +45,10 @@ export async function getFilteredPublicJobs(
     .map((d) => ({ id: d.id, ...d.data() } as any))
     .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now);
 
+  if (filters.city) {
+    jobs = jobs.filter((p) => p.city === filters.city);
+  }
+
   const q = filters.q?.trim().toLowerCase();
   if (q) {
     // مقصورة على العنوان والتخصص بس، من غير الوصف — البحث في الوصف كان بيطلّع نتايج مش
@@ -50,7 +59,7 @@ export async function getFilteredPublicJobs(
     });
   }
 
-  return jobs;
+  return jobs.slice(0, 50);
 }
 
 export type JobCombo = { governorate: string; specialization: string; count: number };
