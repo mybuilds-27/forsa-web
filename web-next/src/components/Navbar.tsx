@@ -188,6 +188,7 @@ export default function Navbar() {
             <Link href="/employer?tab=talent" style={linkStyle}>🔍 البحث عن كوادر</Link>
           </>
         )}
+        <Link href="/jobs" style={linkStyle}>💼 الوظائف</Link>
         <Link href="/companies" style={linkStyle}>🏛️ الشركات</Link>
         {showAdminLink && <Link href="/admin" style={linkStyle}>📊 لوحة الإدارة</Link>}
         {signedIn && <NotificationBell />}
