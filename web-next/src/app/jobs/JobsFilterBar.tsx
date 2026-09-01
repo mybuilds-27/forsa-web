@@ -71,18 +71,23 @@ export default function JobsFilterBar() {
           <option key={g} value={g}>{g}</option>
         ))}
       </select>
-      {governorate && (
-        <select
-          value={searchParams.get("city") || ""}
-          onChange={(e) => applyFilters({ city: e.target.value })}
-          style={selectStyle}
-        >
-          <option value="">كل المدن/المناطق</option>
-          {cities.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-      )}
+      <select
+        value={searchParams.get("city") || ""}
+        onChange={(e) => applyFilters({ city: e.target.value })}
+        disabled={!governorate}
+        style={selectStyle}
+      >
+        {governorate ? (
+          <>
+            <option value="">كل المدن/المناطق</option>
+            {cities.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </>
+        ) : (
+          <option value="">اختار محافظة الأول</option>
+        )}
+      </select>
       <select
         value={searchParams.get("jobType") || ""}
         onChange={(e) => applyFilters({ jobType: e.target.value })}
