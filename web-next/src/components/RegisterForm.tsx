@@ -119,6 +119,11 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
   const [showOtpFallback, setShowOtpFallback] = useState(false);
   const [pendingLoginPhone, setPendingLoginPhone] = useState<string | null>(null);
   const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+  // عنصر DOM خاص بهذا الـmount بس (بدل id ثابت زي "recaptcha-container") — الفورم دي بتتحط
+  // جوه أكتر من مكان (صفحة /register، مودال التقديم في ApplyButton.tsx، مودال حفظ الوظيفة
+  // في PublicJobsList.tsx)، وكل واحد بيتفتح ويتقفل بشكل مستقل، فمينفعش نعتمد على id string
+  // عام ممكن يتكرر لو أكتر من نسخة اتحطت في الصفحة في نفس الوقت.
+  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
   // true من لحظة ما أي محاولة تسجيل جديدة تبدأ لحد ما routeAfterAuth بتاعتها يخلص أو يفشل.
   const authInProgressRef = useRef(false);
 
@@ -394,16 +399,40 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     return map[err?.code] || "حصلت مشكلة، حاول تاني";
   }
 
-  // إنشاء الـ reCAPTCHA مرة واحدة بس عند أول استخدام فعلي، عشان نتجنب مشكلة React Strict
-  // Mode اللي بتنفذ الـeffects مرتين وتحاول تعمل instance تاني على نفس العنصر.
-  function getRecaptchaVerifier(): RecaptchaVerifier {
-    if (!recaptchaVerifierRef.current) {
-      recaptchaVerifierRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
-        size: "invisible",
-      });
+  // بينضّف أي verifier اتعمله render قبل كده على العنصر ده (لو موجود) — لازم تتنادى قبل أي
+  // إنشاء verifier جديد على نفس العنصر، وإلا بيطلع "reCAPTCHA has already been rendered in
+  // this element". آمنة تتنادى حتى لو مفيش verifier أصلاً (بترجع من غير ما تعمل حاجة).
+  function clearRecaptchaVerifier() {
+    try {
+      recaptchaVerifierRef.current?.clear();
+    } catch (err) {
+      console.warn("Recaptcha clear failed", err);
     }
+    recaptchaVerifierRef.current = null;
+  }
+
+  // بننضّف الـverifier القديم (لو فيه) ونعمل واحد جديد في كل نداء — مش بنسيب نفس الـinstance
+  // يتعاد استخدامه بين محاولات الإرسال (تسجيل جديد، تغيير الرقم، إعادة إرسال، fallback الـOTP
+  // القديم). ده الحل الرسمي لمشكلة "reCAPTCHA has already been rendered in this element":
+  // أي محاولة إرسال تانية على نفس العنصر من غير clear() الأول بتطلّع نفس الخطأ. بنستهدف
+  // عنصر DOM بالـref مباشرة (recaptchaContainerRef) بدل id string ثابت — آمن حتى لو فيه أكتر
+  // من نسخة من الفورم دي متحطة في الصفحة.
+  function getRecaptchaVerifier(): RecaptchaVerifier {
+    clearRecaptchaVerifier();
+    recaptchaVerifierRef.current = new RecaptchaVerifier(auth, recaptchaContainerRef.current!, {
+      size: "invisible",
+    });
     return recaptchaVerifierRef.current;
   }
+
+  // لو الكومبوننت اتشال من الشاشة (المستخدم قفل مودال التسجيل/التقديم) وفيه verifier لسه
+  // متعمّله render، لازم ننضفه — من غيره بيفضل widget معلّق من غير حاجة تقدر تنضفه تاني
+  // (الـref نفسه بيروح مع الكومبوننت)، وأي فتح جديد للفورم في نفس التاب ممكن يصطدم بيه.
+  useEffect(() => {
+    return () => {
+      clearRecaptchaVerifier();
+    };
+  }, []);
 
   // مفيش "إلغاء" كامل للتليفون دلوقتي (الحقول ظاهرة على طول، مفيش حاجة تتقفل) — بس لو
   // المستخدم وصل لخطوة الكود وعايز يغيّر الرقم، بيرجّعه لخطوة إدخال الرقم من غير ما يمسح
@@ -487,15 +516,10 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
       console.error("Send code failed", err);
       logClientError("phone_send_code", err);
       setError(phoneAuthErrorMessage(err));
-      // نلغي الـ verifier عشان محاولة تانية تعمل واحد جديد صحيح — .clear() لازم قبل تصفير
-      // الـref، وإلا الـwidget بيفضل موجود فعليًا جوه #recaptcha-container، وأي RecaptchaVerifier
-      // جديد على نفس العنصر بيفشل بـ"reCAPTCHA has already been rendered in this element".
-      try {
-        recaptchaVerifierRef.current?.clear();
-      } catch (clearErr) {
-        console.warn("Recaptcha clear failed", clearErr);
-      }
-      recaptchaVerifierRef.current = null;
+      // ننضّف الـverifier فورًا (مش بس نسيبه للمحاولة الجاية تتكفل بيه في getRecaptchaVerifier)
+      // عشان الـwidget المعلّق ده يتشال بأسرع وقت ممكن، مش لازم فعليًا لأن getRecaptchaVerifier
+      // بقى بينضّف قبل أي استخدام جديد على أي حال — بس أوضح وأسرع في التنظيف.
+      clearRecaptchaVerifier();
     }
     setPhoneLoading(false);
   }
@@ -816,7 +840,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
         )}
       </div>
 
-      <div id="recaptcha-container" />
+      <div ref={recaptchaContainerRef} />
     </div>
   );
 }
