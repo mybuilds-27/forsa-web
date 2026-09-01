@@ -1,132 +1,146 @@
 "use client";
 
 import { useState } from "react";
-import { KEYWORD_OPTIONS } from "@/lib/constants";
+import { KEYWORD_CATEGORIES } from "@/lib/constants";
 
 // حد أقصى 8 كلمات مفتاحية — قايمة أطول من كده هتفقد الغرض منها (تحديد دقيق لمهارات/مجالات
 // الباحث أو الوظيفة)، ومهمة للمطابقة في "وظائف موصى بيها ليك" (JobsTab.tsx).
 export const MAX_KEYWORDS = 8;
 
-// عدد الكلمات الظاهرة افتراضيًا قبل ما المستخدم يدوس "عرض كل الكلمات" — القايمة الكاملة
-// (80+ عنصر) بتحس المستخدم إنها كتير ومشتتة لو اتعرضت كلها دفعة واحدة.
-const DEFAULT_VISIBLE_COUNT = 12;
+// نفس شكل الـselect boxes التانية في نفس الفورمات (زي "نوع الدوام"/"التخصص" في
+// PostJobTab.tsx وJobPreferencesTab.tsx) — نفس القيم بالظبط (padding 8، حدود #ccc، radius 6).
+const selectStyle: React.CSSProperties = {
+  width: "100%",
+  padding: 8,
+  border: "1px solid #ccc",
+  borderRadius: 6,
+  fontSize: 14,
+  fontFamily: "inherit",
+};
 
 type Props = {
   value: string[];
   onChange: (next: string[]) => void;
 };
 
+// تجربة اختيار عن طريق قايمة منسدلة واحدة مقسّمة بفئات (optgroup لكل فئة من
+// KEYWORD_CATEGORIES) + زرار "إضافة"، بدل ما تتعرض كل الكلمات (80+ عنصر) كـchips دفعة واحدة.
 // نفس تجربة الاختيار مستخدمة في بروفايل الباحث (JobPreferencesTab.tsx) وفورم نشر الوظيفة
-// (PostJobTab.tsx) — قايمة KEYWORD_OPTIONS كبيرة (80+ عنصر) فمحتاجة بحث/فلترة فوقها، وchips
-// قابلة للاختيار بحد أقصى MAX_KEYWORDS.
+// (PostJobTab.tsx).
 export default function KeywordsPicker({ value, onChange }: Props) {
-  const [search, setSearch] = useState("");
-  // مرة توسّع بـ"عرض كل الكلمات"، بتفضل موسّعة — مفيش زرار "طي" تاني. البحث بيتعامل معاها
-  // بشكل مستقل تمامًا (شوف matchingKeywords/visibleKeywords تحت): لو فيه بحث بيتجاهل
-  // expanded خالص ويعرض كل النتائج المطابقة، ولو البحث اتمسح بيرجع يحترم expanded عادي.
-  const [expanded, setExpanded] = useState(false);
-
-  function toggle(keyword: string) {
-    if (value.includes(keyword)) {
-      onChange(value.filter((k) => k !== keyword));
-    } else if (value.length < MAX_KEYWORDS) {
-      onChange([...value, keyword]);
-    }
-  }
-
-  const searchTerm = search.trim();
-  const matchingKeywords = searchTerm
-    ? KEYWORD_OPTIONS.filter((k) => k.includes(searchTerm))
-    : KEYWORD_OPTIONS;
-
-  // بحث فعّال بيعرض كل النتايج المطابقة دايمًا، بغض النظر عن حالة التوسيع — القايمة المختصرة
-  // (DEFAULT_VISIBLE_COUNT) بتتطبق بس لما مفيش بحث ولسه مش موسّعة. لما تكون مختصرة، أي كلمة
-  // متختارة بالفعل بتتقدّم لفوق (حتى لو مش من أصل أول DEFAULT_VISIBLE_COUNT) عشان المستخدم
-  // ميحسش إنه فقد اختياره.
-  const visibleKeywords = (() => {
-    if (searchTerm || expanded) return matchingKeywords;
-    const selectedFirst = matchingKeywords.filter((k) => value.includes(k));
-    const rest = matchingKeywords.filter((k) => !value.includes(k));
-    return [...selectedFirst, ...rest].slice(0, DEFAULT_VISIBLE_COUNT);
-  })();
-
-  const showExpandButton = !searchTerm && !expanded && matchingKeywords.length > visibleKeywords.length;
+  const [pendingKeyword, setPendingKeyword] = useState("");
 
   const atLimit = value.length >= MAX_KEYWORDS;
 
+  function addKeyword() {
+    if (!pendingKeyword || value.includes(pendingKeyword) || atLimit) return;
+    onChange([...value, pendingKeyword]);
+    setPendingKeyword("");
+  }
+
+  function removeKeyword(keyword: string) {
+    onChange(value.filter((k) => k !== keyword));
+  }
+
+  const addDisabled = atLimit || !pendingKeyword;
+
   return (
     <div>
-      <input
-        type="text"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="دوّر في الكلمات المفتاحية..."
-        style={{ width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 6, fontSize: 14, marginBottom: 10 }}
-      />
-      {atLimit && (
-        <div style={{ fontSize: 12.5, color: "#B03A14", marginBottom: 8 }}>
-          وصلت للحد الأقصى ({MAX_KEYWORDS} كلمات مفتاحية) — شيل واحدة عشان تضيف غيرها.
-        </div>
-      )}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 8,
-          maxHeight: 220,
-          overflowY: "auto",
-          padding: 4,
-          border: "1px solid #eee",
-          borderRadius: 8,
-        }}
-      >
-        {visibleKeywords.length === 0 && (
-          <div style={{ fontSize: 13, color: "#4A5568", padding: 8 }}>مفيش كلمات مطابقة</div>
-        )}
-        {visibleKeywords.map((keyword) => {
-          const selected = value.includes(keyword);
-          const disabled = !selected && atLimit;
-          return (
-            <button
-              key={keyword}
-              type="button"
-              onClick={() => toggle(keyword)}
-              disabled={disabled}
-              style={{
-                fontSize: 13,
-                padding: "6px 14px",
-                borderRadius: 999,
-                border: selected ? "1px solid #14213D" : "1px solid #ccc",
-                background: selected ? "#14213D" : disabled ? "#F0EDE3" : "#fff",
-                color: selected ? "#fff" : disabled ? "#A0A8B4" : "#14213D",
-                cursor: disabled ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              {keyword}
-            </button>
-          );
-        })}
-      </div>
-      {showExpandButton && (
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <select
+          value={pendingKeyword}
+          onChange={(e) => setPendingKeyword(e.target.value)}
+          disabled={atLimit}
+          style={{ ...selectStyle, flex: 1 }}
+        >
+          <option value="">اختار كلمة مفتاحية</option>
+          {KEYWORD_CATEGORIES.map((cat) => {
+            // أي كلمة اتضافت بالفعل بتتشال من خيارات القايمة (متتكررش)، والفئة كلها بتختفي
+            // لو خلصت كل كلماتها من غير ما تسيب optgroup فاضي.
+            const available = cat.keywords.filter((k) => !value.includes(k));
+            if (available.length === 0) return null;
+            return (
+              <optgroup key={cat.category} label={cat.category}>
+                {available.map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </optgroup>
+            );
+          })}
+        </select>
         <button
           type="button"
-          onClick={() => setExpanded(true)}
+          onClick={addKeyword}
+          disabled={addDisabled}
           style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            marginTop: 8,
-            fontSize: 12.5,
-            color: "#14213D",
-            textDecoration: "underline",
-            cursor: "pointer",
+            flexShrink: 0,
+            padding: "8px 16px",
+            background: addDisabled ? "#F0EDE3" : "transparent",
+            color: addDisabled ? "#A0A8B4" : "#14213D",
+            border: addDisabled ? "1px solid #ccc" : "1px solid #14213D",
+            borderRadius: 6,
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: addDisabled ? "not-allowed" : "pointer",
             fontFamily: "inherit",
           }}
         >
-          عرض كل الكلمات
+          إضافة
         </button>
+      </div>
+
+      {atLimit && (
+        <div style={{ fontSize: 12.5, color: "#B03A14", marginTop: 8 }}>
+          وصلت للحد الأقصى ({MAX_KEYWORDS} كلمات مفتاحية) — شيل واحدة عشان تضيف غيرها.
+        </div>
       )}
+
+      {value.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+          {value.map((keyword) => (
+            <span
+              key={keyword}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 13,
+                padding: "5px 6px 5px 14px",
+                borderRadius: 999,
+                background: "#14213D",
+                color: "#fff",
+              }}
+            >
+              {keyword}
+              <button
+                type="button"
+                onClick={() => removeKeyword(keyword)}
+                aria-label={`شيل ${keyword}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 18,
+                  height: 18,
+                  padding: 0,
+                  background: "rgba(255,255,255,0.2)",
+                  border: "none",
+                  borderRadius: "50%",
+                  color: "#fff",
+                  fontSize: 11,
+                  lineHeight: 1,
+                  cursor: "pointer",
+                }}
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div style={{ fontSize: 12, color: "#4A5568", marginTop: 8 }}>
         {value.length}/{MAX_KEYWORDS} كلمات مختارة
       </div>
