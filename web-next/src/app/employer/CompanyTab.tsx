@@ -14,6 +14,7 @@ import { auth, db } from "@/lib/firebase";
 import EmployerOnboardingForm from "./EmployerOnboardingForm";
 import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
 import { EXPERIENCE_LEVELS } from "@/lib/constants";
+import { CONTACT_METHOD_LABELS, contactApplyText } from "@/lib/contactMethodLabels";
 import ShareButton from "@/components/ShareButton";
 import ApplicantCard from "@/components/ApplicantCard";
 import {
@@ -79,20 +80,6 @@ function salaryText(p: JobPost) {
   if (p.salaryFrom && p.salaryTo) return `${p.salaryFrom} - ${p.salaryTo} جنيه`;
   if (p.salaryFrom) return `يبدأ من ${p.salaryFrom} جنيه`;
   return "غير محدد";
-}
-
-// نفس التسميات المستخدمة في مودال تفاصيل الوظيفة تحت (receiveMethod === "contact") — لوظايف
-// receiveMethod === "contact" مفيش أي applications متسجلة في Firestore خالص (التقديم بيوصل
-// صاحب العمل مباشرة برّه تتبع الموقع)، فعرض "0 متقدم" مضلل. بنستبدله بنص واضح بيوضح وسيلة
-// التواصل الفعلية بدل الرقم.
-const CONTACT_METHOD_LABELS: Record<string, string> = {
-  whatsapp: "واتساب",
-  email: "الإيميل",
-  phone: "التليفون",
-};
-
-function contactApplyText(p: JobPost): string {
-  return `التقديم عبر ${CONTACT_METHOD_LABELS[p.contactMethod || ""] || "التواصل المباشر"}`;
 }
 
 type Props = {
