@@ -402,7 +402,11 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       }
 
       if (isEditMode && editingPost) {
-        await withSaveTimeout(updateDoc(doc(db, "job_posts", editingPost.id), postData));
+        // updatedAt بتتحدث بس هنا (مسار التعديل) — postData نفسها مشتركة مع مسار النشر
+        // الجديد تحت، فمينفعش نضيفها هناك عشان مبقاش لها معنى وقت الإنشاء الأول.
+        await withSaveTimeout(
+          updateDoc(doc(db, "job_posts", editingPost.id), { ...postData, updatedAt: serverTimestamp() })
+        );
         alert("تم حفظ التعديلات ✓");
         resetForm();
         onPosted();

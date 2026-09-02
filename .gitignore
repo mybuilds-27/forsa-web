@@ -67,3 +67,8 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# طبقة حماية احتياطية — لو حد بالغلط حفظ نسخة من مفتاح service account جوه مجلد المشروع
+# (المفروض تتحفظ برّه الريبو تمامًا، زي في Downloads، ومتتضافش أبدًا لأي commit)
+*firebase-adminsdk*.json
+*service-account*.json
