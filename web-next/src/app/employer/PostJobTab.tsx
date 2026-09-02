@@ -84,6 +84,17 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
   const [contactValue, setContactValue] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
+  // بانر نجاح غير blocking بدل alert() القديمة — alert() كانت بتوقف تنفيذ الجافاسكريبت
+  // بالكامل لحد ما المستخدم يقفلها يدويًا، يعني onPosted(docRef.id) (وبالتبعية الريديركت
+  // لتبويب "البحث عن كوادر" في employer/page.tsx) كانت معلّقة على فعل يدوي منه. دلوقتي
+  // onPosted بتتنادى فورًا، والبانر ده مجرد تأكيد بصري بيختفي لوحده (useEffect تحت).
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!successMessage) return;
+    const timeoutId = setTimeout(() => setSuccessMessage(null), 4000);
+    return () => clearTimeout(timeoutId);
+  }, [successMessage]);
 
   const isEditMode = !!editingPost;
 
@@ -391,7 +402,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             createdAt: serverTimestamp(),
           })
         );
-        alert("تم نشر الإعلان بنجاح ✓");
+        setSuccessMessage("تم نشر الإعلان بنجاح ✓");
         resetForm();
         // النشر نجح فعليًا، فمفيش داعي نفضل محتفظين بالمسودة المحلية بعد كده.
         try {
@@ -473,6 +484,28 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
 
   return (
     <div dir="rtl" style={{ maxWidth: 700, margin: "0 auto" }}>
+      {successMessage && (
+        <div
+          style={{
+            position: "fixed",
+            top: 20,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 300,
+            background: "#2F6F4E",
+            color: "#fff",
+            padding: "12px 22px",
+            borderRadius: 10,
+            fontSize: 14.5,
+            fontWeight: 700,
+            boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
+            pointerEvents: "none",
+          }}
+        >
+          {successMessage}
+        </div>
+      )}
+
       <h2 style={{ fontSize: 22, marginBottom: 10 }}>
         {isEditMode ? "تعديل الإعلان" : "انشر إعلان وظيفة جديد"}
       </h2>
