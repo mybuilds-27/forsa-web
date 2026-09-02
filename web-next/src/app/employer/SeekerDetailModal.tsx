@@ -5,6 +5,8 @@ import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 
 import { auth, db } from "@/lib/firebase";
 import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS, EXPERIENCE_LEVELS } from "@/lib/constants";
 import { normalizeEntries, formatEntries } from "@/lib/profileFields";
+import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
+import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import UpgradeModal from "./UpgradeModal";
 import InviteToJobModal from "./InviteToJobModal";
 
@@ -50,13 +52,17 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
   const [showInvite, setShowInvite] = useState(false);
   const isPremium = employerPlan === "premium";
   const isAdmin = ADMIN_EMAILS.includes(auth.currentUser?.email || "");
-  const [contactState, setContactState] = useState<"loading" | "allowed" | "limit-reached">(
+  const [contactState, setContactState] = useState<"loading" | "allowed" | "limit-reached" | "email-unverified">(
     isPremium && !isAdmin ? "loading" : "allowed"
   );
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
 
   useEffect(() => {
     // الأدمن بيتجاهل منطق الحد الشهري بالكامل — مبيتفحصش العداد ولا بيتسجّل له contact_reveals
-    // خالص، زي ما لو كان دايمًا "allowed" بغض النظر عن employerPlan اللي وصله.
+    // خالص، زي ما لو كان دايمًا "allowed" بغض النظر عن employerPlan اللي وصله. الباقة المجانية
+    // كمان مش محتاجة فحص تأكيد الإيميل هنا — بيانات التواصل أصلاً متاحة للمدفوعة بس (فرع
+    // !isPremium تحت في الـrender بيوريها زرار الترقية بغض النظر عن التأكيد)، فمفيش "فيتشر"
+    // فعلي يتمنع هنا لغير الباقة المدفوعة.
     if (isAdmin || !isPremium) {
       setContactState("allowed");
       return;
@@ -65,6 +71,13 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
     (async () => {
       const user = auth.currentUser;
       if (!user) return;
+      const gateResult = await checkEmailVerificationGate();
+      if (cancelled) return;
+      if (gateResult.blocked) {
+        setUnverifiedEmail(gateResult.email);
+        setContactState("email-unverified");
+        return;
+      }
       try {
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
@@ -207,6 +220,10 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
 
           {isPremium && contactState === "loading" && (
             <div style={{ fontSize: 13.5, color: "#4A5568" }}>جاري التحقق من بيانات التواصل...</div>
+          )}
+
+          {isPremium && contactState === "email-unverified" && (
+            <EmailVerificationNotice email={unverifiedEmail} />
           )}
 
           {isPremium && contactState === "limit-reached" && (
