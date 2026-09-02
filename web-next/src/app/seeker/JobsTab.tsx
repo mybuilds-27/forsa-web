@@ -23,12 +23,15 @@ import { buildSeekerSnapshot } from "@/lib/seekerSnapshot";
 import { fetchSavedJobIds, setJobSaved } from "@/lib/savedJobs";
 import { getActiveJobsSeoData, JobCombo } from "@/lib/publicJobsQuery";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
+import { calculateProfileCompletion } from "@/lib/profileCompletion";
+import { shouldShowProfileNudge } from "@/lib/profileNudge";
 import JobCard, { JobPost, salaryTeaser } from "./JobCard";
 import { tagStyle, ApplicationStatus, applicationStatusOf } from "@/lib/jobCardStyles";
 import ScreeningQuestionsModal from "@/components/ScreeningQuestionsModal";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import ProfileCompletionBar from "@/components/ProfileCompletionBar";
 import JobListItem from "@/app/jobs/JobListItem";
+import PostApplyProfileNudge from "@/components/PostApplyProfileNudge";
 
 const PAGE_SIZE = 12;
 const POPULAR_COMBOS_COUNT = 40;
@@ -149,6 +152,7 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [applying, setApplying] = useState(false);
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
+  const [nudgePercent, setNudgePercent] = useState<number | null>(null);
 
   function closeDetailsModal() {
     setSelectedJob(null);
@@ -275,6 +279,18 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
       });
       setMyApplications((prev) => new Map(prev).set(job.id, "submitted"));
       setShowQuestionsModal(false);
+
+      // تنبيه اكتمال البروفايل — تحفيزي بس، بعد نجاح التقديم فعليًا. try/catch منفصل
+      // ومعزول تمامًا عن نجاح التقديم نفسه (اللي خلص فوق قبل السطر ده)؛ لو حصل أي خطأ
+      // غير متوقع هنا بنتجاهله بصمت من غير ما يبان للمستخدم أو يأثر على أي حاجة تانية.
+      try {
+        const percent = calculateProfileCompletion(s);
+        if (shouldShowProfileNudge(percent)) {
+          setNudgePercent(percent);
+        }
+      } catch {
+        // متجاهلينها عمدًا — التقديم نجح بالفعل، ده مجرد تحفيز إضافي مش أساسي
+      }
     } catch (err) {
       console.error("Apply failed", err);
     }
@@ -560,6 +576,10 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
           onCancel={() => setShowQuestionsModal(false)}
           onSubmit={(answers) => handleApply(selectedJob, answers)}
         />
+      )}
+
+      {nudgePercent !== null && (
+        <PostApplyProfileNudge percent={nudgePercent} onClose={() => setNudgePercent(null)} />
       )}
     </div>
   );

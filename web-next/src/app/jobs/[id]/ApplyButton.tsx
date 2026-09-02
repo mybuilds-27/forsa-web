@@ -5,8 +5,11 @@ import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { buildSeekerSnapshot } from "@/lib/seekerSnapshot";
+import { calculateProfileCompletion } from "@/lib/profileCompletion";
+import { shouldShowProfileNudge } from "@/lib/profileNudge";
 import ScreeningQuestionsModal, { ScreeningQuestion } from "@/components/ScreeningQuestionsModal";
 import RegisterModal from "@/components/RegisterModal";
+import PostApplyProfileNudge from "@/components/PostApplyProfileNudge";
 
 type Props = {
   jobId: string;
@@ -21,6 +24,7 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
   const [busy, setBusy] = useState(false);
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [nudgePercent, setNudgePercent] = useState<number | null>(null);
 
   // بعد تسجيل حساب جديد (خصوصًا بجوجل، اللي مابيدّيش رقم تليفون خالص) job_seekers/{uid}
   // لسه معمولوش أصلًا — لو التقديم كمّل على طول من غير الاسم أو الموبايل، صاحب العمل بياخد
@@ -76,6 +80,18 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
       });
       setApplied(true);
       setShowQuestionsModal(false);
+
+      // تنبيه اكتمال البروفايل — تحفيزي بس، بعد نجاح التقديم فعليًا. try/catch منفصل
+      // ومعزول تمامًا عن نجاح التقديم نفسه (اللي خلص فوق قبل السطر ده)؛ لو حصل أي خطأ
+      // غير متوقع هنا بنتجاهله بصمت من غير ما يبان للمستخدم أو يأثر على أي حاجة تانية.
+      try {
+        const percent = calculateProfileCompletion(s);
+        if (shouldShowProfileNudge(percent)) {
+          setNudgePercent(percent);
+        }
+      } catch {
+        // متجاهلينها عمدًا — التقديم نجح بالفعل، ده مجرد تحفيز إضافي مش أساسي
+      }
     } catch (err) {
       console.error("Apply failed", err);
     }
@@ -317,6 +333,10 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
             </form>
           </div>
         </div>
+      )}
+
+      {nudgePercent !== null && (
+        <PostApplyProfileNudge percent={nudgePercent} onClose={() => setNudgePercent(null)} />
       )}
     </>
   );
