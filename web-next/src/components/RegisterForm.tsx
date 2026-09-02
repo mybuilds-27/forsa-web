@@ -79,6 +79,11 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
   // البانر الكبير مفروض يظهر بس لو المستخدم فعليًا مختار أو بيحاول يستخدم "المتابعة بجوجل"
   // (المشكلة الحقيقية خاصة بيها بس)، مش لأي حد فاتح الرابط من WebView بغض النظر عن اختياره.
   const [googleAttempted, setGoogleAttempted] = useState(false);
+  // true بس أثناء معالجة عودة فعلية من signInWithRedirect بتاع جوجل (getRedirectResult رجعت
+  // نتيجة حقيقية) — لغاية دلوقتي الصفحة كانت بترجع تعرض الفورم عادي وتفاعلي بالكامل من غير
+  // أي مؤشر إن في حاجة بتحصل في الخلفية (قراءة/كتابة Firestore في routeAfterAuth)، وده كان
+  // بيدي انطباع "الصفحة واقفة" لدقيقة-دقيقتين لحد ما ينجح تسجيل الدخول لوحده.
+  const [processingRedirect, setProcessingRedirect] = useState(false);
 
   useEffect(() => {
     setIsWebView(isInAppWebView());
@@ -138,10 +143,18 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
       try {
         const result = await getRedirectResult(auth);
         if (!result) return;
-        const storedRole = localStorage.getItem(PENDING_ROLE_STORAGE_KEY) as Role | null;
-        localStorage.removeItem(PENDING_ROLE_STORAGE_KEY);
-        if (storedRole) {
-          await routeAfterAuth(storedRole);
+        // من هنا وبس من هنا — عودة فعلية من redirect جوجل (نتيجة حقيقية مش null). زائر
+        // عادي للصفحة (مفيش redirect خالص) ماكانش هيشوف أي مؤشر تحميل، لأن processingRedirect
+        // بيتفعّل بعد التأكد من النتيجة مباشرة مش قبل استدعاء getRedirectResult نفسها.
+        setProcessingRedirect(true);
+        try {
+          const storedRole = localStorage.getItem(PENDING_ROLE_STORAGE_KEY) as Role | null;
+          localStorage.removeItem(PENDING_ROLE_STORAGE_KEY);
+          if (storedRole) {
+            await routeAfterAuth(storedRole);
+          }
+        } finally {
+          setProcessingRedirect(false);
         }
       } catch (err: any) {
         console.error("Google redirect result failed", err);
@@ -575,6 +588,39 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
 
   return (
     <div dir="rtl">
+      {processingRedirect && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+            background: "rgba(20,33,61,0.06)",
+            border: `1px solid ${COLORS.ink}22`,
+            borderRadius: 10,
+            padding: "12px 16px",
+            marginBottom: 16,
+            fontSize: 14,
+            fontWeight: 700,
+            color: COLORS.ink,
+          }}
+        >
+          <span
+            style={{
+              display: "inline-block",
+              width: 16,
+              height: 16,
+              border: `2px solid ${COLORS.ink}33`,
+              borderTopColor: COLORS.ink,
+              borderRadius: "50%",
+              animation: "elshoghl-redirect-spin 0.8s linear infinite",
+            }}
+          />
+          بيتم تسجيل الدخول...
+        </div>
+      )}
+      <style>{`@keyframes elshoghl-redirect-spin { to { transform: rotate(360deg); } }`}</style>
+
       {showRoleToggle && (
         <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
           <RoleToggleButton
