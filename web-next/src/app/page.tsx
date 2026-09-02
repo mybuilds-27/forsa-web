@@ -123,7 +123,7 @@ export default async function HomePage() {
                 textDecoration: "none",
               }}
             >
-              سجّل كصاحب عمل ←
+              سجّل بشركتك ←
             </Link>
           </div>
         </div>
@@ -344,7 +344,11 @@ export default async function HomePage() {
             textAlign: "center",
           }}
         >
-          <h3 style={{ fontSize: 18, color: COLORS.ink, marginBottom: 8 }}>صاحب عمل؟</h3>
+          <h3 style={{ fontSize: 18, color: COLORS.ink, marginBottom: 8 }}>سجّل بشركتك</h3>
+          <p style={{ fontSize: 14, color: COLORS.inkSoft, marginBottom: 6, lineHeight: 1.7 }}>
+            مش لازم تكون صاحب الشركة — أي حد مسؤول عن التوظيف يقدر يسجّل، من غير أي مستندات. وتقدر
+            كمان تختار تخفي اسم شركتك لو حبيت.
+          </p>
           <p style={{ fontSize: 14, color: COLORS.inkSoft, marginBottom: 6, lineHeight: 1.7 }}>
             انشر لحد 5 وظايف شهريًا مجانًا، وابحث عن كوادر مباشرة — من غير أي مصاريف.
           </p>
