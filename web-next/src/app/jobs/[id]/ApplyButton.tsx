@@ -7,9 +7,11 @@ import { auth, db } from "@/lib/firebase";
 import { buildSeekerSnapshot } from "@/lib/seekerSnapshot";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { shouldShowProfileNudge } from "@/lib/profileNudge";
+import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
 import ScreeningQuestionsModal, { ScreeningQuestion } from "@/components/ScreeningQuestionsModal";
 import RegisterModal from "@/components/RegisterModal";
 import PostApplyProfileNudge from "@/components/PostApplyProfileNudge";
+import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 
 type Props = {
   jobId: string;
@@ -36,6 +38,9 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
   const [missingPhone, setMissingPhone] = useState("");
   const [savingMissingInfo, setSavingMissingInfo] = useState(false);
   const [missingInfoError, setMissingInfoError] = useState("");
+  // بيمنع زرار "قدم الآن" (يستبدل بـEmailVerificationNotice) لو الحساب لسه محتاج تأكيد
+  // إيميل — شوف lib/emailVerificationGate.ts. null يعني لسه بنفحص (زي loading).
+  const [emailVerification, setEmailVerification] = useState<{ blocked: boolean; email?: string } | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -45,6 +50,8 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
         return;
       }
       setLoggedIn(true);
+      const gateResult = await checkEmailVerificationGate();
+      setEmailVerification(gateResult.blocked ? { blocked: true, email: gateResult.email } : { blocked: false });
       const appId = `${jobId}_${user.uid}`;
       try {
         const appSnap = await getDoc(doc(db, "applications", appId));
@@ -222,7 +229,11 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
         </button>
       )}
 
-      {loggedIn && (
+      {loggedIn && emailVerification?.blocked && (
+        <EmailVerificationNotice email={emailVerification.email || ""} />
+      )}
+
+      {loggedIn && emailVerification?.blocked === false && (
         applied ? (
           <button
             onClick={handleCancel}

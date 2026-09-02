@@ -5,6 +5,8 @@ import { collection, query, where, getCountFromServer, getDocs, limit, addDoc, u
 import { auth, db } from "@/lib/firebase";
 import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
+import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
+import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import KeywordsPicker from "@/components/KeywordsPicker";
 
 const AGE_OPTIONS = Array.from({ length: 50 }, (_, i) => 16 + i);
@@ -95,6 +97,18 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     const timeoutId = setTimeout(() => setSuccessMessage(null), 4000);
     return () => clearTimeout(timeoutId);
   }, [successMessage]);
+
+  // بيمنع كامل تبويب نشر الوظيفة (مش بس لحظة الحفظ) لو الحساب لسه محتاج تأكيد إيميل —
+  // شوف lib/emailVerificationGate.ts. null يعني لسه بنفحص، الفورم مبيتعرضش قبلها عشان
+  // منورّيش المستخدم فورم كامل هيتمنع بعدين عند آخر لحظة.
+  const [emailVerification, setEmailVerification] = useState<{ blocked: boolean; email?: string } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const result = await checkEmailVerificationGate();
+      setEmailVerification(result.blocked ? { blocked: true, email: result.email } : { blocked: false });
+    })();
+  }, []);
 
   const isEditMode = !!editingPost;
 
@@ -481,6 +495,17 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       {submitting ? "جاري الحفظ..." : (isEditMode ? "حفظ التعديلات" : "نشر الإعلان")}
     </button>
   );
+
+  if (emailVerification?.blocked) {
+    return (
+      <div dir="rtl" style={{ maxWidth: 700, margin: "0 auto" }}>
+        <h2 style={{ fontSize: 22, marginBottom: 16 }}>
+          {isEditMode ? "تعديل الإعلان" : "انشر إعلان وظيفة جديد"}
+        </h2>
+        <EmailVerificationNotice email={emailVerification.email || ""} />
+      </div>
+    );
+  }
 
   return (
     <div dir="rtl" style={{ maxWidth: 700, margin: "0 auto" }}>

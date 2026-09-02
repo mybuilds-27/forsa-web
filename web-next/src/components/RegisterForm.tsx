@@ -11,6 +11,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   ConfirmationResult,
@@ -174,7 +175,10 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
 
   // displayNameOverride بيتبعت بس من فلو التليفون — مصادقة فايربيز بالتليفون معندهاش
   // displayName خالص، فبنستخدم اسم كتبه المستخدم بنفسه في حقل "الاسم بالكامل" بدلًا منه.
-  async function routeAfterAuth(selectedRole: Role, displayNameOverride?: string) {
+  // requiresEmailVerification بيتبعت true بس من handleEmailSignUp (تسجيل جديد بإيميل/باسورد)
+  // — أي مسار تاني (تليفون/جوجل) أو حساب موجود بالفعل مبيبعتوش خالص، فالحقل فاضل undefined
+  // في مستنداتهم، وده اللي بيخلي فحص التأكيد في lib/emailVerificationGate.ts يستثنيهم تلقائيًا.
+  async function routeAfterAuth(selectedRole: Role, displayNameOverride?: string, requiresEmailVerification?: boolean) {
     const user = auth.currentUser;
     if (!user) return;
 
@@ -197,6 +201,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
         userType: selectedRole,
         createdAt: serverTimestamp(),
         lastLogin: serverTimestamp(),
+        ...(requiresEmailVerification ? { requiresEmailVerification: true } : {}),
       });
     } else {
       const data = snap.data();
@@ -302,9 +307,17 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     setEmailSaving(true);
     authInProgressRef.current = true;
     try {
-      await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      // فشل إرسال لينك التأكيد (شبكة بطيئة مثلًا) ميوقفش إنشاء الحساب نفسه — المستخدم يقدر
+      // يطلب لينك تاني بعدين من رسالة EmailVerificationNotice.
+      try {
+        await sendEmailVerification(cred.user);
+      } catch (err) {
+        console.error("Send email verification failed", err);
+        logClientError("send_email_verification", err);
+      }
       closeEmailAuth();
-      await routeAfterAuth(role);
+      await routeAfterAuth(role, undefined, true);
     } catch (err: any) {
       console.error("Email sign up failed", err);
       logClientError("email_signup", err);
