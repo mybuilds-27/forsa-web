@@ -81,6 +81,20 @@ function salaryText(p: JobPost) {
   return "غير محدد";
 }
 
+// نفس التسميات المستخدمة في مودال تفاصيل الوظيفة تحت (receiveMethod === "contact") — لوظايف
+// receiveMethod === "contact" مفيش أي applications متسجلة في Firestore خالص (التقديم بيوصل
+// صاحب العمل مباشرة برّه تتبع الموقع)، فعرض "0 متقدم" مضلل. بنستبدله بنص واضح بيوضح وسيلة
+// التواصل الفعلية بدل الرقم.
+const CONTACT_METHOD_LABELS: Record<string, string> = {
+  whatsapp: "واتساب",
+  email: "الإيميل",
+  phone: "التليفون",
+};
+
+function contactApplyText(p: JobPost): string {
+  return `التقديم عبر ${CONTACT_METHOD_LABELS[p.contactMethod || ""] || "التواصل المباشر"}`;
+}
+
 type Props = {
   companyData: any;
   onCompanyUpdated: () => void;
@@ -246,6 +260,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
           const views = viewCounts[p.id];
           const daysLeft = p.expiresAt ? Math.ceil((p.expiresAt.toMillis() - Date.now()) / 86400000) : null;
           const isPaused = p.isActive === false;
+          const isContactMethod = p.receiveMethod === "contact";
           return (
             <div
               key={p.id}
@@ -287,7 +302,9 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-                    <span style={applicantBadgeStyle}>👥 {appCount} متقدم</span>
+                    <span style={applicantBadgeStyle}>
+                      {isContactMethod ? `📞 ${contactApplyText(p)}` : `👥 ${appCount} متقدم`}
+                    </span>
                     {views !== undefined && (
                       <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>👁️ {views} مشاهدة</span>
                     )}
@@ -312,7 +329,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                 >
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button onClick={() => toggleApplicants(p.id)} style={primaryActionStyle}>
-                      👥 عرض المتقدمين ({appCount})
+                      {isContactMethod ? "👥 عرض المتقدمين" : `👥 عرض المتقدمين (${appCount})`}
                     </button>
                     {appCount > 0 && (
                       <button onClick={() => exportExcel(p.id, p.title, p.screeningQuestions)} style={ghostActionStyle}>⬇ تحميل Excel</button>
@@ -336,7 +353,11 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                   ) : applicantsError ? (
                     <div style={{ padding: 12, color: "#B03A14" }}>{applicantsError}</div>
                   ) : applicants.length === 0 ? (
-                    <div style={{ padding: 12, color: "#4A5568" }}>لسه محدش قدّم على الإعلان ده.</div>
+                    <div style={{ padding: 12, color: "#4A5568" }}>
+                      {isContactMethod
+                        ? `التقديم على الوظيفة دي بيتم عبر ${CONTACT_METHOD_LABELS[p.contactMethod || ""] || "التواصل المباشر"} مباشرة، مش من خلال الموقع.`
+                        : "لسه محدش قدّم على الإعلان ده."}
+                    </div>
                   ) : (
                     applicants.map((a, i) => (
                       <ApplicantCard key={i} applicant={a} screeningQuestions={p.screeningQuestions} />
