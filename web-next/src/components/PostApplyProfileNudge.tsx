@@ -20,8 +20,8 @@ export default function PostApplyProfileNudge({ percent, onClose }: Props) {
 
   const isWeak = percent < 50;
   const message = isWeak
-    ? `بروفايلك مكتمل ${percent}% بس — يستحسن تكمّل بياناتك عشان صاحب العمل يقدر يقيّم ملفك صح.`
-    : `بروفايلك مكتمل ${percent}% — كمّله عشان تزوّد فرصتك في المنافسة.`;
+    ? `بروفايلك مكتمل بنسبة ${percent}% بس — يستحسن تكمّل بياناتك عشان صاحب العمل يقدر يقيّم ملفك صح.`
+    : `بروفايلك مكتمل بنسبة ${percent}% — كمّله عشان تزوّد فرصتك في المنافسة.`;
 
   return (
     <div
