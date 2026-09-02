@@ -101,37 +101,34 @@ function RegisterPageInner() {
 
   return (
     <div dir="rtl" style={{ maxWidth: 440, margin: "0 auto", padding: "40px 20px" }}>
-      <div style={{ textAlign: "center", marginBottom: 10 }}>
+      <div style={{ textAlign: "center", marginBottom: 6 }}>
         <button
           type="button"
           onClick={() => setLoginSignal((n) => n + 1)}
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            background: "#fff",
-            border: `1.5px solid ${COLORS.stamp}66`,
-            borderRadius: 999,
-            padding: "8px 16px",
-            fontSize: 14.5,
-            fontWeight: 700,
+            background: "none",
+            border: "none",
+            padding: 4,
+            fontSize: 13,
+            fontWeight: 600,
             color: COLORS.stamp,
+            textDecoration: "underline",
             cursor: "pointer",
             fontFamily: "inherit",
           }}
         >
-          <span>🔑</span> عندك حساب بالفعل؟ سجل دخول من هنا
+          عندك حساب بالفعل؟ سجل دخول من هنا
         </button>
       </div>
 
-      <div style={{ textAlign: "center", marginBottom: 28 }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-          <LogoMark size={44} />
-          <span style={{ fontFamily: "var(--font-cairo)", fontSize: 24, fontWeight: 800, color: COLORS.ink }}>
+      <div style={{ textAlign: "center", marginBottom: 14 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <LogoMark size={36} />
+          <span style={{ fontFamily: "var(--font-cairo)", fontSize: 21, fontWeight: 800, color: COLORS.ink }}>
             الشغل
           </span>
         </div>
-        <h1 style={{ fontSize: 21, color: COLORS.ink, marginBottom: 6, fontFamily: "var(--font-cairo)" }}>
+        <h1 style={{ fontSize: 18, color: COLORS.ink, margin: 0, fontFamily: "var(--font-cairo)" }}>
           سجّل حسابك في أقل من دقيقة
         </h1>
       </div>

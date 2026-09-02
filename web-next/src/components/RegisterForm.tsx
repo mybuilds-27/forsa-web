@@ -95,9 +95,15 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     if (!openLoginSignal) return;
     setEmailPanelOpen(true);
     setLoginMode(true);
+    setSelectedMethod("email");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openLoginSignal]);
 
+  // بتحدد أنهي قسم ظاهر تحت اختيار الدور: null يعني لسه في شاشة اختيار الطريقة (3 زراير)،
+  // "phone"/"email" يعني المستخدم اختار الطريقة دي وحقولها ظاهرة تحتها. خطوة كود التحقق
+  // (phoneStep === "enter-code") مستقلة تمامًا عن الـstate ده عمدًا — شوف التعليق فوق قسمها
+  // في الـJSX تحت لسبب كده.
+  const [selectedMethod, setSelectedMethod] = useState<"phone" | "email" | null>(null);
   const [emailPanelOpen, setEmailPanelOpen] = useState(false);
   const [loginMode, setLoginMode] = useState(false);
   const [email, setEmail] = useState("");
@@ -238,6 +244,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     setError("");
     setEmailPanelOpen(true);
     setLoginMode(false);
+    setSelectedMethod("email");
     (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "email" });
     logFunnelEvent("method_selected", role, "email");
   }
@@ -245,6 +252,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
   function closeEmailAuth() {
     setEmailPanelOpen(false);
     setLoginMode(false);
+    setSelectedMethod(null);
     setEmail("");
     setPassword("");
     setError("");
@@ -257,6 +265,21 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
       setOtpCode("");
       setConfirmationResult(null);
     }
+  }
+
+  // اختيار "التسجيل بالتليفون" من شاشة اختيار الطريقة — مفيش تتبّع Pixel/funnel هنا، لأن
+  // الحدث الحقيقي بتاع اختيار طريقة التليفون بيتفعّل بعدين جوه handleSendCode لما المستخدم
+  // فعليًا يدوس "ابعتلي كود التحقق"، زي ما كان بالظبط قبل التصميم الجديد.
+  function selectPhoneMethod() {
+    setError("");
+    setSelectedMethod("phone");
+  }
+
+  // "رجوع" من حقول التليفون لشاشة اختيار الطريقة — من غير مسح أي بيانات كتبها المستخدم
+  // (اسم/رقم/باسورد) عشان لو رجع يختار تليفون تاني يلاقيها لسه موجودة.
+  function backToMethodChooser() {
+    setError("");
+    setSelectedMethod(null);
   }
 
   function emailAuthErrorMessage(err: any): string {
@@ -585,6 +608,9 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
   }
 
   const cta = finalCta();
+  // شاشة اختيار الطريقة (3 زراير) ظاهرة بس لو لسه مفيش طريقة مختارة ومفيش OTP جاري —
+  // بتستخدم كمان لإخفاء زرار الـCTA الأحمر والخطأ وقت ما تكون هي الظاهرة.
+  const showingChooser = selectedMethod === null && phoneStep !== "enter-code";
 
   return (
     <div dir="rtl">
@@ -638,7 +664,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
         </div>
       )}
 
-      <div style={{ textAlign: "center", marginBottom: 22 }}>
+      <div style={{ textAlign: "center", marginBottom: 14 }}>
         <span
           style={{
             display: "inline-block",
@@ -672,11 +698,98 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 4 }}>
-        {/* التسجيل بالاسم ورقم الموبايل هو الاختيار الأساسي الظاهر فوق — جوجل والإيميل
-            بدائل تحت خط "أو". ده بس ترتيب عرض بصري، المنطق والسلوك (فحص تضارب الحسابات،
-            الـOTP، إلخ) زي ما هو تمامًا. */}
-        {phoneStep === "enter-phone" && !loginMode && (
+        {/* خطوة كود التحقق (OTP) — مستقلة عمدًا عن selectedMethod، لأنها بتغطي مسارين: تسجيل
+            جديد بالتليفون (selectedMethod === "phone") واسترجاع دخول مستخدم قديم بالتليفون
+            بدأ من جوه قسم الإيميل (handleOtpFallback، selectedMethod ساعتها لسه "email"). لو
+            ربطناها بـselectedMethod === "phone" بس، فلو الاسترجاع من الإيميل هيتكسر. */}
+        {phoneStep === "enter-code" && (
+          <div>
+            <label style={fieldLabelStyle}>كود التحقق</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value)}
+              placeholder="123456"
+              style={fieldInputStyle}
+            />
+            <div style={{ fontSize: 12, color: COLORS.inkSoft, marginTop: -4, marginBottom: 6 }}>
+              اتبعتلك رسالة نصية فيها الكود على {phoneNumber}
+            </div>
+            <button
+              type="button"
+              onClick={otpContext === "login-fallback" ? cancelLoginOtp : resetPhoneCodeStep}
+              style={smallLinkStyle}
+            >
+              {otpContext === "login-fallback" ? "رجوع" : "تغيير الرقم"}
+            </button>
+          </div>
+        )}
+
+        {/* شاشة اختيار طريقة التسجيل — 3 زراير بنفس الوزن البصري (AuthOptionButton نفسها
+            للتلاتة)، بتبان بس لو لسه مفيش طريقة مختارة ومفيش OTP جاري. */}
+        {showingChooser && (
           <>
+            <AuthOptionButton onClick={selectPhoneMethod} icon="📱" label="التسجيل بالتليفون" />
+            <AuthOptionButton onClick={handleGoogleSignIn} disabled={googleLoading} icon={<GoogleIcon />} label="المتابعة بجوجل" />
+            <AuthOptionButton onClick={openEmailAuth} icon="✉️" label="التسجيل بالإيميل" />
+            {isWebView && googleAttempted && (
+              // البانر الكبير الكامل — بيظهر بس بعد ما المستخدم فعليًا دوس "المتابعة بجوجل"
+              // (المشكلة الحقيقية خاصة بيها بس، مش بتليفون أو إيميل).
+              <div
+                style={{
+                  background: "rgba(232,163,61,0.15)",
+                  border: "1px solid #E8A33D66",
+                  borderRadius: 10,
+                  padding: "14px 16px",
+                  marginTop: -2,
+                  fontSize: 13.5,
+                  color: COLORS.ink,
+                  lineHeight: 1.8,
+                }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                  ⚠️ إنت فاتح الرابط من جوه تطبيق (فيسبوك/إنستجرام)
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  عشان تسجّل بسهولة وأمان، افتح الرابط في متصفحك العادي (كروم أو سفاري): دوس على
+                  أيقونة الثلات نقط <strong>⋮</strong> فوق يمين الشاشة واختار <strong>"افتح في المتصفح"</strong>.
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #E8A33D",
+                    borderRadius: 6,
+                    padding: "6px 12px",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    color: "#8A570D",
+                    cursor: "pointer",
+                  }}
+                >
+                  {linkCopied ? "✓ اتنسخ الرابط" : "📋 انسخ رابط الصفحة"}
+                </button>
+              </div>
+            )}
+            {isWebView && !googleAttempted && (
+              // سطر أصغر وأقل إلحاحًا — ظاهر افتراضيًا (قبل أي محاولة فعلية لجوجل)، لطرق
+              // التسجيل التانية (تليفون/إيميل) اللي مش متأثرة بمشكلة WebView خالص.
+              <div style={{ fontSize: 12, color: "#8A570D", marginTop: -4 }}>
+                ⚠️ جوجل ممكن ميشتغلش من التطبيق ده، جرب تليفون أو إيميل بدلًا
+              </div>
+            )}
+          </>
+        )}
+
+        {/* حقول التسجيل بالتليفون — نفس الحقول والمنطق بالظبط زي ما كانوا ظاهرين افتراضيًا
+            قبل كده، بس دلوقتي جوه زرار "التسجيل بالتليفون". */}
+        {selectedMethod === "phone" && phoneStep === "enter-phone" && (
+          <>
+            <button type="button" onClick={backToMethodChooser} style={smallLinkStyle}>
+              → رجوع
+            </button>
             <div>
               <label style={fieldLabelStyle}>الاسم بالكامل</label>
               <input
@@ -713,117 +826,13 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
           </>
         )}
 
-        {phoneStep === "enter-code" && (
-          <div>
-            <label style={fieldLabelStyle}>كود التحقق</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value)}
-              placeholder="123456"
-              style={fieldInputStyle}
-            />
-            <div style={{ fontSize: 12, color: COLORS.inkSoft, marginTop: -4, marginBottom: 6 }}>
-              اتبعتلك رسالة نصية فيها الكود على {phoneNumber}
-            </div>
-            <button
-              type="button"
-              onClick={otpContext === "login-fallback" ? cancelLoginOtp : resetPhoneCodeStep}
-              style={smallLinkStyle}
-            >
-              {otpContext === "login-fallback" ? "رجوع" : "تغيير الرقم"}
-            </button>
-          </div>
-        )}
-
-        {error && (
-          <div style={{ color: errorColor, fontSize: 13, textAlign: "center" }}>{error}</div>
-        )}
-
-        <button
-          type="button"
-          onClick={cta.onClick}
-          disabled={cta.disabled}
-          style={{
-            width: "100%",
-            padding: "14px",
-            background: COLORS.stamp,
-            color: "#fff",
-            border: "none",
-            borderRadius: 10,
-            fontSize: 16,
-            fontWeight: 800,
-            cursor: cta.disabled ? "wait" : "pointer",
-            opacity: cta.disabled ? 0.7 : 1,
-            fontFamily: "inherit",
-            marginTop: 6,
-          }}
-        >
-          {cta.disabled ? "جاري التنفيذ..." : cta.label}
-        </button>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "6px 0" }}>
-          <div style={{ flex: 1, height: 1, background: `${COLORS.ink}22` }} />
-          <span style={{ fontSize: 12.5, color: COLORS.inkSoft }}>أو</span>
-          <div style={{ flex: 1, height: 1, background: `${COLORS.ink}22` }} />
-        </div>
-
-        <AuthOptionButton onClick={handleGoogleSignIn} disabled={googleLoading} icon={<GoogleIcon />} label="المتابعة بجوجل" />
-        {isWebView && googleAttempted && (
-          // البانر الكبير الكامل — بيظهر بس بعد ما المستخدم فعليًا دوس "المتابعة بجوجل"
-          // (المشكلة الحقيقية خاصة بيها بس، مش بتليفون أو إيميل).
-          <div
-            style={{
-              background: "rgba(232,163,61,0.15)",
-              border: "1px solid #E8A33D66",
-              borderRadius: 10,
-              padding: "14px 16px",
-              marginTop: -2,
-              fontSize: 13.5,
-              color: COLORS.ink,
-              lineHeight: 1.8,
-            }}
-          >
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              ⚠️ إنت فاتح الرابط من جوه تطبيق (فيسبوك/إنستجرام)
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              عشان تسجّل بسهولة وأمان، افتح الرابط في متصفحك العادي (كروم أو سفاري): دوس على
-              أيقونة الثلات نقط <strong>⋮</strong> فوق يمين الشاشة واختار <strong>"افتح في المتصفح"</strong>.
-            </div>
-            <button
-              type="button"
-              onClick={handleCopyLink}
-              style={{
-                background: "#fff",
-                border: "1px solid #E8A33D",
-                borderRadius: 6,
-                padding: "6px 12px",
-                fontSize: 12.5,
-                fontWeight: 700,
-                color: "#8A570D",
-                cursor: "pointer",
-              }}
-            >
-              {linkCopied ? "✓ اتنسخ الرابط" : "📋 انسخ رابط الصفحة"}
-            </button>
-          </div>
-        )}
-        {isWebView && !googleAttempted && (
-          // سطر أصغر وأقل إلحاحًا — ظاهر افتراضيًا (قبل أي محاولة فعلية لجوجل)، لطرق
-          // التسجيل التانية (تليفون/إيميل) اللي مش متأثرة بمشكلة WebView خالص.
-          <div style={{ fontSize: 12, color: "#8A570D", marginTop: -4 }}>
-            ⚠️ جوجل ممكن ميشتغلش من التطبيق ده، جرب تليفون أو إيميل بدلًا
-          </div>
-        )}
-
-        {!emailPanelOpen && (
-          <AuthOptionButton onClick={openEmailAuth} icon="✉️" label="المتابعة بالإيميل" />
-        )}
-
-        {emailPanelOpen && (
+        {/* قسم التسجيل/الدخول بالإيميل — نفس المحتوى اللي كان في بانل الإيميل بالظبط، بس
+            دلوقتي جوه زرار "التسجيل بالإيميل" بدل ما يكون بديل تحت خط "أو". */}
+        {selectedMethod === "email" && (
           <div style={{ border: `1px solid ${COLORS.ink}22`, borderRadius: 12, padding: 18, background: "#fff" }}>
+            <button type="button" onClick={closeEmailAuth} style={{ ...smallLinkStyle, marginBottom: 10, display: "block" }}>
+              → رجوع
+            </button>
             <div style={{ marginBottom: 12 }}>
               <label style={fieldLabelStyle}>{loginMode ? "رقم الموبايل أو الإيميل" : "الإيميل"}</label>
               <input
@@ -867,17 +876,40 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
                 </button>
               </div>
             )}
-
-            <div style={{ marginTop: 10 }}>
-              <button type="button" onClick={closeEmailAuth} style={smallLinkStyle}>
-                إلغاء
-              </button>
-            </div>
           </div>
         )}
 
-        {/* اتنقلت هنا من فوق حقول التليفون — ملحوظة عامة على مستوى الصفحة كلها بدل ما تبقى
-            مربوطة بصريًا بحقول معينة، ومش لازمة أصلًا في وضع الدخول (loginMode). */}
+        {/* الخطأ + الزرار النهائي الأحمر — بيبانوا في أي حالة إلا شاشة الاختيار نفسها
+            (finalCta() بترجع الليبل/الدالة الصح تلقائيًا حسب الحالة الحالية، من غير تغيير). */}
+        {!showingChooser && (
+          <>
+            {error && (
+              <div style={{ color: errorColor, fontSize: 13, textAlign: "center" }}>{error}</div>
+            )}
+            <button
+              type="button"
+              onClick={cta.onClick}
+              disabled={cta.disabled}
+              style={{
+                width: "100%",
+                padding: "14px",
+                background: COLORS.stamp,
+                color: "#fff",
+                border: "none",
+                borderRadius: 10,
+                fontSize: 16,
+                fontWeight: 800,
+                cursor: cta.disabled ? "wait" : "pointer",
+                opacity: cta.disabled ? 0.7 : 1,
+                fontFamily: "inherit",
+                marginTop: 6,
+              }}
+            >
+              {cta.disabled ? "جاري التنفيذ..." : cta.label}
+            </button>
+          </>
+        )}
+
         {!loginMode && (
           <p style={{ color: COLORS.inkSoft, fontSize: 11.5, lineHeight: 1.8, margin: "10px 0 0", textAlign: "center" }}>
             ⚠️ لو سجّلت قبل كده بجوجل أو الإيميل، استخدم نفس الطريقة دي تاني بدل رقم التليفون —
