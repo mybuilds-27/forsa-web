@@ -205,7 +205,7 @@ export default function Navbar() {
           فوق بعض على الصفحة الرئيسية. */}
       {!signedIn && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/register?role=employer" style={employerCtaStyle}>سجل كصاحب عمل</Link>
+          <Link href="/register?role=employer" style={employerCtaStyle}>سجّل بشركتك</Link>
           <Link href="/register" style={seekerCtaStyle}>سجل كباحث عن شغل</Link>
         </div>
       )}
