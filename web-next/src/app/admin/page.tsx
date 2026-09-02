@@ -24,6 +24,7 @@ import Link from "next/link";
 import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
 import { exportAllUsersExcel } from "@/lib/adminExports";
 import { EXPERIENCE_LEVELS, slugify } from "@/lib/constants";
+import { CONTACT_METHOD_LABELS, contactApplyText } from "@/lib/contactMethodLabels";
 import { getActiveJobsSeoData, type JobCombo } from "@/lib/publicJobsQuery";
 import ApplicantCard from "@/components/ApplicantCard";
 import BrowseByCombos from "@/components/BrowseByCombos";
@@ -828,11 +829,15 @@ export default function AdminPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {posts.map((p) => {
           const isPaused = p.isActive === false;
+          const isContactMethod = p.receiveMethod === "contact";
           // lo jobViewCounts نفسها فشلت تجيب خالص (null)، مش عارفين المشاهدات فعلاً فبنخفي
           // السطر كله زي الأول — لكن لو جبناها بنجاح وبس الوظيفة دي معندهاش مستند، الافتراض
           // 0 (مش إخفاء) عشان يبان إنها "لسه محدش شافها" مش إن الميزة نفسها مش شغالة.
           const views = jobViewCounts ? jobViewCounts[p.id] ?? 0 : null;
-          const conversionRate = views && views > 0 ? Math.round((p.applicantCount / views) * 100) : null;
+          // معدل التحويل مالوش معنى لوظايف التواصل المباشر (contact) — applicantCount عندهم
+          // دايمًا 0 لأن مفيش applications متسجلة في Firestore أصلاً، مش لأن محدش قدّم فعليًا.
+          const conversionRate =
+            !isContactMethod && views && views > 0 ? Math.round((p.applicantCount / views) * 100) : null;
           return (
           <div key={p.id} style={jobCardContainerStyle}>
             <div style={{ padding: "18px 20px" }}>
@@ -860,7 +865,9 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-                  <span style={applicantBadgeStyle}>👥 {p.applicantCount} متقدم</span>
+                  <span style={applicantBadgeStyle}>
+                    {isContactMethod ? `📞 ${contactApplyText(p)}` : `👥 ${p.applicantCount} متقدم`}
+                  </span>
                   {views !== null && (
                     <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>
                       👁️ {views} مشاهدة{conversionRate !== null ? ` · تحويل ${conversionRate}%` : ""}
@@ -884,7 +891,7 @@ export default function AdminPage() {
               >
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button onClick={() => handleToggleApplicants(p.id, p.employerId)} style={primaryActionStyle}>
-                    👥 عرض المتقدمين ({p.applicantCount})
+                    {isContactMethod ? "👥 عرض المتقدمين" : `👥 عرض المتقدمين (${p.applicantCount})`}
                   </button>
                   {p.applicantCount > 0 && (
                     <button onClick={() => exportApplicantsExcel(p.id, p.title, p.employerId, p.screeningQuestions || [])} style={ghostActionStyle}>⬇ تحميل Excel</button>
@@ -907,7 +914,11 @@ export default function AdminPage() {
             {openApplicantsFor === p.id && (
               <div style={{ padding: "16px 20px 18px", borderTop: "1px solid #14213D14", display: "flex", flexDirection: "column", gap: 12 }}>
                 {applicants.length === 0 ? (
-                  <div style={{ padding: 12, color: "#4A5568" }}>لسه محدش قدّم على الإعلان ده.</div>
+                  <div style={{ padding: 12, color: "#4A5568" }}>
+                    {isContactMethod
+                      ? `التقديم على الوظيفة دي بيتم عبر ${CONTACT_METHOD_LABELS[p.contactMethod || ""] || "التواصل المباشر"} مباشرة، مش من خلال الموقع.`
+                      : "لسه محدش قدّم على الإعلان ده."}
+                  </div>
                 ) : (
                   applicants.map((a, i) => (
                     <ApplicantCard key={i} applicant={a} screeningQuestions={p.screeningQuestions} />
