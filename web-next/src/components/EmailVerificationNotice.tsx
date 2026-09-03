@@ -39,9 +39,12 @@ export default function EmailVerificationNotice({ email }: Props) {
       <div style={{ fontSize: 16, fontWeight: 800, color: "#14213D", marginBottom: 6 }}>
         أكد إيميلك الأول عشان تقدر تستخدم حسابك
       </div>
-      <div style={{ fontSize: 13.5, color: "#4A5568", lineHeight: 1.8, marginBottom: 14 }}>
+      <div style={{ fontSize: 13.5, color: "#4A5568", lineHeight: 1.8, marginBottom: 6 }}>
         بعتنالك لينك تأكيد على <strong>{email}</strong> — افتح الإيميل ودوس على اللينك، وبعدين
         رجّع افتح الصفحة دي تاني.
+      </div>
+      <div style={{ fontSize: 13.5, color: "#4A5568", lineHeight: 1.8, marginBottom: 14 }}>
+        لو ملقتش الرسالة، بص في مجلد الرسائل غير المرغوب فيها (السبام).
       </div>
       <button
         type="button"
