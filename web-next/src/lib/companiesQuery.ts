@@ -6,6 +6,9 @@ export type CompanyCard = {
   companyName: string;
   count: number;
   logoURL?: string | null;
+  // بالميلي ثانية — أحدث createdAt بين كل الوظائف النشطة للشركة دي. مستخدمة بس في ترتيب
+  // الصفحة الرئيسية (شوف getCompanies)، مش في ترتيب aggregateCompanies نفسها ولا /companies.
+  lastPostedAt?: number;
 };
 
 // تجميع job_posts النشطة (showCompanyName==true) حسب صاحب العمل — بيرجع بيانات الشركة
@@ -25,14 +28,17 @@ async function aggregateCompanies(): Promise<CompanyCard[]> {
 
   const byEmployer = new Map<string, CompanyCard>();
   for (const job of activeJobs) {
+    const jobCreatedAtMs = job.createdAt?.toMillis ? job.createdAt.toMillis() : 0;
     const existing = byEmployer.get(job.employerId);
     if (existing) {
       existing.count += 1;
+      if (jobCreatedAtMs > (existing.lastPostedAt || 0)) existing.lastPostedAt = jobCreatedAtMs;
     } else {
       byEmployer.set(job.employerId, {
         employerId: job.employerId,
         companyName: job.companyName || "شركة",
         count: 1,
+        lastPostedAt: jobCreatedAtMs,
       });
     }
   }
@@ -58,7 +64,16 @@ export async function getCompanies(): Promise<CompanyCard[]> {
       }
     })
   );
-  return withLogos;
+
+  // ترتيب خاص بالصفحة الرئيسية بس (aggregateCompanies نفسها فاضلة براحتها بترتيبها القديم
+  // بعدد الوظايف، وده اللي /companies لسه بيعتمد عليه عن طريق getCompaniesWithoutLogos):
+  // الشركات بلوجو حقيقي مرفوع أولاً، وبعدين تعادل بالأحدث (آخر وظيفة نشطة نشرتها الشركة).
+  return withLogos.sort((a, b) => {
+    const aHasLogo = a.logoURL ? 1 : 0;
+    const bHasLogo = b.logoURL ? 1 : 0;
+    if (aHasLogo !== bHasLogo) return bHasLogo - aHasLogo;
+    return (b.lastPostedAt || 0) - (a.lastPostedAt || 0);
+  });
 }
 
 // زي getCompanies بس من غير قراءة اللوجوهات خالص — استعلام job_posts واحد بس، مفيش قراءات
