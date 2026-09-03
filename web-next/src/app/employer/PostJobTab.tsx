@@ -293,9 +293,15 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     // ويسبب نشر مكرر. finally تحت بيضمن إعادة فتحه في كل الحالات (نجاح، فشل، أو أي return مبكر).
     setSubmitting(true);
     let saveTimeoutId: ReturnType<typeof setTimeout> | undefined;
+    // ═══ DEBUG TEMP — تشخيص عاجل، هتتشال قبل أي commit ═══
+    const t0 = performance.now();
+    console.log("[DEBUG-POST] handleSubmit بدأ", { t: 0 });
     try {
       const user = auth.currentUser;
-      if (!user) return;
+      if (!user) {
+        console.log("[DEBUG-POST] مفيش auth.currentUser — خرج بدري", { t: Math.round(performance.now() - t0) });
+        return;
+      }
 
       // حد النشر الشهري بيتفعّل بس وقت النشر الجديد، مش وقت التعديل
       if (!isEditMode) {
@@ -307,6 +313,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         // getCountFromServer بدل جلب كل إعلانات صاحب العمل من أول يوم وفلترتها بعد الجلب —
         // استعلام العدّ ده بيرجع الرقم بس من غير ما يجيب أي مستند فعليًا (نفس فكرة لوحة
         // الإدارة). محتاج composite index جديد (employerId + createdAt) — راجع firestore.indexes.json.
+        console.log("[DEBUG-POST] بداية getCountFromServer (فحص الحد الشهري)", { t: Math.round(performance.now() - t0) });
         const countSnap = await getCountFromServer(
           query(
             collection(db, "job_posts"),
@@ -314,6 +321,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             where("createdAt", ">=", Timestamp.fromDate(startOfMonth))
           )
         );
+        console.log("[DEBUG-POST] getCountFromServer خلص", { t: Math.round(performance.now() - t0), count: countSnap.data().count });
         if (countSnap.data().count >= monthlyLimit) {
           alert(
             employerPlan === "premium"
@@ -328,6 +336,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         // نمنعه خالص، لأن ممكن يكون فعلاً قاصد ينشر نفس الوظيفة تاني (فرصة تانية بنفس المسمى).
         const tenMinutesAgo = new Date();
         tenMinutesAgo.setMinutes(tenMinutesAgo.getMinutes() - 10);
+        console.log("[DEBUG-POST] بداية getDocs (فحص التكرار)", { t: Math.round(performance.now() - t0) });
         const duplicateSnap = await getDocs(
           query(
             collection(db, "job_posts"),
@@ -337,6 +346,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             limit(1)
           )
         );
+        console.log("[DEBUG-POST] getDocs (فحص التكرار) خلص", { t: Math.round(performance.now() - t0), empty: duplicateSnap.empty });
         if (!duplicateSnap.empty) {
           const confirmed = window.confirm(
             "يبدو إنك نشرت وظيفة بنفس الاسم ده قبل شوية، متأكد عايز تنشر تاني؟"
@@ -404,9 +414,15 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       if (isEditMode && editingPost) {
         // updatedAt بتتحدث بس هنا (مسار التعديل) — postData نفسها مشتركة مع مسار النشر
         // الجديد تحت، فمينفعش نضيفها هناك عشان مبقاش لها معنى وقت الإنشاء الأول.
-        await withSaveTimeout(
-          updateDoc(doc(db, "job_posts", editingPost.id), { ...postData, updatedAt: serverTimestamp() })
-        );
+        console.log("[DEBUG-POST] بداية updateDoc (الكتابة الفعلية)", { t: Math.round(performance.now() - t0) });
+        const updatePromise = updateDoc(doc(db, "job_posts", editingPost.id), { ...postData, updatedAt: serverTimestamp() });
+        // متابعة الـpromise الخام في الخلفية حتى لو الـrace خسر بالـtimeout — عشان نعرف هل
+        // الكتابة نجحت متأخرة (بطء شبكة) ولا فعلاً معلّقة للأبد (مسدودة).
+        updatePromise
+          .then(() => console.log("[DEBUG-POST] updateDoc نجح فعليًا (حتى لو بعد الـtimeout)", { t: Math.round(performance.now() - t0) }))
+          .catch((e) => console.log("[DEBUG-POST] updateDoc فشل فعليًا (حتى لو بعد الـtimeout)", { t: Math.round(performance.now() - t0), error: e?.code || e?.message }));
+        await withSaveTimeout(updatePromise);
+        console.log("[DEBUG-POST] updateDoc خلص جوه المهلة", { t: Math.round(performance.now() - t0) });
         alert("تم حفظ التعديلات ✓");
         resetForm();
         onPosted();
@@ -414,12 +430,18 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         const expiry = new Date();
         expiry.setDate(expiry.getDate() + (employerPlan === "premium" ? 60 : 30));
         postData.expiresAt = Timestamp.fromDate(expiry);
-        const docRef = await withSaveTimeout(
-          addDoc(collection(db, "job_posts"), {
-            ...postData,
-            createdAt: serverTimestamp(),
-          })
-        );
+        console.log("[DEBUG-POST] بداية addDoc (الكتابة الفعلية)", { t: Math.round(performance.now() - t0) });
+        const addPromise = addDoc(collection(db, "job_posts"), {
+          ...postData,
+          createdAt: serverTimestamp(),
+        });
+        // متابعة الـpromise الخام في الخلفية حتى لو الـrace خسر بالـtimeout — عشان نعرف هل
+        // الكتابة نجحت متأخرة (بطء شبكة) ولا فعلاً معلّقة للأبد (مسدودة).
+        addPromise
+          .then((ref) => console.log("[DEBUG-POST] addDoc نجح فعليًا (حتى لو بعد الـtimeout)", { t: Math.round(performance.now() - t0), id: ref.id }))
+          .catch((e) => console.log("[DEBUG-POST] addDoc فشل فعليًا (حتى لو بعد الـtimeout)", { t: Math.round(performance.now() - t0), error: e?.code || e?.message }));
+        const docRef = await withSaveTimeout(addPromise);
+        console.log("[DEBUG-POST] addDoc خلص جوه المهلة", { t: Math.round(performance.now() - t0) });
         setSuccessMessage("تم نشر الإعلان بنجاح ✓");
         resetForm();
         // النشر نجح فعليًا، فمفيش داعي نفضل محتفظين بالمسودة المحلية بعد كده.
@@ -431,6 +453,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         onPosted(docRef.id);
       }
     } catch (err: any) {
+      console.log("[DEBUG-POST] وقع في catch", { t: Math.round(performance.now() - t0), message: err?.message, code: err?.code });
       console.error("Job post save failed", err);
       if (err instanceof Error && err.message === "SAVE_TIMEOUT") {
         alert("الطلب مستني كتير — جرب تعمل ريفريش للصفحة وحاول تاني");
@@ -440,6 +463,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     } finally {
       clearTimeout(saveTimeoutId);
       setSubmitting(false);
+      console.log("[DEBUG-POST] handleSubmit خلص", { t: Math.round(performance.now() - t0) });
     }
   }
 
