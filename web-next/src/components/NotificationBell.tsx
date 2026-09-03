@@ -159,53 +159,60 @@ export default function NotificationBell() {
       </button>
 
       {open && (
+        // notification-backdrop مبيبقاش ليه أي box خالص على الديسكتوب (display:contents في
+        // globals.css)، فـnotification-panel بتتموضع absolute زي ما كانت بالظبط قبل كده. على
+        // الموبايل بس بيتحول لـoverlay كامل الشاشة (نفس نمط ScreeningQuestionsModal.tsx)،
+        // عشان زرار الجرس بيتلف مكان مش متوقع جوه صف روابط Navbar.tsx على الشاشات الضيقة.
         <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            insetInlineEnd: 0,
-            width: 320,
-            maxWidth: "90vw",
-            maxHeight: 400,
-            overflowY: "auto",
-            background: "#fff",
-            border: "1px solid #14213D22",
-            borderRadius: 10,
-            boxShadow: "0 6px 20px rgba(20,33,61,0.15)",
-            zIndex: 200,
+          className="notification-backdrop"
+          onClick={() => {
+            setOpen(false);
+            if (uid) markAllAsRead(uid);
           }}
         >
-          <div style={{ padding: "10px 14px", fontWeight: 700, borderBottom: "1px solid #14213D14", fontSize: 14, color: "#14213D" }}>
-            الإشعارات
-          </div>
-          {notifications.length === 0 ? (
-            <div style={{ padding: 20, textAlign: "center", color: "#4A5568", fontSize: 13.5 }}>
-              مفيش إشعارات لسه
+          <div className="notification-panel" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="notification-close-btn"
+              onClick={() => {
+                setOpen(false);
+                if (uid) markAllAsRead(uid);
+              }}
+              aria-label="إغلاق"
+            >
+              ✕
+            </button>
+            <div style={{ padding: "10px 14px", fontWeight: 700, borderBottom: "1px solid #14213D14", fontSize: 14, color: "#14213D" }}>
+              الإشعارات
             </div>
-          ) : (
-            notifications.map((n) => (
-              <button
-                key={n.id}
-                onClick={() => handleNotificationClick(n)}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "right",
-                  padding: "10px 14px",
-                  background: n.read ? "transparent" : "rgba(232,163,61,0.1)",
-                  border: "none",
-                  borderBottom: "1px solid #14213D0F",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                <div style={{ fontSize: 13.5, color: "#14213D", fontWeight: n.read ? 400 : 700, lineHeight: 1.5 }}>
-                  {n.message}
-                </div>
-                <div style={{ fontSize: 11, color: "#4A5568", marginTop: 4 }}>{formatTime(n.createdAt)}</div>
-              </button>
-            ))
-          )}
+            {notifications.length === 0 ? (
+              <div style={{ padding: 20, textAlign: "center", color: "#4A5568", fontSize: 13.5 }}>
+                مفيش إشعارات لسه
+              </div>
+            ) : (
+              notifications.map((n) => (
+                <button
+                  key={n.id}
+                  onClick={() => handleNotificationClick(n)}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "right",
+                    padding: "10px 14px",
+                    background: n.read ? "transparent" : "rgba(232,163,61,0.1)",
+                    border: "none",
+                    borderBottom: "1px solid #14213D0F",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <div style={{ fontSize: 13.5, color: "#14213D", fontWeight: n.read ? 400 : 700, lineHeight: 1.5 }}>
+                    {n.message}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#4A5568", marginTop: 4 }}>{formatTime(n.createdAt)}</div>
+                </button>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>
