@@ -1,13 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, where, getCountFromServer, getDocs, limit, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, query, where, getCountFromServer, getDocs, limit, addDoc, updateDoc, doc, serverTimestamp, Timestamp, setLogLevel } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import KeywordsPicker from "@/components/KeywordsPicker";
+
+// ═══ DEBUG TEMP — تشخيص عاجل، هتتشال قبل أي commit نهائي ═══
+// بتفضح نشاط الـSDK الداخلي (فتح/قفل الاتصال، أي إعادة محاولة تلقائية، backoff) في الكونسول
+// مباشرة، من غير ما نحتاج نفحص Firebase/Cloud Console خالص — بتجاوب على سؤال "هل الـSDK
+// بيحاول يعيد الاتصال بصمت؟" مباشرة من الأدلة، مش افتراض.
+if (typeof window !== "undefined") {
+  setLogLevel("debug");
+}
 
 const AGE_OPTIONS = Array.from({ length: 50 }, (_, i) => 16 + i);
 
