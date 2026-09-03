@@ -17,6 +17,10 @@ const PENDING_ROLE_STORAGE_KEY = "elshoghl_pending_auth_role";
 // نفس القايمة المستخدمة في Navbar.tsx وRegisterForm.tsx وadmin/page.tsx لتحديد حساب الأدمن
 const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
 
+// نفس رقم WHATSAPP_NUMBER المستخدم في UpgradeModal.tsx وemployer/page.tsx (كان WhatsAppFloatingButton.tsx
+// هو نفس الرقم برضو قبل ما يتشال من الصفحة الرئيسية)
+const WHATSAPP_NUMBER = "201012735333";
+
 const COLORS = { ink: "#14213D", inkSoft: "#4A5568", stamp: "#B03A14" };
 
 export default function RegisterPage() {
@@ -134,6 +138,27 @@ function RegisterPageInner() {
       </div>
 
       <RegisterForm role={role} onRoleChange={selectRole} onSuccess={handleSuccess} openLoginSignal={loginSignal} />
+
+      <div style={{ textAlign: "center", marginTop: 20 }}>
+        <a
+          href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("عندي مشكلة في التسجيل على موقع الشغل")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            background: "none",
+            border: "none",
+            padding: 4,
+            fontSize: 13,
+            fontWeight: 600,
+            color: COLORS.inkSoft,
+            textDecoration: "underline",
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          عندك مشكلة في التسجيل؟ تواصل معنا
+        </a>
+      </div>
     </div>
   );
 }
