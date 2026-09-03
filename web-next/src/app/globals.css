@@ -110,6 +110,72 @@ a {
   margin: 0;
 }
 
+/* قائمة الإشعارات المنسدلة (NotificationBell.tsx) — notification-backdrop مبيتاخدش أي box
+   خالص على الديسكتوب (display:contents)، فـnotification-panel بتتموضع absolute نسبةً لأقرب
+   جد ليها position:relative (containerRef.tsx جوه NotificationBell.tsx) بالظبط زي قبل
+   التعديل ده. على الموبايل بس (الزرار بيتلف مكان مش متوقع جوه صف روابط Navbar.tsx
+   flex-wrap) بتتحول القائمة لـoverlay كامل الشاشة، نفس نمط ScreeningQuestionsModal.tsx
+   وSpecializationMismatchModal.tsx. */
+.notification-backdrop {
+  display: contents;
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  inset-inline-end: 0;
+  width: 320px;
+  max-width: 90vw;
+  max-height: 400px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #14213D22;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(20, 33, 61, 0.15);
+  z-index: 200;
+}
+
+.notification-close-btn {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .notification-backdrop {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 33, 61, 0.55);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .notification-panel {
+    position: relative;
+    top: auto;
+    inset-inline-end: auto;
+    width: 100%;
+    max-width: 420px;
+    max-height: 80vh;
+  }
+  .notification-close-btn {
+    display: flex;
+    position: absolute;
+    top: 10px;
+    inset-inline-start: 10px;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1.5px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    z-index: 1;
+  }
+}
+
 /* أقسام "نشر وظيفة" الاختيارية القابلة للطي (PostJobTab) — مقفولة افتراضيًا. بنشيل سهم
    details الافتراضي ونستخدم سهم مخصص بيتلف بـCSS بس على details[open]، من غير أي state
    إضافي في React — البيانات جوه الأقسام بتفضل محفوظة عادي لأن details مبيشيلش أولاده من
