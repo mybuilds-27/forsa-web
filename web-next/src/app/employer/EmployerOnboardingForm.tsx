@@ -21,7 +21,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
   const [citySelect, setCitySelect] = useState("");
   const [cityOther, setCityOther] = useState("");
   const [companySize, setCompanySize] = useState("");
-  const [showCompanyNameDefault, setShowCompanyNameDefault] = useState(false);
+  const [showCompanyNameDefault, setShowCompanyNameDefault] = useState(true);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoURL, setLogoURL] = useState("");
   const [logoStatus, setLogoStatus] = useState("");
