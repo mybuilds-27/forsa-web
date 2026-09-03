@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, where, getCountFromServer, getDocs, limit, addDoc, updateDoc, doc, serverTimestamp, Timestamp, setLogLevel } from "firebase/firestore";
+import { collection, query, where, getCountFromServer, getDocs, limit, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
@@ -9,20 +9,52 @@ import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import KeywordsPicker from "@/components/KeywordsPicker";
 
-// ═══ DEBUG TEMP — تشخيص عاجل، هتتشال قبل أي commit نهائي ═══
-// بتفضح نشاط الـSDK الداخلي (فتح/قفل الاتصال، أي إعادة محاولة تلقائية، backoff) في الكونسول
-// مباشرة، من غير ما نحتاج نفحص Firebase/Cloud Console خالص — بتجاوب على سؤال "هل الـSDK
-// بيحاول يعيد الاتصال بصمت؟" مباشرة من الأدلة، مش افتراض.
-if (typeof window !== "undefined") {
-  setLogLevel("debug");
-}
-
 const AGE_OPTIONS = Array.from({ length: 50 }, (_, i) => 16 + i);
 
-// نفس فكرة الـrace مع timeout في ReportJobButton.tsx — لو addDoc/updateDoc اتعلقت لأي سبب
-// (شبكة بطيئة، إضافة adblock، إلخ)، بعد 15 ثانية بنوريه رسالة واضحة بدل "جاري الحفظ..."
-// معلّقة للأبد من غير أي تفسير.
-const SAVE_TIMEOUT_MS = 15000;
+// حفظ الوظيفة (addDoc/updateDoc) بيفضل معلّق أحيانًا لفترة أطول من الطبيعي (شبكة عابرة، إلخ)
+// — الرقمين دول بيحكموا مهلتين متدرّجتين بدل خط نهاية واحد قاطع (شوف withGracePeriod تحت):
+// SAVE_TIMEOUT_MS نقطة "خلي بالك، بياخد وقت أطول من المعتاد" بس، مش فشل — لسه مستنيين نفس
+// العملية في الخلفية. HARD_FAIL_TIMEOUT_MS هي المهلة القصوى المطلقة اللي بعدها بس بنعتبرها
+// فشل حقيقي (مش مجرد بطء عابر) ونوقف الانتظار.
+const SAVE_TIMEOUT_MS = 25000;
+const HARD_FAIL_TIMEOUT_MS = 60000;
+
+// بتستنى promise (addDoc/updateDoc) بمهلتين متدرّجتين بدل timeout واحد قاطع: لو معدّاش
+// SAVE_TIMEOUT_MS لسه شغال، بننادي onSlow() (لعرض تنبيه غير blocking "بياخد وقت أطول من
+// المعتاد") من غير ما نوقف الانتظار — لو العملية نجحت فعلاً بعد كده (بطء شبكة عابر، مش فشل
+// حقيقي)، بترجع نتيجتها عادي وكأن حاجة محصلتش. لو وصلنا HARD_FAIL_TIMEOUT_MS من غير ما تخلص،
+// ساعتها بس بنعتبرها فشلت فعلاً ونرفض بـ"HARD_FAIL_TIMEOUT". أي خطأ حقيقي من العملية نفسها
+// (مش مجرد بطء) بيتنشر فورًا من غير أي انتظار إضافي.
+function withGracePeriod<T>(promise: Promise<T>, onSlow: () => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const slowTimer = setTimeout(() => {
+      if (!settled) onSlow();
+    }, SAVE_TIMEOUT_MS);
+    const hardTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error("HARD_FAIL_TIMEOUT"));
+    }, HARD_FAIL_TIMEOUT_MS);
+
+    promise.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(slowTimer);
+        clearTimeout(hardTimer);
+        resolve(value);
+      },
+      (err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(slowTimer);
+        clearTimeout(hardTimer);
+        reject(err);
+      }
+    );
+  });
+}
 
 // مسودة الفورم بتتحفظ محليًا (وضع النشر الجديد بس، مش التعديل) عشان لو حصل ريفريش بالغلط
 // أثناء الكتابة متضيعش كل البيانات. مفيش أي حاجة حساسة بتتخزن هنا — نفس حقول الفورم العادية
@@ -105,6 +137,11 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     const timeoutId = setTimeout(() => setSuccessMessage(null), 4000);
     return () => clearTimeout(timeoutId);
   }, [successMessage]);
+
+  // بانر غير blocking بيبان لو الحفظ عدّى SAVE_TIMEOUT_MS ولسه شغال — بديل لرسالة "اعمل
+  // ريفريش" القديمة اللي كانت بتفترض فشل فوري. مبيتمسحش لوحده بعد فترة ثابتة زي successMessage
+  // — بيتقفل بس لما الحفظ يخلص فعليًا (نجاح أو فشل حقيقي)، شوف withGracePeriod/handleSubmit.
+  const [slowSaveNotice, setSlowSaveNotice] = useState(false);
 
   // بيمنع كامل تبويب نشر الوظيفة (مش بس لحظة الحفظ) لو الحساب لسه محتاج تأكيد إيميل —
   // شوف lib/emailVerificationGate.ts. null يعني لسه بنفحص، الفورم مبيتعرضش قبلها عشان
@@ -300,16 +337,10 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     // من غيره الزرار فاضل شغال أثناء الفحص وممكن يتضغط تاني بسرعة (خصوصًا على الموبايل)
     // ويسبب نشر مكرر. finally تحت بيضمن إعادة فتحه في كل الحالات (نجاح، فشل، أو أي return مبكر).
     setSubmitting(true);
-    let saveTimeoutId: ReturnType<typeof setTimeout> | undefined;
-    // ═══ DEBUG TEMP — تشخيص عاجل، هتتشال قبل أي commit ═══
-    const t0 = performance.now();
-    console.log("[DEBUG-POST] handleSubmit بدأ", { t: 0 });
+    setSlowSaveNotice(false);
     try {
       const user = auth.currentUser;
-      if (!user) {
-        console.log("[DEBUG-POST] مفيش auth.currentUser — خرج بدري", { t: Math.round(performance.now() - t0) });
-        return;
-      }
+      if (!user) return;
 
       // حد النشر الشهري بيتفعّل بس وقت النشر الجديد، مش وقت التعديل
       if (!isEditMode) {
@@ -321,7 +352,6 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         // getCountFromServer بدل جلب كل إعلانات صاحب العمل من أول يوم وفلترتها بعد الجلب —
         // استعلام العدّ ده بيرجع الرقم بس من غير ما يجيب أي مستند فعليًا (نفس فكرة لوحة
         // الإدارة). محتاج composite index جديد (employerId + createdAt) — راجع firestore.indexes.json.
-        console.log("[DEBUG-POST] بداية getCountFromServer (فحص الحد الشهري)", { t: Math.round(performance.now() - t0) });
         const countSnap = await getCountFromServer(
           query(
             collection(db, "job_posts"),
@@ -329,7 +359,6 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             where("createdAt", ">=", Timestamp.fromDate(startOfMonth))
           )
         );
-        console.log("[DEBUG-POST] getCountFromServer خلص", { t: Math.round(performance.now() - t0), count: countSnap.data().count });
         if (countSnap.data().count >= monthlyLimit) {
           alert(
             employerPlan === "premium"
@@ -344,7 +373,6 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         // نمنعه خالص، لأن ممكن يكون فعلاً قاصد ينشر نفس الوظيفة تاني (فرصة تانية بنفس المسمى).
         const tenMinutesAgo = new Date();
         tenMinutesAgo.setMinutes(tenMinutesAgo.getMinutes() - 10);
-        console.log("[DEBUG-POST] بداية getDocs (فحص التكرار)", { t: Math.round(performance.now() - t0) });
         const duplicateSnap = await getDocs(
           query(
             collection(db, "job_posts"),
@@ -354,7 +382,6 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             limit(1)
           )
         );
-        console.log("[DEBUG-POST] getDocs (فحص التكرار) خلص", { t: Math.round(performance.now() - t0), empty: duplicateSnap.empty });
         if (!duplicateSnap.empty) {
           const confirmed = window.confirm(
             "يبدو إنك نشرت وظيفة بنفس الاسم ده قبل شوية، متأكد عايز تنشر تاني؟"
@@ -408,29 +435,12 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         isActive: true,
       };
 
-      // Promise.race مع مهلة 15 ثانية — لو addDoc/updateDoc اتعلقت، بنرفض بـSAVE_TIMEOUT بدل
-      // ما نسيب "جاري الحفظ..." معلّقة للأبد من غير أي رسالة.
-      function withSaveTimeout<T>(promise: Promise<T>): Promise<T> {
-        return Promise.race([
-          promise,
-          new Promise<T>((_, reject) => {
-            saveTimeoutId = setTimeout(() => reject(new Error("SAVE_TIMEOUT")), SAVE_TIMEOUT_MS);
-          }),
-        ]);
-      }
-
       if (isEditMode && editingPost) {
         // updatedAt بتتحدث بس هنا (مسار التعديل) — postData نفسها مشتركة مع مسار النشر
         // الجديد تحت، فمينفعش نضيفها هناك عشان مبقاش لها معنى وقت الإنشاء الأول.
-        console.log("[DEBUG-POST] بداية updateDoc (الكتابة الفعلية)", { t: Math.round(performance.now() - t0) });
         const updatePromise = updateDoc(doc(db, "job_posts", editingPost.id), { ...postData, updatedAt: serverTimestamp() });
-        // متابعة الـpromise الخام في الخلفية حتى لو الـrace خسر بالـtimeout — عشان نعرف هل
-        // الكتابة نجحت متأخرة (بطء شبكة) ولا فعلاً معلّقة للأبد (مسدودة).
-        updatePromise
-          .then(() => console.log("[DEBUG-POST] updateDoc نجح فعليًا (حتى لو بعد الـtimeout)", { t: Math.round(performance.now() - t0) }))
-          .catch((e) => console.log("[DEBUG-POST] updateDoc فشل فعليًا (حتى لو بعد الـtimeout)", { t: Math.round(performance.now() - t0), error: e?.code || e?.message }));
-        await withSaveTimeout(updatePromise);
-        console.log("[DEBUG-POST] updateDoc خلص جوه المهلة", { t: Math.round(performance.now() - t0) });
+        await withGracePeriod(updatePromise, () => setSlowSaveNotice(true));
+        setSlowSaveNotice(false);
         alert("تم حفظ التعديلات ✓");
         resetForm();
         onPosted();
@@ -438,18 +448,12 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         const expiry = new Date();
         expiry.setDate(expiry.getDate() + (employerPlan === "premium" ? 60 : 30));
         postData.expiresAt = Timestamp.fromDate(expiry);
-        console.log("[DEBUG-POST] بداية addDoc (الكتابة الفعلية)", { t: Math.round(performance.now() - t0) });
         const addPromise = addDoc(collection(db, "job_posts"), {
           ...postData,
           createdAt: serverTimestamp(),
         });
-        // متابعة الـpromise الخام في الخلفية حتى لو الـrace خسر بالـtimeout — عشان نعرف هل
-        // الكتابة نجحت متأخرة (بطء شبكة) ولا فعلاً معلّقة للأبد (مسدودة).
-        addPromise
-          .then((ref) => console.log("[DEBUG-POST] addDoc نجح فعليًا (حتى لو بعد الـtimeout)", { t: Math.round(performance.now() - t0), id: ref.id }))
-          .catch((e) => console.log("[DEBUG-POST] addDoc فشل فعليًا (حتى لو بعد الـtimeout)", { t: Math.round(performance.now() - t0), error: e?.code || e?.message }));
-        const docRef = await withSaveTimeout(addPromise);
-        console.log("[DEBUG-POST] addDoc خلص جوه المهلة", { t: Math.round(performance.now() - t0) });
+        const docRef = await withGracePeriod(addPromise, () => setSlowSaveNotice(true));
+        setSlowSaveNotice(false);
         setSuccessMessage("تم نشر الإعلان بنجاح ✓");
         resetForm();
         // النشر نجح فعليًا، فمفيش داعي نفضل محتفظين بالمسودة المحلية بعد كده.
@@ -461,17 +465,17 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         onPosted(docRef.id);
       }
     } catch (err: any) {
-      console.log("[DEBUG-POST] وقع في catch", { t: Math.round(performance.now() - t0), message: err?.message, code: err?.code });
       console.error("Job post save failed", err);
-      if (err instanceof Error && err.message === "SAVE_TIMEOUT") {
-        alert("الطلب مستني كتير — جرب تعمل ريفريش للصفحة وحاول تاني");
+      setSlowSaveNotice(false);
+      if (err instanceof Error && err.message === "HARD_FAIL_TIMEOUT") {
+        alert(
+          "حصلت مشكلة في الاتصال ومقدرناش نتأكد من نجاح الحفظ خلال وقت معقول — تأكد من اتصال الإنترنت وجرب تاني. لو الوظيفة اتنشرت فعلاً هتلاقيها في قائمة إعلاناتك."
+        );
       } else {
         alert(friendlyErrorMessage(err));
       }
     } finally {
-      clearTimeout(saveTimeoutId);
       setSubmitting(false);
-      console.log("[DEBUG-POST] handleSubmit خلص", { t: Math.round(performance.now() - t0) });
     }
   }
 
@@ -564,6 +568,28 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
           }}
         >
           {successMessage}
+        </div>
+      )}
+
+      {slowSaveNotice && (
+        <div
+          style={{
+            position: "fixed",
+            top: 20,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 300,
+            background: "#E8A33D",
+            color: "#14213D",
+            padding: "12px 22px",
+            borderRadius: 10,
+            fontSize: 14.5,
+            fontWeight: 700,
+            boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
+            pointerEvents: "none",
+          }}
+        >
+          ⏳ بياخد وقت أطول من المعتاد، برجاء الانتظار...
         </div>
       )}
 
