@@ -8,20 +8,22 @@ import { buildSeekerSnapshot } from "@/lib/seekerSnapshot";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { shouldShowProfileNudge } from "@/lib/profileNudge";
 import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
+import { EXPERIENCE_LEVELS } from "@/lib/constants";
 import ScreeningQuestionsModal, { ScreeningQuestion } from "@/components/ScreeningQuestionsModal";
 import RegisterModal from "@/components/RegisterModal";
 import PostApplyProfileNudge from "@/components/PostApplyProfileNudge";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
-import SpecializationMismatchModal from "@/components/SpecializationMismatchModal";
+import SpecializationMismatchModal, { MismatchItem } from "@/components/SpecializationMismatchModal";
 
 type Props = {
   jobId: string;
   employerId: string;
   jobSpecialization?: string;
+  jobLevel?: string;
   screeningQuestions?: ScreeningQuestion[];
 };
 
-export default function ApplyButton({ jobId, employerId, jobSpecialization, screeningQuestions = [] }: Props) {
+export default function ApplyButton({ jobId, employerId, jobSpecialization, jobLevel, screeningQuestions = [] }: Props) {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [applied, setApplied] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -29,9 +31,10 @@ export default function ApplyButton({ jobId, employerId, jobSpecialization, scre
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [nudgePercent, setNudgePercent] = useState<number | null>(null);
-  // بيتحط بس لو الباحث عنده تخصص محفوظ ومختلف عن تخصص الوظيفة — شوف handleApplyClick.
-  const [specializationMismatch, setSpecializationMismatch] = useState<{ seekerSpec: string } | null>(null);
-  const [checkingSpecialization, setCheckingSpecialization] = useState(false);
+  // بيتحط بس لو فيه اختلاف واحد أو أكتر (تخصص و/أو مستوى) بين بروفايل الباحث والوظيفة —
+  // شوف handleApplyClick.
+  const [applyMismatches, setApplyMismatches] = useState<MismatchItem[] | null>(null);
+  const [checkingMatch, setCheckingMatch] = useState(false);
 
   // بعد تسجيل حساب جديد (خصوصًا بجوجل، اللي مابيدّيش رقم تليفون خالص) job_seekers/{uid}
   // لسه معمولوش أصلًا — لو التقديم كمّل على طول من غير الاسم أو الموبايل، صاحب العمل بياخد
@@ -118,28 +121,45 @@ export default function ApplyButton({ jobId, employerId, jobSpecialization, scre
     }
   }
 
-  // فحص تطابق التخصص قبل التقديم — قراءة إضافية لـjob_seekers/{uid} هنا (handleApply بتقراها
-  // تاني بعدين لبناء seekerSnapshot)، بتفضيل متعمّد إننا منلمسش handleApply نفسها اللي بتكتب
-  // فعليًا على Firestore. لو الباحث معندوش تخصص محفوظ خالص، أو متطابق، بنكمّل عادي من غير
-  // أي تنبيه.
+  // فحص تطابق التخصص والمستوى قبل التقديم — قراءة واحدة لـjob_seekers/{uid} هنا (handleApply
+  // بتقراها تاني بعدين لبناء seekerSnapshot)، بتفضيل متعمّد إننا منلمسش handleApply نفسها
+  // اللي بتكتب فعليًا على Firestore. لو أي طرف (الوظيفة أو الباحث) معندوش قيمة محددة لفحص
+  // معيّن، الفحص ده بيتجاهل تمامًا. لو فيه أكتر من اختلاف، بيتعرضوا كلهم مع بعض في مودال
+  // واحد بدل تنبيهين متتاليين.
   async function handleApplyClick() {
     const user = auth.currentUser;
     if (!user) return;
-    if (jobSpecialization) {
-      setCheckingSpecialization(true);
+    if (jobSpecialization || jobLevel) {
+      setCheckingMatch(true);
       try {
         const seekerDoc = await getDoc(doc(db, "job_seekers", user.uid));
-        const seekerSpec = seekerDoc.exists() ? seekerDoc.data().specialization : "";
-        if (seekerSpec && seekerSpec !== jobSpecialization) {
-          setCheckingSpecialization(false);
-          setSpecializationMismatch({ seekerSpec });
+        const seekerData = seekerDoc.exists() ? seekerDoc.data() : {};
+        const mismatches: MismatchItem[] = [];
+
+        if (jobSpecialization && seekerData.specialization && seekerData.specialization !== jobSpecialization) {
+          mismatches.push({
+            label: "التخصص",
+            message: `الوظيفة دي في تخصص ${jobSpecialization}، وبروفايلك موضّح إن تخصصك ${seekerData.specialization}.`,
+          });
+        }
+
+        if (jobLevel && seekerData.jobLevel && seekerData.jobLevel !== jobLevel) {
+          mismatches.push({
+            label: "المستوى",
+            message: `الوظيفة دي بتستهدف مستوى ${EXPERIENCE_LEVELS[jobLevel] || jobLevel}، وانت بتدوّر على مستوى ${EXPERIENCE_LEVELS[seekerData.jobLevel] || seekerData.jobLevel}.`,
+          });
+        }
+
+        if (mismatches.length > 0) {
+          setCheckingMatch(false);
+          setApplyMismatches(mismatches);
           return;
         }
       } catch (err) {
-        console.error("[ApplyButton] فشل فحص تطابق التخصص", err);
-        // فشل الفحص نفسه ميوقفش التقديم — نكمل عادي زي لو الباحث معندوش تخصص محفوظ خالص
+        console.error("[ApplyButton] فشل فحص تطابق التخصص/المستوى", err);
+        // فشل الفحص نفسه ميوقفش التقديم — نكمل عادي زي لو الباحث معندوش بيانات محفوظة خالص
       }
-      setCheckingSpecialization(false);
+      setCheckingMatch(false);
     }
     proceedWithApply();
   }
@@ -276,7 +296,7 @@ export default function ApplyButton({ jobId, employerId, jobSpecialization, scre
         ) : (
           <button
             onClick={handleApplyClick}
-            disabled={busy || checkingSpecialization}
+            disabled={busy || checkingMatch}
             style={{ padding: "14px 30px", fontSize: 15.5, fontWeight: 700, background: "#14213D", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}
           >
             📩 قدم الآن
@@ -297,14 +317,13 @@ export default function ApplyButton({ jobId, employerId, jobSpecialization, scre
         />
       )}
 
-      {specializationMismatch && jobSpecialization && (
+      {applyMismatches && (
         <SpecializationMismatchModal
-          jobSpecialization={jobSpecialization}
-          seekerSpecialization={specializationMismatch.seekerSpec}
+          items={applyMismatches}
           submitting={busy}
-          onCancel={() => setSpecializationMismatch(null)}
+          onCancel={() => setApplyMismatches(null)}
           onConfirm={() => {
-            setSpecializationMismatch(null);
+            setApplyMismatches(null);
             proceedWithApply();
           }}
         />

@@ -27,7 +27,7 @@ import { shouldShowProfileNudge } from "@/lib/profileNudge";
 import JobCard, { JobPost, salaryTeaser } from "./JobCard";
 import { tagStyle, ApplicationStatus, applicationStatusOf } from "@/lib/jobCardStyles";
 import ScreeningQuestionsModal from "@/components/ScreeningQuestionsModal";
-import SpecializationMismatchModal from "@/components/SpecializationMismatchModal";
+import SpecializationMismatchModal, { MismatchItem } from "@/components/SpecializationMismatchModal";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import ProfileCompletionBar from "@/components/ProfileCompletionBar";
 import JobListItem from "@/app/jobs/JobListItem";
@@ -153,9 +153,10 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
   const [applying, setApplying] = useState(false);
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
   const [nudgePercent, setNudgePercent] = useState<number | null>(null);
-  // بيتحط بس لو الباحث عنده تخصص محفوظ ومختلف عن تخصص الوظيفة (selectedJob) — شوف handleApplyClick.
-  const [specializationMismatch, setSpecializationMismatch] = useState<{ seekerSpec: string } | null>(null);
-  const [checkingSpecialization, setCheckingSpecialization] = useState(false);
+  // بيتحط بس لو فيه اختلاف واحد أو أكتر (تخصص و/أو مستوى) بين بروفايل الباحث ووظيفة
+  // selectedJob — شوف handleApplyClick.
+  const [applyMismatches, setApplyMismatches] = useState<MismatchItem[] | null>(null);
+  const [checkingMatch, setCheckingMatch] = useState(false);
 
   function closeDetailsModal() {
     setSelectedJob(null);
@@ -308,28 +309,45 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
     }
   }
 
-  // فحص تطابق التخصص قبل التقديم — نفس منطق ApplyButton.tsx بالظبط، بقراءة إضافية منفصلة
+  // فحص تطابق التخصص والمستوى قبل التقديم — نفس منطق ApplyButton.tsx بالظبط، بقراءة واحدة
   // لـjob_seekers/{uid} هنا (handleApply بتقراها تاني لبناء seekerSnapshot)، عمدًا عشان
-  // مانلمسش handleApply نفسها اللي بتكتب فعليًا على Firestore.
+  // مانلمسش handleApply نفسها اللي بتكتب فعليًا على Firestore. لو فيه أكتر من اختلاف،
+  // بيتعرضوا كلهم مع بعض في مودال واحد بدل تنبيهين متتاليين.
   async function handleApplyClick(job: JobPost) {
     setSelectedJob(job);
     const user = auth.currentUser;
     if (!user) return;
-    if (job.specialization) {
-      setCheckingSpecialization(true);
+    if (job.specialization || job.jobLevel) {
+      setCheckingMatch(true);
       try {
         const seekerDoc = await getDoc(doc(db, "job_seekers", user.uid));
-        const seekerSpec = seekerDoc.exists() ? seekerDoc.data().specialization : "";
-        if (seekerSpec && seekerSpec !== job.specialization) {
-          setCheckingSpecialization(false);
-          setSpecializationMismatch({ seekerSpec });
+        const seekerData = seekerDoc.exists() ? seekerDoc.data() : {};
+        const mismatches: MismatchItem[] = [];
+
+        if (job.specialization && seekerData.specialization && seekerData.specialization !== job.specialization) {
+          mismatches.push({
+            label: "التخصص",
+            message: `الوظيفة دي في تخصص ${job.specialization}، وبروفايلك موضّح إن تخصصك ${seekerData.specialization}.`,
+          });
+        }
+
+        if (job.jobLevel && seekerData.jobLevel && seekerData.jobLevel !== job.jobLevel) {
+          mismatches.push({
+            label: "المستوى",
+            message: `الوظيفة دي بتستهدف مستوى ${EXPERIENCE_LEVELS[job.jobLevel] || job.jobLevel}، وانت بتدوّر على مستوى ${EXPERIENCE_LEVELS[seekerData.jobLevel] || seekerData.jobLevel}.`,
+          });
+        }
+
+        if (mismatches.length > 0) {
+          setCheckingMatch(false);
+          setApplyMismatches(mismatches);
           return;
         }
       } catch (err) {
-        console.error("[JobsTab] فشل فحص تطابق التخصص", err);
-        // فشل الفحص نفسه ميوقفش التقديم — نكمل عادي زي لو الباحث معندوش تخصص محفوظ خالص
+        console.error("[JobsTab] فشل فحص تطابق التخصص/المستوى", err);
+        // فشل الفحص نفسه ميوقفش التقديم — نكمل عادي زي لو الباحث معندوش بيانات محفوظة خالص
       }
-      setCheckingSpecialization(false);
+      setCheckingMatch(false);
     }
     proceedWithApply(job);
   }
@@ -464,7 +482,7 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
                 onToggleSave={() => handleToggleSave(p.id)}
                 onClick={() => { setSelectedJob(p); setShowDetailsModal(true); }}
                 onApply={() => handleApplyClick(p)}
-                applying={applying || checkingSpecialization}
+                applying={applying || checkingMatch}
               />
             ))}
           </div>
@@ -560,7 +578,7 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
               ) : (
                 <button
                   onClick={() => handleApplyClick(selectedJob)}
-                  disabled={applying || checkingSpecialization}
+                  disabled={applying || checkingMatch}
                   style={{ padding: "10px 20px", background: "#14213D", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}
                 >
                   📩 قدم الآن
@@ -593,14 +611,13 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
         />
       )}
 
-      {specializationMismatch && selectedJob?.specialization && (
+      {applyMismatches && selectedJob && (
         <SpecializationMismatchModal
-          jobSpecialization={selectedJob.specialization}
-          seekerSpecialization={specializationMismatch.seekerSpec}
+          items={applyMismatches}
           submitting={applying}
-          onCancel={() => setSpecializationMismatch(null)}
+          onCancel={() => setApplyMismatches(null)}
           onConfirm={() => {
-            setSpecializationMismatch(null);
+            setApplyMismatches(null);
             proceedWithApply(selectedJob);
           }}
         />
