@@ -32,7 +32,8 @@ export default async function HomePage() {
     .sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0))
     .slice(0, LATEST_JOBS_COUNT);
   const exampleCombos = seoData.combos.slice(0, EXAMPLE_COMBOS_COUNT);
-  // getCompanies() بترجع الشركات مرتبة بعدد الوظائف النشطة (الأكتر الأول) بالفعل.
+  // getCompanies() بترجع الشركات مرتبة: بلوجو حقيقي مرفوع الأول، وبعدين تعادل بالأحدث
+  // (آخر وظيفة نشطة نشرتها الشركة) — الشرط الأساسي (وظيفة نشطة واحدة على الأقل) زي ما هو.
   const topCompanies = companies.slice(0, HOME_COMPANIES_COUNT);
 
   return (
