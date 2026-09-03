@@ -94,6 +94,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
   const [loading, setLoading] = useState(true);
   const [applicantCounts, setApplicantCounts] = useState<Record<string, number>>({});
   const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
+  const [whatsappClickCounts, setWhatsappClickCounts] = useState<Record<string, number>>({});
   const [openApplicantsFor, setOpenApplicantsFor] = useState<string | null>(null);
   const [applicants, setApplicants] = useState<any[]>([]);
   const [loadingApplicants, setLoadingApplicants] = useState(false);
@@ -134,6 +135,21 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
         setViewCounts(views);
       } catch (err) {
         console.error("[loadMyJobPosts] فشل جلب عدد المشاهدات (job_views)", err);
+      }
+
+      // عدد ضغطات زرار واتساب (whatsapp_clicks/{jobPostId}) — بنفس نمط job_views بالظبط
+      // (قراءة منفصلة لكل وظيفة، Promise.allSettled).
+      try {
+        const clickResults = await Promise.allSettled(list.map((p) => getDoc(doc(db, "whatsapp_clicks", p.id))));
+        const clicks: Record<string, number> = {};
+        clickResults.forEach((result, i) => {
+          if (result.status === "fulfilled") {
+            clicks[list[i].id] = result.value.exists() ? result.value.data().count || 0 : 0;
+          }
+        });
+        setWhatsappClickCounts(clicks);
+      } catch (err) {
+        console.error("[loadMyJobPosts] فشل جلب عدد ضغطات واتساب (whatsapp_clicks)", err);
       }
     } catch (err) {
       console.error("[loadMyJobPosts] فشل استعلام job_posts", err);
@@ -248,6 +264,10 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
           const daysLeft = p.expiresAt ? Math.ceil((p.expiresAt.toMillis() - Date.now()) / 86400000) : null;
           const isPaused = p.isActive === false;
           const isContactMethod = p.receiveMethod === "contact";
+          // بس لو العدد فعلاً اتحمّل بنجاح (مش undefined) — لو لسه بيحمّل أو فشل الجلب،
+          // بيفضل يعرض النص العام (contactApplyText) بدل ما يوري "0" مضلل.
+          const whatsappClicks = whatsappClickCounts[p.id];
+          const isWhatsAppWithCount = isContactMethod && p.contactMethod === "whatsapp" && whatsappClicks !== undefined;
           return (
             <div
               key={p.id}
@@ -290,7 +310,11 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
 
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
                     <span style={applicantBadgeStyle}>
-                      {isContactMethod ? `📞 ${contactApplyText(p)}` : `👥 ${appCount} متقدم`}
+                      {isWhatsAppWithCount
+                        ? `📞 ${whatsappClicks} شخص تواصل عبر واتساب`
+                        : isContactMethod
+                        ? `📞 ${contactApplyText(p)}`
+                        : `👥 ${appCount} متقدم`}
                     </span>
                     {views !== undefined && (
                       <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>👁️ {views} مشاهدة</span>
@@ -316,7 +340,11 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                 >
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button onClick={() => toggleApplicants(p.id)} style={primaryActionStyle}>
-                      {isContactMethod ? "👥 عرض المتقدمين" : `👥 عرض المتقدمين (${appCount})`}
+                      {isWhatsAppWithCount
+                        ? `📞 عرض التفاصيل (${whatsappClicks})`
+                        : isContactMethod
+                        ? "👥 عرض المتقدمين"
+                        : `👥 عرض المتقدمين (${appCount})`}
                     </button>
                     {appCount > 0 && (
                       <button onClick={() => exportExcel(p.id, p.title, p.screeningQuestions)} style={ghostActionStyle}>⬇ تحميل Excel</button>
@@ -341,7 +369,9 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                     <div style={{ padding: 12, color: "#B03A14" }}>{applicantsError}</div>
                   ) : applicants.length === 0 ? (
                     <div style={{ padding: 12, color: "#4A5568" }}>
-                      {isContactMethod
+                      {isWhatsAppWithCount
+                        ? `${whatsappClicks} شخص تواصل عبر واتساب مع الشركة على الوظيفة دي مباشرة، مش من خلال الموقع.`
+                        : isContactMethod
                         ? `التقديم على الوظيفة دي بيتم عبر ${CONTACT_METHOD_LABELS[p.contactMethod || ""] || "التواصل المباشر"} مباشرة، مش من خلال الموقع.`
                         : "لسه محدش قدّم على الإعلان ده."}
                     </div>
