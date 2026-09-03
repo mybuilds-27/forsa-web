@@ -11,10 +11,50 @@ import KeywordsPicker from "@/components/KeywordsPicker";
 
 const AGE_OPTIONS = Array.from({ length: 50 }, (_, i) => 16 + i);
 
-// نفس فكرة الـrace مع timeout في ReportJobButton.tsx — لو addDoc/updateDoc اتعلقت لأي سبب
-// (شبكة بطيئة، إضافة adblock، إلخ)، بعد 15 ثانية بنوريه رسالة واضحة بدل "جاري الحفظ..."
-// معلّقة للأبد من غير أي تفسير.
-const SAVE_TIMEOUT_MS = 15000;
+// حفظ الوظيفة (addDoc/updateDoc) بيفضل معلّق أحيانًا لفترة أطول من الطبيعي (شبكة عابرة، إلخ)
+// — الرقمين دول بيحكموا مهلتين متدرّجتين بدل خط نهاية واحد قاطع (شوف withGracePeriod تحت):
+// SAVE_TIMEOUT_MS نقطة "خلي بالك، بياخد وقت أطول من المعتاد" بس، مش فشل — لسه مستنيين نفس
+// العملية في الخلفية. HARD_FAIL_TIMEOUT_MS هي المهلة القصوى المطلقة اللي بعدها بس بنعتبرها
+// فشل حقيقي (مش مجرد بطء عابر) ونوقف الانتظار.
+const SAVE_TIMEOUT_MS = 25000;
+const HARD_FAIL_TIMEOUT_MS = 60000;
+
+// بتستنى promise (addDoc/updateDoc) بمهلتين متدرّجتين بدل timeout واحد قاطع: لو معدّاش
+// SAVE_TIMEOUT_MS لسه شغال، بننادي onSlow() (لعرض تنبيه غير blocking "بياخد وقت أطول من
+// المعتاد") من غير ما نوقف الانتظار — لو العملية نجحت فعلاً بعد كده (بطء شبكة عابر، مش فشل
+// حقيقي)، بترجع نتيجتها عادي وكأن حاجة محصلتش. لو وصلنا HARD_FAIL_TIMEOUT_MS من غير ما تخلص،
+// ساعتها بس بنعتبرها فشلت فعلاً ونرفض بـ"HARD_FAIL_TIMEOUT". أي خطأ حقيقي من العملية نفسها
+// (مش مجرد بطء) بيتنشر فورًا من غير أي انتظار إضافي.
+function withGracePeriod<T>(promise: Promise<T>, onSlow: () => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const slowTimer = setTimeout(() => {
+      if (!settled) onSlow();
+    }, SAVE_TIMEOUT_MS);
+    const hardTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error("HARD_FAIL_TIMEOUT"));
+    }, HARD_FAIL_TIMEOUT_MS);
+
+    promise.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(slowTimer);
+        clearTimeout(hardTimer);
+        resolve(value);
+      },
+      (err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(slowTimer);
+        clearTimeout(hardTimer);
+        reject(err);
+      }
+    );
+  });
+}
 
 // مسودة الفورم بتتحفظ محليًا (وضع النشر الجديد بس، مش التعديل) عشان لو حصل ريفريش بالغلط
 // أثناء الكتابة متضيعش كل البيانات. مفيش أي حاجة حساسة بتتخزن هنا — نفس حقول الفورم العادية
@@ -97,6 +137,11 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     const timeoutId = setTimeout(() => setSuccessMessage(null), 4000);
     return () => clearTimeout(timeoutId);
   }, [successMessage]);
+
+  // بانر غير blocking بيبان لو الحفظ عدّى SAVE_TIMEOUT_MS ولسه شغال — بديل لرسالة "اعمل
+  // ريفريش" القديمة اللي كانت بتفترض فشل فوري. مبيتمسحش لوحده بعد فترة ثابتة زي successMessage
+  // — بيتقفل بس لما الحفظ يخلص فعليًا (نجاح أو فشل حقيقي)، شوف withGracePeriod/handleSubmit.
+  const [slowSaveNotice, setSlowSaveNotice] = useState(false);
 
   // بيمنع كامل تبويب نشر الوظيفة (مش بس لحظة الحفظ) لو الحساب لسه محتاج تأكيد إيميل —
   // شوف lib/emailVerificationGate.ts. null يعني لسه بنفحص، الفورم مبيتعرضش قبلها عشان
@@ -292,7 +337,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     // من غيره الزرار فاضل شغال أثناء الفحص وممكن يتضغط تاني بسرعة (خصوصًا على الموبايل)
     // ويسبب نشر مكرر. finally تحت بيضمن إعادة فتحه في كل الحالات (نجاح، فشل، أو أي return مبكر).
     setSubmitting(true);
-    let saveTimeoutId: ReturnType<typeof setTimeout> | undefined;
+    setSlowSaveNotice(false);
     try {
       const user = auth.currentUser;
       if (!user) return;
@@ -390,23 +435,12 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         isActive: true,
       };
 
-      // Promise.race مع مهلة 15 ثانية — لو addDoc/updateDoc اتعلقت، بنرفض بـSAVE_TIMEOUT بدل
-      // ما نسيب "جاري الحفظ..." معلّقة للأبد من غير أي رسالة.
-      function withSaveTimeout<T>(promise: Promise<T>): Promise<T> {
-        return Promise.race([
-          promise,
-          new Promise<T>((_, reject) => {
-            saveTimeoutId = setTimeout(() => reject(new Error("SAVE_TIMEOUT")), SAVE_TIMEOUT_MS);
-          }),
-        ]);
-      }
-
       if (isEditMode && editingPost) {
         // updatedAt بتتحدث بس هنا (مسار التعديل) — postData نفسها مشتركة مع مسار النشر
         // الجديد تحت، فمينفعش نضيفها هناك عشان مبقاش لها معنى وقت الإنشاء الأول.
-        await withSaveTimeout(
-          updateDoc(doc(db, "job_posts", editingPost.id), { ...postData, updatedAt: serverTimestamp() })
-        );
+        const updatePromise = updateDoc(doc(db, "job_posts", editingPost.id), { ...postData, updatedAt: serverTimestamp() });
+        await withGracePeriod(updatePromise, () => setSlowSaveNotice(true));
+        setSlowSaveNotice(false);
         alert("تم حفظ التعديلات ✓");
         resetForm();
         onPosted();
@@ -414,12 +448,12 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         const expiry = new Date();
         expiry.setDate(expiry.getDate() + (employerPlan === "premium" ? 60 : 30));
         postData.expiresAt = Timestamp.fromDate(expiry);
-        const docRef = await withSaveTimeout(
-          addDoc(collection(db, "job_posts"), {
-            ...postData,
-            createdAt: serverTimestamp(),
-          })
-        );
+        const addPromise = addDoc(collection(db, "job_posts"), {
+          ...postData,
+          createdAt: serverTimestamp(),
+        });
+        const docRef = await withGracePeriod(addPromise, () => setSlowSaveNotice(true));
+        setSlowSaveNotice(false);
         setSuccessMessage("تم نشر الإعلان بنجاح ✓");
         resetForm();
         // النشر نجح فعليًا، فمفيش داعي نفضل محتفظين بالمسودة المحلية بعد كده.
@@ -432,13 +466,15 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       }
     } catch (err: any) {
       console.error("Job post save failed", err);
-      if (err instanceof Error && err.message === "SAVE_TIMEOUT") {
-        alert("الطلب مستني كتير — جرب تعمل ريفريش للصفحة وحاول تاني");
+      setSlowSaveNotice(false);
+      if (err instanceof Error && err.message === "HARD_FAIL_TIMEOUT") {
+        alert(
+          "حصلت مشكلة في الاتصال ومقدرناش نتأكد من نجاح الحفظ خلال وقت معقول — تأكد من اتصال الإنترنت وجرب تاني. لو الوظيفة اتنشرت فعلاً هتلاقيها في قائمة إعلاناتك."
+        );
       } else {
         alert(friendlyErrorMessage(err));
       }
     } finally {
-      clearTimeout(saveTimeoutId);
       setSubmitting(false);
     }
   }
@@ -532,6 +568,28 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
           }}
         >
           {successMessage}
+        </div>
+      )}
+
+      {slowSaveNotice && (
+        <div
+          style={{
+            position: "fixed",
+            top: 20,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 300,
+            background: "#E8A33D",
+            color: "#14213D",
+            padding: "12px 22px",
+            borderRadius: 10,
+            fontSize: 14.5,
+            fontWeight: 700,
+            boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
+            pointerEvents: "none",
+          }}
+        >
+          ⏳ بياخد وقت أطول من المعتاد، برجاء الانتظار...
         </div>
       )}
 
