@@ -12,14 +12,16 @@ import ScreeningQuestionsModal, { ScreeningQuestion } from "@/components/Screeni
 import RegisterModal from "@/components/RegisterModal";
 import PostApplyProfileNudge from "@/components/PostApplyProfileNudge";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
+import SpecializationMismatchModal from "@/components/SpecializationMismatchModal";
 
 type Props = {
   jobId: string;
   employerId: string;
+  jobSpecialization?: string;
   screeningQuestions?: ScreeningQuestion[];
 };
 
-export default function ApplyButton({ jobId, employerId, screeningQuestions = [] }: Props) {
+export default function ApplyButton({ jobId, employerId, jobSpecialization, screeningQuestions = [] }: Props) {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [applied, setApplied] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -27,6 +29,9 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [nudgePercent, setNudgePercent] = useState<number | null>(null);
+  // بيتحط بس لو الباحث عنده تخصص محفوظ ومختلف عن تخصص الوظيفة — شوف handleApplyClick.
+  const [specializationMismatch, setSpecializationMismatch] = useState<{ seekerSpec: string } | null>(null);
+  const [checkingSpecialization, setCheckingSpecialization] = useState(false);
 
   // بعد تسجيل حساب جديد (خصوصًا بجوجل، اللي مابيدّيش رقم تليفون خالص) job_seekers/{uid}
   // لسه معمولوش أصلًا — لو التقديم كمّل على طول من غير الاسم أو الموبايل، صاحب العمل بياخد
@@ -105,12 +110,38 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
     setBusy(false);
   }
 
-  function handleApplyClick() {
+  function proceedWithApply() {
     if (screeningQuestions.length > 0) {
       setShowQuestionsModal(true);
     } else {
       handleApply();
     }
+  }
+
+  // فحص تطابق التخصص قبل التقديم — قراءة إضافية لـjob_seekers/{uid} هنا (handleApply بتقراها
+  // تاني بعدين لبناء seekerSnapshot)، بتفضيل متعمّد إننا منلمسش handleApply نفسها اللي بتكتب
+  // فعليًا على Firestore. لو الباحث معندوش تخصص محفوظ خالص، أو متطابق، بنكمّل عادي من غير
+  // أي تنبيه.
+  async function handleApplyClick() {
+    const user = auth.currentUser;
+    if (!user) return;
+    if (jobSpecialization) {
+      setCheckingSpecialization(true);
+      try {
+        const seekerDoc = await getDoc(doc(db, "job_seekers", user.uid));
+        const seekerSpec = seekerDoc.exists() ? seekerDoc.data().specialization : "";
+        if (seekerSpec && seekerSpec !== jobSpecialization) {
+          setCheckingSpecialization(false);
+          setSpecializationMismatch({ seekerSpec });
+          return;
+        }
+      } catch (err) {
+        console.error("[ApplyButton] فشل فحص تطابق التخصص", err);
+        // فشل الفحص نفسه ميوقفش التقديم — نكمل عادي زي لو الباحث معندوش تخصص محفوظ خالص
+      }
+      setCheckingSpecialization(false);
+    }
+    proceedWithApply();
   }
 
   // بيتنادى بعد ما مودال التسجيل ينجح — auth.currentUser بقى متاح فورًا (متزامن مع نجاح
@@ -245,7 +276,7 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
         ) : (
           <button
             onClick={handleApplyClick}
-            disabled={busy}
+            disabled={busy || checkingSpecialization}
             style={{ padding: "14px 30px", fontSize: 15.5, fontWeight: 700, background: "#14213D", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}
           >
             📩 قدم الآن
@@ -263,6 +294,19 @@ export default function ApplyButton({ jobId, employerId, screeningQuestions = []
           submitting={busy}
           onCancel={() => setShowQuestionsModal(false)}
           onSubmit={(answers) => handleApply(answers)}
+        />
+      )}
+
+      {specializationMismatch && jobSpecialization && (
+        <SpecializationMismatchModal
+          jobSpecialization={jobSpecialization}
+          seekerSpecialization={specializationMismatch.seekerSpec}
+          submitting={busy}
+          onCancel={() => setSpecializationMismatch(null)}
+          onConfirm={() => {
+            setSpecializationMismatch(null);
+            proceedWithApply();
+          }}
         />
       )}
 

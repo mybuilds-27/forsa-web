@@ -359,7 +359,12 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <strong>التواصل ({({ email: "إيميل", whatsapp: "واتساب", phone: "تليفون" } as Record<string,string>)[job.contactMethod] || job.contactMethod}):</strong> {job.contactValue}
           </p>
         ) : (
-          <ApplyButton jobId={job.id} employerId={job.employerId} screeningQuestions={job.screeningQuestions || []} />
+          <ApplyButton
+            jobId={job.id}
+            employerId={job.employerId}
+            jobSpecialization={job.specialization}
+            screeningQuestions={job.screeningQuestions || []}
+          />
         )}
         <ShareButton
           jobId={job.id}
