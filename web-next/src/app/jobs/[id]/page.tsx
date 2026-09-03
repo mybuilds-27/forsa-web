@@ -8,6 +8,7 @@ import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
 import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify } from "@/lib/constants";
+import { toWhatsAppNumber } from "@/lib/phoneAuth";
 import { featuredPillStyle, JOB_TYPE_LABELS, salaryText, sanitizeJobDescription, tagStyle } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseSidebar from "@/components/BrowseSidebar";
@@ -273,6 +274,19 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   // تنضيف رموز Markdown اللي بعض أصحاب العمل بيسيبوها زي ما هي لما بيلصقوا وصف من
   // ChatGPT (##, **نص**, سطور بـ*/-) — النص الأصلي في Firestore زي ما هو، ده بس للعرض.
   const description = sanitizeJobDescription(job.description || "");
+
+  // لينك واتساب محتاج الرقم بصيغة دولية (20xxxxxxxxxx) — contactValue في Firestore زي ما
+  // هو (ممكن يكون محلي 01xxxxxxxxx من غير كود الدولة)، ده بس تصحيح للعرض وقت بناء اللينك.
+  // fallback آمن للسلوك القديم (تنضيف الرموز بس) لو الرقم مش بصيغة مصرية معروفة، مع تحذير
+  // في لوج السيرفر عشان نلاحظ أرقام غريبة بدل ما اللينك يفضل يكسر بصمت.
+  let whatsappNumber: string | null = null;
+  if (job.receiveMethod === "contact" && job.contactMethod === "whatsapp" && job.contactValue) {
+    whatsappNumber = toWhatsAppNumber(job.contactValue);
+    if (!whatsappNumber) {
+      console.warn(`[jobs/${job.id}] contactValue مش بصيغة رقم مصري معروف: "${job.contactValue}"`);
+      whatsappNumber = job.contactValue.replace(/\D/g, "");
+    }
+  }
   const descriptionIsArabic = isArabicText(description);
   const descriptionBulletItems = splitBulletItems(description);
 
@@ -332,9 +346,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       )}
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
-        {job.receiveMethod === "contact" && job.contactMethod === "whatsapp" && job.contactValue ? (
+        {job.receiveMethod === "contact" && job.contactMethod === "whatsapp" && job.contactValue && whatsappNumber ? (
           <a
-            href={`https://wa.me/${job.contactValue.replace(/\D/g, "")}?text=${encodeURIComponent(
+            href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
               `مرحبًا، شفت إعلان وظيفة ${job.title} على موقع الشغل وحابب أتقدملها`
             )}`}
             target="_blank"
