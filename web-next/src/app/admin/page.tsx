@@ -188,6 +188,7 @@ export default function AdminPage() {
   const [visits30d, setVisits30d] = useState<number | null>(null);
   const [visitsError, setVisitsError] = useState(false);
   const [jobViewCounts, setJobViewCounts] = useState<Record<string, number> | null>(null);
+  const [whatsappClickCounts, setWhatsappClickCounts] = useState<Record<string, number> | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [lastVisiblePost, setLastVisiblePost] = useState<QueryDocumentSnapshot | null>(null);
   const [hasMorePosts, setHasMorePosts] = useState(false);
@@ -437,13 +438,14 @@ export default function AdminPage() {
     }
   }
 
-  // job_views وapplications للدفعة الحالية بس (مش المجموعة كاملة) — أقصى POSTS_PAGE_SIZE
-  // (10) IDs في المرة الواحدة، متوافق مع limit الصفحة نفسها. معزولين عن بعض بـtry/catch
-  // منفصل، عشان فشل واحد فيهم (زي عدد المشاهدات) ميمنعش عرض عدد المتقدمين والعكس.
+  // job_views وwhatsapp_clicks وapplications للدفعة الحالية بس (مش المجموعة كاملة) — أقصى
+  // POSTS_PAGE_SIZE (10) IDs في المرة الواحدة، متوافق مع limit الصفحة نفسها. معزولين عن بعض
+  // بـtry/catch منفصل، عشان فشل واحد فيهم (زي عدد المشاهدات) ميمنعش عرض الباقي.
   async function fetchJobViewsAndAppCounts(postIds: string[]) {
     const views: Record<string, number> = {};
+    const whatsappClicks: Record<string, number> = {};
     const appCounts: Record<string, number> = {};
-    if (postIds.length === 0) return { views, appCounts };
+    if (postIds.length === 0) return { views, whatsappClicks, appCounts };
 
     try {
       const viewsSnap = await getDocs(query(collection(db, "job_views"), where(documentId(), "in", postIds)));
@@ -452,6 +454,15 @@ export default function AdminPage() {
       });
     } catch (err) {
       console.error("Admin job views (page) failed", err);
+    }
+
+    try {
+      const clicksSnap = await getDocs(query(collection(db, "whatsapp_clicks"), where(documentId(), "in", postIds)));
+      clicksSnap.docs.forEach((d) => {
+        whatsappClicks[d.id] = d.data().count || 0;
+      });
+    } catch (err) {
+      console.error("Admin whatsapp clicks (page) failed", err);
     }
 
     try {
@@ -464,7 +475,7 @@ export default function AdminPage() {
       console.error("Admin applications (page) failed", err);
     }
 
-    return { views, appCounts };
+    return { views, whatsappClicks, appCounts };
   }
 
   // أول صفحة من "كل الإعلانات المنشورة على الموقع" — orderBy(createdAt desc) + limit بدل
@@ -474,12 +485,13 @@ export default function AdminPage() {
       const snap = await getDocs(query(collection(db, "job_posts"), orderBy("createdAt", "desc"), limit(POSTS_PAGE_SIZE)));
       const docs = snap.docs;
       const postIds = docs.map((d) => d.id);
-      const { views, appCounts } = await fetchJobViewsAndAppCounts(postIds);
+      const { views, whatsappClicks, appCounts } = await fetchJobViewsAndAppCounts(postIds);
 
       const postsList = docs.map((d) => ({ id: d.id, ...d.data(), applicantCount: appCounts[d.id] || 0 } as any));
 
       setPosts(postsList);
       setJobViewCounts(views);
+      setWhatsappClickCounts(whatsappClicks);
       setLastVisiblePost(docs.length > 0 ? docs[docs.length - 1] : null);
       setHasMorePosts(docs.length === POSTS_PAGE_SIZE);
     } catch (err) {
@@ -487,8 +499,8 @@ export default function AdminPage() {
     }
   }
 
-  // "تحميل المزيد" — بيضيف للقايمة الموجودة بدل ما يستبديها، وبيدمج job_views/appCounts
-  // الجداد مع الموجودين بدل الاستبدال.
+  // "تحميل المزيد" — بيضيف للقايمة الموجودة بدل ما يستبديها، وبيدمج job_views/whatsappClicks/
+  // appCounts الجداد مع الموجودين بدل الاستبدال.
   async function loadMoreJobPosts() {
     if (!hasMorePosts || loadingMorePosts || !lastVisiblePost) return;
     setLoadingMorePosts(true);
@@ -498,12 +510,13 @@ export default function AdminPage() {
       );
       const docs = snap.docs;
       const postIds = docs.map((d) => d.id);
-      const { views, appCounts } = await fetchJobViewsAndAppCounts(postIds);
+      const { views, whatsappClicks, appCounts } = await fetchJobViewsAndAppCounts(postIds);
 
       const newPosts = docs.map((d) => ({ id: d.id, ...d.data(), applicantCount: appCounts[d.id] || 0 } as any));
 
       setPosts((prev) => [...prev, ...newPosts]);
       setJobViewCounts((prev) => ({ ...(prev || {}), ...views }));
+      setWhatsappClickCounts((prev) => ({ ...(prev || {}), ...whatsappClicks }));
       if (docs.length > 0) setLastVisiblePost(docs[docs.length - 1]);
       setHasMorePosts(docs.length === POSTS_PAGE_SIZE);
     } catch (err) {
@@ -838,6 +851,10 @@ export default function AdminPage() {
           // دايمًا 0 لأن مفيش applications متسجلة في Firestore أصلاً، مش لأن محدش قدّم فعليًا.
           const conversionRate =
             !isContactMethod && views && views > 0 ? Math.round((p.applicantCount / views) * 100) : null;
+          // بس لو jobViewCounts (وبالتبعية whatsappClickCounts، بيتحملوا مع بعض) فعلاً اتحمّلت
+          // بنجاح — لو null (فشل الجلب) بيفضل يعرض النص العام (contactApplyText) بدل "0" مضلل.
+          const whatsappClicks = whatsappClickCounts ? whatsappClickCounts[p.id] ?? 0 : undefined;
+          const isWhatsAppWithCount = isContactMethod && p.contactMethod === "whatsapp" && whatsappClicks !== undefined;
           return (
           <div key={p.id} style={jobCardContainerStyle}>
             <div style={{ padding: "18px 20px" }}>
@@ -866,7 +883,11 @@ export default function AdminPage() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
                   <span style={applicantBadgeStyle}>
-                    {isContactMethod ? `📞 ${contactApplyText(p)}` : `👥 ${p.applicantCount} متقدم`}
+                    {isWhatsAppWithCount
+                      ? `📞 ${whatsappClicks} شخص تواصل عبر واتساب`
+                      : isContactMethod
+                      ? `📞 ${contactApplyText(p)}`
+                      : `👥 ${p.applicantCount} متقدم`}
                   </span>
                   {views !== null && (
                     <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>
@@ -891,7 +912,11 @@ export default function AdminPage() {
               >
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button onClick={() => handleToggleApplicants(p.id, p.employerId)} style={primaryActionStyle}>
-                    {isContactMethod ? "👥 عرض المتقدمين" : `👥 عرض المتقدمين (${p.applicantCount})`}
+                    {isWhatsAppWithCount
+                      ? `📞 عرض التفاصيل (${whatsappClicks})`
+                      : isContactMethod
+                      ? "👥 عرض المتقدمين"
+                      : `👥 عرض المتقدمين (${p.applicantCount})`}
                   </button>
                   {p.applicantCount > 0 && (
                     <button onClick={() => exportApplicantsExcel(p.id, p.title, p.employerId, p.screeningQuestions || [])} style={ghostActionStyle}>⬇ تحميل Excel</button>
@@ -915,7 +940,9 @@ export default function AdminPage() {
               <div style={{ padding: "16px 20px 18px", borderTop: "1px solid #14213D14", display: "flex", flexDirection: "column", gap: 12 }}>
                 {applicants.length === 0 ? (
                   <div style={{ padding: 12, color: "#4A5568" }}>
-                    {isContactMethod
+                    {isWhatsAppWithCount
+                      ? `${whatsappClicks} شخص تواصل عبر واتساب مع الشركة على الوظيفة دي مباشرة، مش من خلال الموقع.`
+                      : isContactMethod
                       ? `التقديم على الوظيفة دي بيتم عبر ${CONTACT_METHOD_LABELS[p.contactMethod || ""] || "التواصل المباشر"} مباشرة، مش من خلال الموقع.`
                       : "لسه محدش قدّم على الإعلان ده."}
                   </div>

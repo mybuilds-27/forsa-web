@@ -7,6 +7,7 @@ import ShareButton from "@/components/ShareButton";
 import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
+import WhatsAppContactLink from "@/components/WhatsAppContactLink";
 import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify } from "@/lib/constants";
 import { toWhatsAppNumber } from "@/lib/phoneAuth";
 import { featuredPillStyle, JOB_TYPE_LABELS, salaryText, sanitizeJobDescription, tagStyle } from "@/lib/jobCardStyles";
@@ -347,27 +348,14 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
         {job.receiveMethod === "contact" && job.contactMethod === "whatsapp" && job.contactValue && whatsappNumber ? (
-          <a
+          <WhatsAppContactLink
+            jobId={job.id}
             href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
               `مرحبًا، شفت إعلان وظيفة ${job.title} على موقع الشغل وحابب أتقدملها`
             )}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: "#25D366",
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: 14.5,
-              padding: "10px 18px",
-              borderRadius: 8,
-              textDecoration: "none",
-            }}
           >
             <WhatsAppIcon size={18} /> تواصل عبر واتساب
-          </a>
+          </WhatsAppContactLink>
         ) : job.receiveMethod === "contact" && job.contactValue ? (
           <p style={{ color: "#4A5568", margin: 0 }}>
             <strong>التواصل ({({ email: "إيميل", whatsapp: "واتساب", phone: "تليفون" } as Record<string,string>)[job.contactMethod] || job.contactMethod}):</strong> {job.contactValue}
