@@ -27,6 +27,7 @@ import { shouldShowProfileNudge } from "@/lib/profileNudge";
 import JobCard, { JobPost, salaryTeaser } from "./JobCard";
 import { tagStyle, ApplicationStatus, applicationStatusOf } from "@/lib/jobCardStyles";
 import ScreeningQuestionsModal from "@/components/ScreeningQuestionsModal";
+import SpecializationMismatchModal from "@/components/SpecializationMismatchModal";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import ProfileCompletionBar from "@/components/ProfileCompletionBar";
 import JobListItem from "@/app/jobs/JobListItem";
@@ -152,6 +153,9 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
   const [applying, setApplying] = useState(false);
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
   const [nudgePercent, setNudgePercent] = useState<number | null>(null);
+  // بيتحط بس لو الباحث عنده تخصص محفوظ ومختلف عن تخصص الوظيفة (selectedJob) — شوف handleApplyClick.
+  const [specializationMismatch, setSpecializationMismatch] = useState<{ seekerSpec: string } | null>(null);
+  const [checkingSpecialization, setCheckingSpecialization] = useState(false);
 
   function closeDetailsModal() {
     setSelectedJob(null);
@@ -296,13 +300,38 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
     setApplying(false);
   }
 
-  function handleApplyClick(job: JobPost) {
-    setSelectedJob(job);
+  function proceedWithApply(job: JobPost) {
     if (job.screeningQuestions && job.screeningQuestions.length > 0) {
       setShowQuestionsModal(true);
     } else {
       handleApply(job);
     }
+  }
+
+  // فحص تطابق التخصص قبل التقديم — نفس منطق ApplyButton.tsx بالظبط، بقراءة إضافية منفصلة
+  // لـjob_seekers/{uid} هنا (handleApply بتقراها تاني لبناء seekerSnapshot)، عمدًا عشان
+  // مانلمسش handleApply نفسها اللي بتكتب فعليًا على Firestore.
+  async function handleApplyClick(job: JobPost) {
+    setSelectedJob(job);
+    const user = auth.currentUser;
+    if (!user) return;
+    if (job.specialization) {
+      setCheckingSpecialization(true);
+      try {
+        const seekerDoc = await getDoc(doc(db, "job_seekers", user.uid));
+        const seekerSpec = seekerDoc.exists() ? seekerDoc.data().specialization : "";
+        if (seekerSpec && seekerSpec !== job.specialization) {
+          setCheckingSpecialization(false);
+          setSpecializationMismatch({ seekerSpec });
+          return;
+        }
+      } catch (err) {
+        console.error("[JobsTab] فشل فحص تطابق التخصص", err);
+        // فشل الفحص نفسه ميوقفش التقديم — نكمل عادي زي لو الباحث معندوش تخصص محفوظ خالص
+      }
+      setCheckingSpecialization(false);
+    }
+    proceedWithApply(job);
   }
 
   async function handleCancel(job: JobPost) {
@@ -435,7 +464,7 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
                 onToggleSave={() => handleToggleSave(p.id)}
                 onClick={() => { setSelectedJob(p); setShowDetailsModal(true); }}
                 onApply={() => handleApplyClick(p)}
-                applying={applying}
+                applying={applying || checkingSpecialization}
               />
             ))}
           </div>
@@ -531,7 +560,7 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
               ) : (
                 <button
                   onClick={() => handleApplyClick(selectedJob)}
-                  disabled={applying}
+                  disabled={applying || checkingSpecialization}
                   style={{ padding: "10px 20px", background: "#14213D", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}
                 >
                   📩 قدم الآن
@@ -561,6 +590,19 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
           submitting={applying}
           onCancel={() => setShowQuestionsModal(false)}
           onSubmit={(answers) => handleApply(selectedJob, answers)}
+        />
+      )}
+
+      {specializationMismatch && selectedJob?.specialization && (
+        <SpecializationMismatchModal
+          jobSpecialization={selectedJob.specialization}
+          seekerSpecialization={specializationMismatch.seekerSpec}
+          submitting={applying}
+          onCancel={() => setSpecializationMismatch(null)}
+          onConfirm={() => {
+            setSpecializationMismatch(null);
+            proceedWithApply(selectedJob);
+          }}
         />
       )}
 

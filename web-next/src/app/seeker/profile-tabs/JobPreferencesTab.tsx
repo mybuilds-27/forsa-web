@@ -27,6 +27,7 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     setJobTitle(initialData.jobTitle || "");
@@ -51,10 +52,20 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
     const user = auth.currentUser;
     if (!user) return;
 
-    setSaving(true);
+    setError("");
     setSaved(false);
 
     const finalSpecialization = specSelect === "other" ? specOther.trim() : specSelect;
+
+    // إجباري من دلوقتي فصاعدًا — باحثين قدام عندهم تخصص محفوظ بالفعل مش هيتأثروا (الشرط
+    // بيعدي عادي)، وباحثين قدام من غير تخصص هيتمنعوا هنا بس أول مرة يحاولوا يحفظوا أي تعديل،
+    // من غير أي تأثير على تصفحهم أو تقديمهم على وظايف قبل كده.
+    if (!finalSpecialization) {
+      setError("التخصص إجباري — اختاره من القايمة");
+      return;
+    }
+
+    setSaving(true);
 
     const data: any = {
       jobTitle,
@@ -88,7 +99,7 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
           <input type="text" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} required placeholder="مثال: محاسب، مندوب مبيعات" style={inputStyle} />
         </div>
         <div>
-          <label style={labelStyle}>التخصص (اختياري)</label>
+          <label style={labelStyle}>التخصص</label>
           <select value={specSelect} onChange={(e) => setSpecSelect(e.target.value)} style={inputStyle}>
             <option value="">اختر التخصص</option>
             {SPECIALIZATION_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -153,6 +164,7 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
         </div>
       </div>
 
+      {error && <div style={{ color: "#B03A14", marginBottom: 10, fontSize: 13.5 }}>{error}</div>}
       <button type="submit" disabled={saving} style={saveBtnStyle}>
         {saving ? "جاري الحفظ..." : "حفظ البيانات الوظيفية"}
       </button>
