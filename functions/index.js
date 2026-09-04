@@ -879,6 +879,10 @@ async function createNotificationsBatch(notifications, logPrefix) {
 // النداء ده. بيمسح أي توكن فشل الإرسال بيه بسبب إلغاء تسجيله (تطبيق اتشال، صلاحية اتلغت)
 // عشان الـsubcollection متتجمعش توكنات ميتة.
 async function sendPushToUser({ userId, title, body, link }) {
+  // logger.info مؤقتة لتشخيص المرحلة الأولى (لسه مش وصل push حقيقي رغم نجاح الإشعار
+  // الداخلي) — تتشال بعد ما نتأكد السلسلة شغالة من طرف لطرف.
+  logger.info(`sendPushToUser: اتنادت لليوزر ${userId}`);
+
   const db = getFirestore();
   let tokensSnap;
   try {
@@ -887,6 +891,7 @@ async function sendPushToUser({ userId, title, body, link }) {
     logger.error(`sendPushToUser: فشل جلب توكنات اليوزر ${userId}`, err);
     return;
   }
+  logger.info(`sendPushToUser: لقيت ${tokensSnap.size} توكن لليوزر ${userId}`);
   if (tokensSnap.empty) return;
 
   const tokens = tokensSnap.docs.map((d) => d.id);
@@ -900,6 +905,11 @@ async function sendPushToUser({ userId, title, body, link }) {
         notification: { icon: "/icon-192.png" },
       },
     });
+
+    logger.info(
+      `sendPushToUser: نتيجة الإرسال لليوزر ${userId} — نجح ${response.successCount}, فشل ${response.failureCount}`,
+      response.responses.map((r) => r.error?.code || "ok")
+    );
 
     const staleTokenRefs = [];
     response.responses.forEach((r, i) => {
@@ -993,38 +1003,45 @@ exports.onApplicationStatusChanged = onDocumentUpdated(
     });
 
     // أول حدث بيتغطى بـPush Notifications (FCM) — مرحلة أولى للاختبار قبل ما نوسّع للأحداث
-    // التلاتة الباقيين. best-effort زي باقي القنوات هنا، مش لازم await قبل الإيميل تحت.
-    await sendPushToUser({
-      userId: after.seekerId,
-      title: "تحديث على تقديمك",
-      body: `تقديمك على وظيفة "${jobTitle}" بقى ${statusLabel}`,
-      link: `/jobs/${after.jobPostId}`,
-    });
+    // التلاتة الباقيين. sendPushToUser وإرسال الإيميل مستقلين تمامًا عن بعض (مفيش نتيجة
+    // واحدة محتاجة التانية)، فبنشغّلهم بالتوازي (Promise.all) بدل التسلسل — الوقت الكلي
+    // بقى أطول عملية من الاتنين بدل مجموعهم. لازم يفضلوا الاتنين awaited (مش fire-and-forget
+    // حقيقي) عشان Cloud Functions ممكن "تجمّد" الـinstance بمجرد ما الـfunction ترجع، حتى
+    // لو فيه شغل async لسه ماخلصش.
+    await Promise.all([
+      sendPushToUser({
+        userId: after.seekerId,
+        title: "تحديث على تقديمك",
+        body: `تقديمك على وظيفة "${jobTitle}" بقى ${statusLabel}`,
+        link: `/jobs/${after.jobPostId}`,
+      }),
+      (async () => {
+        try {
+          const seekerUserSnap = await db.collection("users").doc(after.seekerId).get();
+          const seekerEmail = seekerUserSnap.exists ? seekerUserSnap.data().email : null;
 
-    try {
-      const seekerUserSnap = await db.collection("users").doc(after.seekerId).get();
-      const seekerEmail = seekerUserSnap.exists ? seekerUserSnap.data().email : null;
+          if (!seekerEmail) {
+            logger.error(
+              `onApplicationStatusChanged: مفيش بريد إلكتروني مسجّل للباحث ${after.seekerId} — تم تجاهل الإيميل (الإشعار الداخلي اتعمل)`
+            );
+            return;
+          }
 
-      if (!seekerEmail) {
-        logger.error(
-          `onApplicationStatusChanged: مفيش بريد إلكتروني مسجّل للباحث ${after.seekerId} — تم تجاهل الإيميل (الإشعار الداخلي اتعمل)`
-        );
-        return;
-      }
+          const jobLink = `https://www.elshoghl.com/jobs/${after.jobPostId}`;
+          const emailFields = { jobTitle, companyName, status: afterStatus, jobLink };
 
-      const jobLink = `https://www.elshoghl.com/jobs/${after.jobPostId}`;
-      const emailFields = { jobTitle, companyName, status: afterStatus, jobLink };
-
-      await sendViaResend({
-        to: seekerEmail,
-        subject: `تحديث على تقديمك لوظيفة ${jobTitle}: ${statusLabel}`,
-        html: buildStatusUpdateEmailHtml(emailFields),
-        text: buildStatusUpdateEmailText(emailFields),
-        logPrefix: "onApplicationStatusChanged",
-      });
-    } catch (err) {
-      logger.error("onApplicationStatusChanged: حصلت مشكلة غير متوقعة", err);
-    }
+          await sendViaResend({
+            to: seekerEmail,
+            subject: `تحديث على تقديمك لوظيفة ${jobTitle}: ${statusLabel}`,
+            html: buildStatusUpdateEmailHtml(emailFields),
+            text: buildStatusUpdateEmailText(emailFields),
+            logPrefix: "onApplicationStatusChanged",
+          });
+        } catch (err) {
+          logger.error("onApplicationStatusChanged: حصلت مشكلة غير متوقعة", err);
+        }
+      })(),
+    ]);
   }
 );
 

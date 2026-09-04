@@ -49,22 +49,32 @@ export default function EnableNotificationsButton() {
 
   return (
     <div style={{ position: "relative" }}>
+      {/* نص ظاهر دايمًا بدل الاعتماد على title (tooltip) بس — الـtooltip مبيبانش خالص على
+          الموبايل باللمس، وده أهم استخدام متوقع للزرار ده. نفس أسلوب باقي أزرار الـNavbar
+          (أيقونة + نص، زي "🏠 لوحة الشركة") عشان يبان واضح إنه مختلف عن جرس الإشعارات. */}
       <button
         type="button"
         onClick={handleClick}
         disabled={loading}
         style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
           background: "none",
-          border: "none",
+          border: `1px solid ${INK_COLOR}22`,
+          borderRadius: 6,
+          padding: "6px 10px",
           cursor: loading ? "wait" : "pointer",
-          fontSize: 18,
-          padding: 6,
-          lineHeight: 1,
+          fontSize: 13,
+          fontWeight: 600,
+          color: INK_COLOR,
+          fontFamily: "inherit",
+          whiteSpace: "nowrap",
         }}
         title="فعّل التنبيهات"
         aria-label="فعّل التنبيهات"
       >
-        🔔
+        🔔 فعّل التنبيهات
       </button>
       {showIOSHint && (
         <div
