@@ -5,8 +5,9 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { enablePushNotifications, isIOS, isPushSupported, isStandalone } from "@/lib/pushNotifications";
 
-// نفس COLORS.ink المستخدمة في مكونات تانية بالموقع (RegisterForm.tsx وغيرها).
+// نفس COLORS.ink وCOLORS.stamp المستخدمين في مكونات تانية بالموقع (RegisterForm.tsx وغيرها).
 const INK_COLOR = "#14213D";
+const ERROR_COLOR = "#B03A14";
 
 // بيظهر جنب NotificationBell (Navbar.tsx) بس لمستخدم مسجّل دخول، وبس لو الإذن لسه معندهوش
 // قرار ("default" — مش اتوافق عليه ولا اترفض). بيختفي تمامًا لو المستخدم رفض قبل كده أو
@@ -20,6 +21,9 @@ export default function EnableNotificationsButton() {
   );
   const [loading, setLoading] = useState(false);
   const [showIOSHint, setShowIOSHint] = useState(false);
+  // مؤقتة للتشخيص — enablePushNotifications كانت بترجع null بصمت لأي فشل فني (رفض
+  // الإذن نفسه حالة تانية خالص، مش خطأ) من غير أي رد فعل ظاهر للمستخدم غير console.error.
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => setUid(user ? user.uid : null));
@@ -30,9 +34,10 @@ export default function EnableNotificationsButton() {
 
   // على آيفون مش مثبّت، الـAPIs دي أصلًا مش موثوقة نعتمد عليها قبل التثبيت — بنعرض الزرار
   // بغض النظر عن isPushSupported/permission، وبدل ما نحاول نطلب إذن هيفشل صامت، بنوري
-  // تلميح يوضّح شرط التثبيت الأول.
+  // تلميح يوضّح شرط التثبيت الأول. لو فيه فشل فني ظاهر (errorMsg)، الزرار يفضل ظاهر برضه
+  // (حتى لو الإذن نفسه اتوافق عليه فعلًا) عشان المستخدم يشوف الرسالة ويقدر يعيد المحاولة.
   const iosNotInstalled = isIOS() && !isStandalone();
-  if (!iosNotInstalled && (!isPushSupported() || permission !== "default")) {
+  if (!iosNotInstalled && !errorMsg && (!isPushSupported() || permission !== "default")) {
     return null;
   }
 
@@ -42,7 +47,11 @@ export default function EnableNotificationsButton() {
       return;
     }
     setLoading(true);
+    setErrorMsg(null);
     const result = await enablePushNotifications(uid!);
+    if (result === null) {
+      setErrorMsg("حصلت مشكلة أثناء تفعيل التنبيهات — افتح Console (F12) وشوف تفاصيل الخطأ، أو جرب تاني");
+    }
     setPermission(result);
     setLoading(false);
   }
@@ -76,6 +85,28 @@ export default function EnableNotificationsButton() {
       >
         🔔 فعّل التنبيهات
       </button>
+      {errorMsg && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            insetInlineEnd: 0,
+            marginTop: 6,
+            width: 230,
+            background: "#fff",
+            border: `1px solid ${ERROR_COLOR}66`,
+            borderRadius: 10,
+            padding: 10,
+            fontSize: 12,
+            color: ERROR_COLOR,
+            lineHeight: 1.7,
+            boxShadow: "0 4px 14px rgba(0,0,0,0.12)",
+            zIndex: 50,
+          }}
+        >
+          {errorMsg}
+        </div>
+      )}
       {showIOSHint && (
         <div
           style={{
