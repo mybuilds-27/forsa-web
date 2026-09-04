@@ -747,56 +747,30 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
             للتلاتة)، بتبان بس لو لسه مفيش طريقة مختارة ومفيش OTP جاري. */}
         {showingChooser && (
           <>
-            {isWebView && (
-              // بانر موحّد بيظهر بمجرد كشف WebView (قبل أي محاولة تسجيل فعلية بأي طريقة) —
-              // بيغطي التليفون وجوجل مع بعض (الاتنين بيعتمدوا على reCAPTCHA/OAuth اللي بتفشل
-              // جوه WebView زي ما اتأكدنا فعليًا)، وبيوصي بالإيميل كحل بديل شغال فعلًا جوه نفس
-              // الصفحة بدل ما يقول بس "جرب حاجة تانية" من غير حل واضح.
-              <div
-                style={{
-                  background: "rgba(232,163,61,0.15)",
-                  border: "1px solid #E8A33D66",
-                  borderRadius: 10,
-                  padding: "14px 16px",
-                  fontSize: 13.5,
-                  color: COLORS.ink,
-                  lineHeight: 1.8,
-                }}
-              >
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                  ⚠️ إنت فاتح الرابط من جوه تطبيق (فيسبوك/إنستجرام)
-                </div>
-                <div style={{ marginBottom: 10 }}>
-                  التسجيل بالتليفون وجوجل ممكن ميشتغلوش صح من هنا. أسهل حل: سجّل بالإيميل هنا في
-                  نفس الصفحة (شغال عادي من غير مشاكل). أو لو حابب تستخدم التليفون أو جوجل، افتح
-                  الرابط في متصفحك العادي (كروم أو سفاري): دوس على أيقونة الثلات نقط{" "}
-                  <strong>⋮</strong> فوق يمين الشاشة واختار <strong>"افتح في المتصفح"</strong>.
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  style={{
-                    background: "#fff",
-                    border: "1px solid #E8A33D",
-                    borderRadius: 6,
-                    padding: "6px 12px",
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    color: "#8A570D",
-                    cursor: "pointer",
-                  }}
-                >
-                  {linkCopied ? "✓ اتنسخ الرابط" : "📋 انسخ رابط الصفحة"}
-                </button>
-              </div>
-            )}
             {isWebView ? (
-              // الإيميل قدّام لما نكون جوه WebView (ومتميّز بصريًا) بما إنه الحل الموصى بيه —
-              // التليفون وجوجل فاضلين تحته بنفس ترتيبهم النسبي الأصلي.
+              // جوه WebView، الإيميل هو الخيار الطبيعي المتوقع (مش هيتأثر بمشاكل reCAPTCHA/
+              // OAuth) فبيظهر لوحده كزرار رئيسي — التليفون وجوجل لسه موجودين (لو حد فاتح من
+              // متصفح حقيقي بالغلط وعايز يستخدمهم فعلًا) لكن كلينكات نصية صغيرة تحته بدل
+              // زراير كاملة، والتحذير بقى سطر واحد مصغّر بدل بانر بارز فوق كل حاجة.
               <>
                 <AuthOptionButton onClick={openEmailAuth} icon="✉️" label="التسجيل بالإيميل" highlighted />
-                <AuthOptionButton onClick={selectPhoneMethod} icon="📱" label="التسجيل بالتليفون" />
-                <AuthOptionButton onClick={handleGoogleSignIn} disabled={googleLoading} icon={<GoogleIcon />} label="المتابعة بجوجل" />
+                <div style={{ textAlign: "center", fontSize: 12.5, color: COLORS.inkSoft }}>
+                  أو جرب:{" "}
+                  <button type="button" onClick={selectPhoneMethod} style={smallLinkStyle}>
+                    التسجيل بالتليفون
+                  </button>
+                  {" · "}
+                  <button type="button" onClick={handleGoogleSignIn} disabled={googleLoading} style={smallLinkStyle}>
+                    المتابعة بجوجل
+                  </button>
+                </div>
+                <div style={{ textAlign: "center", fontSize: 11.5, color: "#8A570D", marginTop: -4 }}>
+                  ⚠️ التليفون وجوجل ممكن ميشتغلوش من جوه التطبيق ده — لو حابب تستخدمهم، افتح
+                  الرابط في متصفح حقيقي (⋮ ← "افتح في المتصفح").{" "}
+                  <button type="button" onClick={handleCopyLink} style={{ ...smallLinkStyle, fontSize: 11.5, color: "#8A570D" }}>
+                    {linkCopied ? "✓ اتنسخ الرابط" : "نسخ الرابط"}
+                  </button>
+                </div>
               </>
             ) : (
               <>
