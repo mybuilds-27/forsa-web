@@ -23,6 +23,10 @@ const tajawal = Tajawal({
 
 const SITE_URL = "https://www.elshoghl.com";
 
+// نفس قيمة COLORS.ink المستخدمة في مكونات الموقع — بنكررها هنا كنص لأن layout.tsx مالوش
+// import مشترك مع مكونات زي RegisterForm.tsx. نفس القيمة كمان في src/app/manifest.ts.
+const INK_COLOR = "#14213D";
+
 const HOME_TITLE = "الشغل - موقع وظايف مصر المجاني | دوّر على شغل بسهولة";
 const HOME_DESCRIPTION =
   "موقع الشغل بيساعدك تلاقي وظيفتك المناسبة أو توظف كوادر لشركتك مجانًا بالكامل وبدون أي رسوم. آلاف وظايف الشغل في كل محافظات مصر - سجّل دلوقتي وابدأ.";
@@ -46,11 +50,26 @@ export const metadata: Metadata = {
     title: HOME_TITLE,
     description: HOME_DESCRIPTION,
   },
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+  // بيولّد meta tags الـPWA الخاصة بـiOS تلقائيًا (apple-mobile-web-app-capable وغيرها) —
+  // Safari محتاجها منفصلة عن manifest.ts العادي.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "الشغل",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: INK_COLOR,
 };
 
 export default function RootLayout({
