@@ -7,6 +7,7 @@ const logger = require("firebase-functions/logger");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
+const { getMessaging } = require("firebase-admin/messaging");
 
 // نفس القايمة المستخدمة في web-next (Navbar.tsx وadmin/page.tsx وpage.tsx) لتحديد حسابات
 // الأدمن — هنا بنستخدمها لتحويل الإيميل لـuid عشان نبعت إشعار داخلي (notifications collection
@@ -870,6 +871,53 @@ async function createNotificationsBatch(notifications, logPrefix) {
   }
 }
 
+// مرحلة أولى من Push Notifications (FCM) — بتتنادى بشكل صريح جوه الأحداث اللي قررنا نختبرها
+// بيها الأول (onApplicationStatusChanged بس دلوقتي)، مش من جوه createNotification/
+// createNotificationsBatch نفسهم — عشان الاتنين دول بيتستخدموا كمان من أحداث تانية (زي
+// onNewInvitation وonApplicationCreated) لسه مش عايزين نغطيها في المرحلة دي. best-effort
+// زي إرسال الإيميل بالظبط: فشله ميوقفش ولا يأثر على الإشعار الداخلي اللي أصلًا اتكتب قبل
+// النداء ده. بيمسح أي توكن فشل الإرسال بيه بسبب إلغاء تسجيله (تطبيق اتشال، صلاحية اتلغت)
+// عشان الـsubcollection متتجمعش توكنات ميتة.
+async function sendPushToUser({ userId, title, body, link }) {
+  const db = getFirestore();
+  let tokensSnap;
+  try {
+    tokensSnap = await db.collection("users").doc(userId).collection("fcmTokens").get();
+  } catch (err) {
+    logger.error(`sendPushToUser: فشل جلب توكنات اليوزر ${userId}`, err);
+    return;
+  }
+  if (tokensSnap.empty) return;
+
+  const tokens = tokensSnap.docs.map((d) => d.id);
+
+  try {
+    const response = await getMessaging().sendEachForMulticast({
+      tokens,
+      notification: { title, body },
+      webpush: {
+        fcmOptions: { link: `https://www.elshoghl.com${link}` },
+        notification: { icon: "/icon-192.png" },
+      },
+    });
+
+    const staleTokenRefs = [];
+    response.responses.forEach((r, i) => {
+      const code = r.error?.code;
+      if (!r.success && (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-argument")) {
+        staleTokenRefs.push(tokensSnap.docs[i].ref);
+      }
+    });
+    if (staleTokenRefs.length > 0) {
+      const batch = db.batch();
+      staleTokenRefs.forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
+  } catch (err) {
+    logger.error(`sendPushToUser: فشل إرسال push لليوزر ${userId}`, err);
+  }
+}
+
 exports.onNewInvitation = onDocumentCreated(
   { document: "invitations/{invitationId}", secrets: [RESEND_API_KEY] },
   async (event) => {
@@ -941,6 +989,15 @@ exports.onApplicationStatusChanged = onDocumentUpdated(
       userId: after.seekerId,
       type: "status_changed",
       message: `تقديمك على وظيفة "${jobTitle}" بقى ${statusLabel}`,
+      link: `/jobs/${after.jobPostId}`,
+    });
+
+    // أول حدث بيتغطى بـPush Notifications (FCM) — مرحلة أولى للاختبار قبل ما نوسّع للأحداث
+    // التلاتة الباقيين. best-effort زي باقي القنوات هنا، مش لازم await قبل الإيميل تحت.
+    await sendPushToUser({
+      userId: after.seekerId,
+      title: "تحديث على تقديمك",
+      body: `تقديمك على وظيفة "${jobTitle}" بقى ${statusLabel}`,
       link: `/jobs/${after.jobPostId}`,
     });
 
