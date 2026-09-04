@@ -77,9 +77,6 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
 
   const [isWebView, setIsWebView] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
-  // البانر الكبير مفروض يظهر بس لو المستخدم فعليًا مختار أو بيحاول يستخدم "المتابعة بجوجل"
-  // (المشكلة الحقيقية خاصة بيها بس)، مش لأي حد فاتح الرابط من WebView بغض النظر عن اختياره.
-  const [googleAttempted, setGoogleAttempted] = useState(false);
   // true بس أثناء معالجة عودة فعلية من signInWithRedirect بتاع جوجل (getRedirectResult رجعت
   // نتيجة حقيقية) — لغاية دلوقتي الصفحة كانت بترجع تعرض الفورم عادي وتفاعلي بالكامل من غير
   // أي مؤشر إن في حاجة بتحصل في الخلفية (قراءة/كتابة Firestore في routeAfterAuth)، وده كان
@@ -216,7 +213,6 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
 
   async function handleGoogleSignIn() {
     setError("");
-    setGoogleAttempted(true);
     setGoogleLoading(true);
     authInProgressRef.current = true;
     (window as any).fbq?.("trackCustom", "SelectSignupMethod", { method: "google" });
@@ -435,6 +431,11 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     }
   }
 
+  // مفيش كود خطأ فايربيز موثوق نميّز بيه "فشل بسبب reCAPTCHA جوه WebView" تحديدًا — فشل
+  // reCAPTCHA جوه WebView بيطلع بأكواد عامة أو غير متوقعة (مش كود مخصص). فبدل ما نحاول
+  // نستنتج السبب من نوع الخطأ نفسه، بنستخدم isWebView اللي أصلاً عندنا (كشف مستقل وموثوق
+  // من الـUser-Agent) — أي خطأ من غير رسالة محددة واضحة (رقم غلط، محاولات كتير، إلخ) وإحنا
+  // جوه WebView الأرجح إنه بسبب reCAPTCHA، فبنوجّه المستخدم لفتح متصفح حقيقي بدل رسالة عامة.
   function phoneAuthErrorMessage(err: any): string {
     const map: Record<string, string> = {
       "auth/invalid-phone-number": "رقم التليفون مش صحيح",
@@ -443,9 +444,12 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
       "auth/code-expired": "الكود ده انتهت صلاحيته — اطلب كود جديد",
       "auth/quota-exceeded": "الخدمة مش متاحة دلوقتي — جرب تاني لاحقًا",
       "auth/operation-not-allowed": "تسجيل الدخول برقم التليفون لسه مش مفعّل على الموقع",
-      "auth/network-request-failed": "تأكد من اتصال الإنترنت وحاول تاني",
     };
-    return map[err?.code] || "حصلت مشكلة، حاول تاني";
+    if (map[err?.code]) return map[err.code];
+    if (isWebView) {
+      return "التسجيل بالتليفون مش شغال من جوه المتصفح ده — افتح الصفحة في متصفح حقيقي (كروم أو سفاري) وجرب تاني";
+    }
+    return err?.code === "auth/network-request-failed" ? "تأكد من اتصال الإنترنت وحاول تاني" : "حصلت مشكلة، حاول تاني";
   }
 
   // بينضّف أي verifier اتعمله render قبل كده على العنصر ده (لو موجود) — لازم تتنادى قبل أي
@@ -743,19 +747,17 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
             للتلاتة)، بتبان بس لو لسه مفيش طريقة مختارة ومفيش OTP جاري. */}
         {showingChooser && (
           <>
-            <AuthOptionButton onClick={selectPhoneMethod} icon="📱" label="التسجيل بالتليفون" />
-            <AuthOptionButton onClick={handleGoogleSignIn} disabled={googleLoading} icon={<GoogleIcon />} label="المتابعة بجوجل" />
-            <AuthOptionButton onClick={openEmailAuth} icon="✉️" label="التسجيل بالإيميل" />
-            {isWebView && googleAttempted && (
-              // البانر الكبير الكامل — بيظهر بس بعد ما المستخدم فعليًا دوس "المتابعة بجوجل"
-              // (المشكلة الحقيقية خاصة بيها بس، مش بتليفون أو إيميل).
+            {isWebView && (
+              // بانر موحّد بيظهر بمجرد كشف WebView (قبل أي محاولة تسجيل فعلية بأي طريقة) —
+              // بيغطي التليفون وجوجل مع بعض (الاتنين بيعتمدوا على reCAPTCHA/OAuth اللي بتفشل
+              // جوه WebView زي ما اتأكدنا فعليًا)، وبيوصي بالإيميل كحل بديل شغال فعلًا جوه نفس
+              // الصفحة بدل ما يقول بس "جرب حاجة تانية" من غير حل واضح.
               <div
                 style={{
                   background: "rgba(232,163,61,0.15)",
                   border: "1px solid #E8A33D66",
                   borderRadius: 10,
                   padding: "14px 16px",
-                  marginTop: -2,
                   fontSize: 13.5,
                   color: COLORS.ink,
                   lineHeight: 1.8,
@@ -765,8 +767,10 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
                   ⚠️ إنت فاتح الرابط من جوه تطبيق (فيسبوك/إنستجرام)
                 </div>
                 <div style={{ marginBottom: 10 }}>
-                  عشان تسجّل بسهولة وأمان، افتح الرابط في متصفحك العادي (كروم أو سفاري): دوس على
-                  أيقونة الثلات نقط <strong>⋮</strong> فوق يمين الشاشة واختار <strong>"افتح في المتصفح"</strong>.
+                  التسجيل بالتليفون وجوجل ممكن ميشتغلوش صح من هنا. أسهل حل: سجّل بالإيميل هنا في
+                  نفس الصفحة (شغال عادي من غير مشاكل). أو لو حابب تستخدم التليفون أو جوجل، افتح
+                  الرابط في متصفحك العادي (كروم أو سفاري): دوس على أيقونة الثلات نقط{" "}
+                  <strong>⋮</strong> فوق يمين الشاشة واختار <strong>"افتح في المتصفح"</strong>.
                 </div>
                 <button
                   type="button"
@@ -786,12 +790,20 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
                 </button>
               </div>
             )}
-            {isWebView && !googleAttempted && (
-              // سطر أصغر وأقل إلحاحًا — ظاهر افتراضيًا (قبل أي محاولة فعلية لجوجل)، لطرق
-              // التسجيل التانية (تليفون/إيميل) اللي مش متأثرة بمشكلة WebView خالص.
-              <div style={{ fontSize: 12, color: "#8A570D", marginTop: -4 }}>
-                ⚠️ جوجل ممكن ميشتغلش من التطبيق ده، جرب تليفون أو إيميل بدلًا
-              </div>
+            {isWebView ? (
+              // الإيميل قدّام لما نكون جوه WebView (ومتميّز بصريًا) بما إنه الحل الموصى بيه —
+              // التليفون وجوجل فاضلين تحته بنفس ترتيبهم النسبي الأصلي.
+              <>
+                <AuthOptionButton onClick={openEmailAuth} icon="✉️" label="التسجيل بالإيميل" highlighted />
+                <AuthOptionButton onClick={selectPhoneMethod} icon="📱" label="التسجيل بالتليفون" />
+                <AuthOptionButton onClick={handleGoogleSignIn} disabled={googleLoading} icon={<GoogleIcon />} label="المتابعة بجوجل" />
+              </>
+            ) : (
+              <>
+                <AuthOptionButton onClick={selectPhoneMethod} icon="📱" label="التسجيل بالتليفون" />
+                <AuthOptionButton onClick={handleGoogleSignIn} disabled={googleLoading} icon={<GoogleIcon />} label="المتابعة بجوجل" />
+                <AuthOptionButton onClick={openEmailAuth} icon="✉️" label="التسجيل بالإيميل" />
+              </>
             )}
           </>
         )}
@@ -994,11 +1006,15 @@ function AuthOptionButton({
   disabled,
   icon,
   label,
+  highlighted,
 }: {
   onClick: () => void;
   disabled?: boolean;
   icon: React.ReactNode;
   label: string;
+  // بيميّز الزرار بصريًا كخيار مُوصى بيه (زي الإيميل جوه WebView) بإطار وخلفية بنفس عائلة
+  // ألوان تحذير الـWebView (عنبري/أصفر) بدل الإطار الرمادي العادي.
+  highlighted?: boolean;
 }) {
   return (
     <button
@@ -1011,8 +1027,8 @@ function AuthOptionButton({
         alignItems: "center",
         gap: 12,
         padding: "14px 18px",
-        background: "#fff",
-        border: `1.5px solid ${COLORS.ink}33`,
+        background: highlighted ? "rgba(232,163,61,0.12)" : "#fff",
+        border: highlighted ? "1.5px solid #E8A33D" : `1.5px solid ${COLORS.ink}33`,
         borderRadius: 10,
         fontSize: 15,
         fontWeight: 700,
