@@ -86,6 +86,8 @@ function SeekerPageInner() {
             completionPercent={completionPercent}
             specialization={profileData.specialization}
             keywords={profileData.keywords}
+            jobLevel={profileData.jobLevel}
+            governorate={profileData.governorate}
           />
         )}
         {activeTab === "saved" && <SavedJobsTab />}
