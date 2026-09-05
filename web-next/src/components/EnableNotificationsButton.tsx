@@ -51,8 +51,14 @@ export default function EnableNotificationsButton() {
     const result = await enablePushNotifications(uid!);
     if (result === null) {
       setErrorMsg("حصلت مشكلة أثناء تفعيل التنبيهات — افتح Console (F12) وشوف تفاصيل الخطأ، أو جرب تاني");
+    } else {
+      // بنسجّل الإذن الحقيقي دايمًا (حتى لو تسجيل التوكن فشل) — عشان الزرار ميفضلش ظاهر
+      // غلط بسبب فشل فني لاحق بعد ما الإذن نفسه اتوافق عليه فعليًا وبشكل نهائي.
+      setPermission(result.permission);
+      if (result.permission === "granted" && !result.tokenSaved) {
+        setErrorMsg("الإذن اتوافق عليه لكن حصلت مشكلة في تسجيل الجهاز — افتح Console (F12) وشوف تفاصيل الخطأ، أو جرب تاني");
+      }
     }
-    setPermission(result);
     setLoading(false);
   }
 
