@@ -73,6 +73,20 @@ function describeError(err: unknown): string {
   return String(err);
 }
 
+const SW_READY_TIMEOUT_MS = 10000;
+
+// navigator.serviceWorker.ready بترجع Promise ميتحلّش غير لما يبقى فيه Service Worker نشط
+// فعليًا (activated) لنفس الـscope — register() لوحدها بترجع بمجرد قبول التسجيل، مش بالضرورة
+// لما يبقى جاهز للاستخدام، وده كان بيسبب فشل getToken على أجهزة/شبكات أبطأ (خطأ حقيقي شفناه
+// على الموبايل: "Subscription failed - no active Service Worker"). بنحط مهلة قصوى (10 ثواني)
+// عشان الزرار ميفضلش "جاري التنفيذ..." للأبد لو حصل عطل نادر يمنع الـSW من الوصول لـactivated خالص.
+async function waitForActiveServiceWorker(): Promise<ServiceWorkerRegistration> {
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error("انتهت مهلة انتظار تفعيل Service Worker (10 ثواني)")), SW_READY_TIMEOUT_MS);
+  });
+  return Promise.race([navigator.serviceWorker.ready, timeout]);
+}
+
 // بيتنادى فقط كرد فعل مباشر لدوسة زرار من المستخدم (مش تلقائي أبدًا) — إذن الإشعارات
 // one-shot في المتصفح، فلازم نحافظ على الفرصة الوحيدة دي لتوقيت مقصود من المستخدم نفسه.
 // بيرجّع null بس لو محتاجناش نطلب الإذن أصلًا (isPushSupported=false) أو الطلب نفسه فشل
@@ -91,7 +105,8 @@ export async function enablePushNotifications(uid: string): Promise<EnablePushRe
   if (permission !== "granted") return { permission, tokenSaved: false };
 
   try {
-    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    const registration = await waitForActiveServiceWorker();
     const messaging = getMessaging(app);
     const token = await getToken(messaging, {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
