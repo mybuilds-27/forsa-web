@@ -35,10 +35,19 @@ export const GOVERNORATE_CITIES: Record<string, string[]> = {
   "مطروح": ["مرسى مطروح","العلمين","السلوم","سيدي براني","الحمام","النجيلة","الضبعة"]
 };
 
+// entry/mid/manager هي القيم الأصلية — لازم تفضل زي ما هي من غير أي تغيير (بيانات وظائف/
+// بروفايلات محفوظة بيها فعلًا). المفاتيح الجديدة (supervisory وما بعدها) إضافة بحتة، ترتيب
+// كتابتها هنا هو نفسه ترتيب ظهورها في أي قائمة منسدلة (Object.entries بيحافظ على ترتيب
+// الإدراج) — عشان كده متسلسلة بالترتيب المطلوب: مبتدئ ← متمرّس ← إشرافي ← مدير قسم ← مدير ←
+// مدير أول ← مدير عام.
 export const EXPERIENCE_LEVELS: Record<string, string> = {
   entry: "مبتدئ",
   mid: "متمرّس",
+  supervisory: "إشرافي / مدير فريق",
+  department_manager: "مدير قسم",
   manager: "مدير",
+  senior_manager: "مدير أول",
+  general_manager: "مدير عام",
 };
 
 export const MILITARY_STATUS_LABELS: Record<string, string> = {
