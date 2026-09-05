@@ -9,6 +9,23 @@ import { enablePushNotifications, isIOS, isPushSupported, isStandalone } from "@
 const INK_COLOR = "#14213D";
 const ERROR_COLOR = "#B03A14";
 
+// بيفسّر errorDetail الخام (من pushNotifications.ts) لرسالة مفهومة للمستخدم — لو الخطأ من
+// نوع "push service"/"registration failed" (اكتشفنا إنه غالبًا إعدادات توفير البطارية على
+// أجهزة زي شاومي/Redmi/Poco بنظام MIUI)، بنوضّح السبب والحل المقترح بدل النص التقني الخام.
+// أي نوع خطأ تاني بيفضل بنفس القالب العام القديم (النص الخام لسه مفيد كـsafety net لأي
+// سبب جديد مش اكتشفناه لسه).
+function describeTokenFailure(errorDetail?: string): string {
+  if (errorDetail && /push service|registration failed/i.test(errorDetail)) {
+    return (
+      "الإذن اتوافق عليه، لكن الجهاز رفض يسجّل التنبيهات — الغالب إن السبب إعدادات توفير " +
+      'البطارية على الجهاز (شائع في موبايلات شاومي/Redmi/Poco بنظام MIUI). جرّب: افتح إعدادات ' +
+      'الجهاز، روح لـ"التطبيقات"، اختار المتصفح اللي بتستخدمه (كروم مثلًا)، وشيل أي قيد زي ' +
+      '"توفير البطارية" أو "إيقاف النشاط لو مش مستخدم" — واختار "بدون قيود"، وبعدين جرب تاني.'
+    );
+  }
+  return `الإذن اتوافق عليه لكن حصلت مشكلة في تسجيل الجهاز${errorDetail ? `: ${errorDetail}` : ""} — جرب تاني`;
+}
+
 // بيظهر جنب NotificationBell (Navbar.tsx) بس لمستخدم مسجّل دخول، وبس لو الإذن لسه معندهوش
 // قرار ("default" — مش اتوافق عليه ولا اترفض). بيختفي تمامًا لو المستخدم رفض قبل كده أو
 // وافق بالفعل — مفيش أي إلحاح متكرر.
@@ -58,9 +75,7 @@ export default function EnableNotificationsButton() {
       if (result.permission === "granted" && !result.tokenSaved) {
         // errorDetail مؤقتة للتشخيص (مشكلة عدم تسجيل التوكن على الموبايل تحديدًا) — بتتعرض
         // مباشرة على الشاشة بدل ما نطلب فتح DevTools Console اللي مش متاحة بسهولة هناك.
-        setErrorMsg(
-          `الإذن اتوافق عليه لكن حصلت مشكلة في تسجيل الجهاز${result.errorDetail ? `: ${result.errorDetail}` : ""} — جرب تاني`
-        );
+        setErrorMsg(describeTokenFailure(result.errorDetail));
       }
     }
     setLoading(false);
