@@ -50,13 +50,17 @@ export default function EnableNotificationsButton() {
     setErrorMsg(null);
     const result = await enablePushNotifications(uid!);
     if (result === null) {
-      setErrorMsg("حصلت مشكلة أثناء تفعيل التنبيهات — افتح Console (F12) وشوف تفاصيل الخطأ، أو جرب تاني");
+      setErrorMsg("حصلت مشكلة أثناء تفعيل التنبيهات — جرب تاني");
     } else {
       // بنسجّل الإذن الحقيقي دايمًا (حتى لو تسجيل التوكن فشل) — عشان الزرار ميفضلش ظاهر
       // غلط بسبب فشل فني لاحق بعد ما الإذن نفسه اتوافق عليه فعليًا وبشكل نهائي.
       setPermission(result.permission);
       if (result.permission === "granted" && !result.tokenSaved) {
-        setErrorMsg("الإذن اتوافق عليه لكن حصلت مشكلة في تسجيل الجهاز — افتح Console (F12) وشوف تفاصيل الخطأ، أو جرب تاني");
+        // errorDetail مؤقتة للتشخيص (مشكلة عدم تسجيل التوكن على الموبايل تحديدًا) — بتتعرض
+        // مباشرة على الشاشة بدل ما نطلب فتح DevTools Console اللي مش متاحة بسهولة هناك.
+        setErrorMsg(
+          `الإذن اتوافق عليه لكن حصلت مشكلة في تسجيل الجهاز${result.errorDetail ? `: ${result.errorDetail}` : ""} — جرب تاني`
+        );
       }
     }
     setLoading(false);
@@ -98,7 +102,7 @@ export default function EnableNotificationsButton() {
             top: "100%",
             insetInlineEnd: 0,
             marginTop: 6,
-            width: 230,
+            width: 280,
             background: "#fff",
             border: `1px solid ${ERROR_COLOR}66`,
             borderRadius: 10,

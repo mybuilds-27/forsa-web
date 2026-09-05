@@ -54,7 +54,24 @@ export type EnablePushResult = {
   // false يعني الإذن اتوافق عليه لكن تسجيل الجهاز فعليًا فشل (SW أو getToken أو Firestore) —
   // حالة مختلفة عن رفض الإذن نفسه، والكومبوننت بيقرر يوري رسالة خطأ بناءً عليها لوحدها.
   tokenSaved: boolean;
+  // مؤقتة للتشخيص (زي مشكلة عدم تسجيل التوكن على الموبايل) — تفاصيل الخطأ الحقيقي عشان
+  // تتعرض على الشاشة مباشرة، بما إن مفيش DevTools Console سهلة الوصول على الموبايل.
+  // تتشال بعد ما نلاقي السبب ونصلحه.
+  errorDetail?: string;
 };
+
+// بيستخرج نص مفيد من أي خطأ — FirebaseError عندها code (زي messaging/token-subscribe-failed)،
+// DOMException عندها name (زي NotAllowedError)، وأي Error عادي عنده message بس.
+function describeError(err: unknown): string {
+  if (err && typeof err === "object") {
+    const e = err as { code?: unknown; name?: unknown; message?: unknown };
+    const codeOrName = e.code ?? e.name;
+    if (codeOrName && e.message) return `${codeOrName}: ${e.message}`;
+    if (codeOrName) return String(codeOrName);
+    if (e.message) return String(e.message);
+  }
+  return String(err);
+}
 
 // بيتنادى فقط كرد فعل مباشر لدوسة زرار من المستخدم (مش تلقائي أبدًا) — إذن الإشعارات
 // one-shot في المتصفح، فلازم نحافظ على الفرصة الوحيدة دي لتوقيت مقصود من المستخدم نفسه.
@@ -87,6 +104,6 @@ export async function enablePushNotifications(uid: string): Promise<EnablePushRe
     return { permission, tokenSaved: Boolean(token) };
   } catch (err) {
     console.error("[pushNotifications] فشل تسجيل التوكن", err);
-    return { permission, tokenSaved: false };
+    return { permission, tokenSaved: false, errorDetail: describeError(err) };
   }
 }
