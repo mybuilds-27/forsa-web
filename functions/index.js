@@ -941,38 +941,42 @@ exports.onNewInvitation = onDocumentCreated(
 
     const companyName = invitation.employerCompanyName || "صاحب عمل";
     const jobTitle = invitation.jobTitle || "وظيفة";
+    const message = `${companyName} دعتك للتقديم على وظيفة "${jobTitle}"`;
+    const link = `/jobs/${invitation.jobPostId}`;
 
-    await createNotification({
-      userId: invitation.seekerId,
-      type: "new_invitation",
-      message: `${companyName} دعتك للتقديم على وظيفة "${jobTitle}"`,
-      link: `/jobs/${invitation.jobPostId}`,
-    });
+    // رابع حدث بيتغطى بـPush Notifications بعد onApplicationStatusChanged/onApplicationCreated/
+    // onNewJobReport — نفس منطق التوازي (Promise.all) عشان الإشعار الداخلي والـpush والإيميل
+    // يشتغلوا مع بعض بدل التسلسل، وكل عنصر معزول بـtry/catch خاص بيه (زي onNewJobReport).
+    await Promise.all([
+      createNotification({ userId: invitation.seekerId, type: "new_invitation", message, link }),
+      sendPushToUser({ userId: invitation.seekerId, title: "دعوة جديدة للتقديم", body: message, link }),
+      (async () => {
+        try {
+          const seekerUserSnap = await db.collection("users").doc(invitation.seekerId).get();
+          const seekerEmail = seekerUserSnap.exists ? seekerUserSnap.data().email : null;
 
-    try {
-      const seekerUserSnap = await db.collection("users").doc(invitation.seekerId).get();
-      const seekerEmail = seekerUserSnap.exists ? seekerUserSnap.data().email : null;
+          if (!seekerEmail) {
+            logger.error(
+              `onNewInvitation: مفيش بريد إلكتروني مسجّل للباحث ${invitation.seekerId} — تم تجاهل الإيميل (الإشعار الداخلي اتعمل)`
+            );
+            return;
+          }
 
-      if (!seekerEmail) {
-        logger.error(
-          `onNewInvitation: مفيش بريد إلكتروني مسجّل للباحث ${invitation.seekerId} — تم تجاهل الإيميل (الإشعار الداخلي اتعمل)`
-        );
-        return;
-      }
+          const jobLink = `https://www.elshoghl.com/jobs/${invitation.jobPostId}`;
+          const emailFields = { companyName, jobTitle, jobLink };
 
-      const jobLink = `https://www.elshoghl.com/jobs/${invitation.jobPostId}`;
-      const emailFields = { companyName, jobTitle, jobLink };
-
-      await sendViaResend({
-        to: seekerEmail,
-        subject: `${companyName} دعتك للتقديم على وظيفة ${jobTitle}`,
-        html: buildInvitationEmailHtml(emailFields),
-        text: buildInvitationEmailText(emailFields),
-        logPrefix: "onNewInvitation",
-      });
-    } catch (err) {
-      logger.error("onNewInvitation: حصلت مشكلة غير متوقعة", err);
-    }
+          await sendViaResend({
+            to: seekerEmail,
+            subject: `${companyName} دعتك للتقديم على وظيفة ${jobTitle}`,
+            html: buildInvitationEmailHtml(emailFields),
+            text: buildInvitationEmailText(emailFields),
+            logPrefix: "onNewInvitation",
+          });
+        } catch (err) {
+          logger.error("onNewInvitation: حصلت مشكلة غير متوقعة", err);
+        }
+      })(),
+    ]);
   }
 );
 
