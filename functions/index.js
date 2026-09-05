@@ -845,6 +845,12 @@ async function createNotification({ userId, type, message, link }) {
 // نفس createNotification بس بـbatch write واحد بدل .add() منفصل لكل إشعار — مهم لما العدد
 // كبير (زي إشعار وظيفة جديدة لكل الباحثين المطابقين لتخصص معيّن دفعة واحدة). بيقسّم لدفعات
 // 450 عشان حد الـ500 عملية لكل batch في Firestore.
+//
+// pushTitle اختياري لكل عنصر — لو موجود، بعد ما الإشعارات الداخلية كلها تتكتب، بنبعت push
+// لكل مستلم بيه (المنادي هو اللي عارف السياق المناسب للعنوان، مش الـhelper). بنستخدم نفس
+// message كـbody للـpush (مصدر واحد للنص، مفيش تكرار). الإرسال بالتوازي (Promise.all) مش
+// بالتسلسل — عدد المستلمين ممكن يكون كبير (كل الباحثين المطابقين لتخصص معيّن مثلًا)، وبالتسلسل
+// الوقت الكلي كان هيكبر مع كل مستلم إضافي.
 async function createNotificationsBatch(notifications, logPrefix) {
   if (notifications.length === 0) return;
   const db = getFirestore();
@@ -869,6 +875,12 @@ async function createNotificationsBatch(notifications, logPrefix) {
       logger.error(`${logPrefix || "createNotificationsBatch"}: فشل batch commit لـ${chunk.length} إشعار`, err);
     }
   }
+
+  await Promise.all(
+    notifications
+      .filter((n) => n.pushTitle)
+      .map((n) => sendPushToUser({ userId: n.userId, title: n.pushTitle, body: n.message, link: n.link }))
+  );
 }
 
 // مرحلة أولى من Push Notifications (FCM) — بتتنادى بشكل صريح جوه الأحداث اللي قررنا نختبرها
@@ -1060,15 +1072,17 @@ exports.onApplicationCreated = onDocumentCreated(
     const jobSnap = await db.collection("job_posts").doc(application.jobPostId).get();
     const jobTitle = jobSnap.exists ? jobSnap.data().title || "وظيفة" : "وظيفة";
     const applicantName = application.seekerSnapshot?.fullName;
+    const message = applicantName
+      ? `متقدم جديد على وظيفة "${jobTitle}": ${applicantName}`
+      : `متقدم جديد على وظيفة "${jobTitle}"`;
+    const link = `/employer?tab=company`;
 
-    await createNotification({
-      userId: application.employerId,
-      type: "new_applicant",
-      message: applicantName
-        ? `متقدم جديد على وظيفة "${jobTitle}": ${applicantName}`
-        : `متقدم جديد على وظيفة "${jobTitle}"`,
-      link: `/employer?tab=company`,
-    });
+    // ثاني حدث بيتغطى بـPush Notifications بعد نجاح المرحلة الأولى (onApplicationStatusChanged) —
+    // نفس منطق التوازي (Promise.all) عشان الإشعار الداخلي والـpush يشتغلوا مع بعض بدل التسلسل.
+    await Promise.all([
+      createNotification({ userId: application.employerId, type: "new_applicant", message, link }),
+      sendPushToUser({ userId: application.employerId, title: "متقدم جديد", body: message, link }),
+    ]);
   }
 );
 
@@ -1369,6 +1383,7 @@ exports.onNewJobPostMatchSeekers = onDocumentCreated(
       type: "matching_job",
       message: `وظيفة جديدة تناسب تخصصك: "${jobTitle}"`,
       link: `/jobs/${jobPostId}`,
+      pushTitle: "وظيفة جديدة تناسبك",
     }));
 
     await createNotificationsBatch(notifications, "onNewJobPostMatchSeekers");
@@ -1401,6 +1416,7 @@ exports.onNewJobPostNotifyAdmins = onDocumentCreated(
           type: "new_job_post_admin",
           message,
           link: "/admin",
+          pushTitle: "وظيفة جديدة تحتاج مراجعة",
         });
       } catch (err) {
         logger.error(`onNewJobPostNotifyAdmins: فشل جلب حساب الأدمن ${email}`, err);
@@ -1425,20 +1441,40 @@ exports.onNewJobReport = onDocumentCreated(
     const jobTitle = report.jobTitle || "وظيفة";
     const jobLink = `https://www.elshoghl.com/jobs/${report.jobId}`;
     const emailFields = { jobTitle, reason: report.reason || "سبب غير محدد", details: report.details || "", jobLink };
+    const message = `بلاغ جديد عن وظيفة "${jobTitle}"`;
 
+    const tasks = [
+      (async () => {
+        try {
+          // بلاغات الوظايف بتتبعت لمحمد بس (مش كل ADMIN_EMAILS) — طلب صريح، عشان كده إيميل
+          // ثابت هنا بدل الثابت المشترك اللي باقي الدوال (زي onNewJobPostNotifyAdmins) بتستخدمه.
+          await sendViaResend({
+            to: "mohamedzakaria2727@gmail.com",
+            subject: `🚩 بلاغ عن وظيفة: ${jobTitle}`,
+            html: buildJobReportEmailHtml(emailFields),
+            text: buildJobReportEmailText(emailFields),
+            logPrefix: "onNewJobReport",
+          });
+        } catch (err) {
+          logger.error("onNewJobReport: حصلت مشكلة غير متوقعة أثناء إرسال الإيميل", err);
+        }
+      })(),
+    ];
+
+    // أول مرة البلاغ بياخد إشعار داخلي (createNotification) — زي باقي إشعارات الأدمن، بدل
+    // ما يفضل إيميل بس من غير أي أثر داخل الموقع نفسه (فجوة موجودة أصلًا في النظام). لازم
+    // نجيب uid الأدمن الأول (نفس طريقة onNewJobPostNotifyAdmins) قبل ما نقدر نستهدفه.
     try {
-      // بلاغات الوظايف بتتبعت لمحمد بس (مش كل ADMIN_EMAILS) — طلب صريح، عشان كده إيميل
-      // ثابت هنا بدل الثابت المشترك اللي باقي الدوال (زي onNewJobPostNotifyAdmins) بتستخدمه.
-      await sendViaResend({
-        to: "mohamedzakaria2727@gmail.com",
-        subject: `🚩 بلاغ عن وظيفة: ${jobTitle}`,
-        html: buildJobReportEmailHtml(emailFields),
-        text: buildJobReportEmailText(emailFields),
-        logPrefix: "onNewJobReport",
-      });
+      const adminUser = await getAuth().getUserByEmail("mohamedzakaria2727@gmail.com");
+      tasks.push(
+        createNotification({ userId: adminUser.uid, type: "new_job_report_admin", message, link: "/admin" }),
+        sendPushToUser({ userId: adminUser.uid, title: "🚩 بلاغ عن وظيفة", body: message, link: "/admin" })
+      );
     } catch (err) {
-      logger.error("onNewJobReport: حصلت مشكلة غير متوقعة", err);
+      logger.error("onNewJobReport: فشل جلب حساب الأدمن", err);
     }
+
+    await Promise.all(tasks);
   }
 );
 
