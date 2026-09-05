@@ -891,10 +891,6 @@ async function createNotificationsBatch(notifications, logPrefix) {
 // النداء ده. بيمسح أي توكن فشل الإرسال بيه بسبب إلغاء تسجيله (تطبيق اتشال، صلاحية اتلغت)
 // عشان الـsubcollection متتجمعش توكنات ميتة.
 async function sendPushToUser({ userId, title, body, link }) {
-  // logger.info مؤقتة لتشخيص المرحلة الأولى (لسه مش وصل push حقيقي رغم نجاح الإشعار
-  // الداخلي) — تتشال بعد ما نتأكد السلسلة شغالة من طرف لطرف.
-  logger.info(`sendPushToUser: اتنادت لليوزر ${userId}`);
-
   const db = getFirestore();
   let tokensSnap;
   try {
@@ -903,7 +899,6 @@ async function sendPushToUser({ userId, title, body, link }) {
     logger.error(`sendPushToUser: فشل جلب توكنات اليوزر ${userId}`, err);
     return;
   }
-  logger.info(`sendPushToUser: لقيت ${tokensSnap.size} توكن لليوزر ${userId}`);
   if (tokensSnap.empty) return;
 
   const tokens = tokensSnap.docs.map((d) => d.id);
@@ -917,11 +912,6 @@ async function sendPushToUser({ userId, title, body, link }) {
         notification: { icon: "/icon-192.png" },
       },
     });
-
-    logger.info(
-      `sendPushToUser: نتيجة الإرسال لليوزر ${userId} — نجح ${response.successCount}, فشل ${response.failureCount}`,
-      response.responses.map((r) => r.error?.code || "ok")
-    );
 
     const staleTokenRefs = [];
     response.responses.forEach((r, i) => {
