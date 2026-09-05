@@ -25,7 +25,6 @@ import { getActiveJobsSeoData, JobCombo } from "@/lib/publicJobsQuery";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { shouldShowProfileNudge } from "@/lib/profileNudge";
-import { shouldShowPushNudge } from "@/lib/pushNudge";
 import JobCard, { JobPost, salaryTeaser } from "./JobCard";
 import { tagStyle, ApplicationStatus, applicationStatusOf } from "@/lib/jobCardStyles";
 import ScreeningQuestionsModal from "@/components/ScreeningQuestionsModal";
@@ -34,7 +33,6 @@ import BrowseSidebar from "@/components/BrowseSidebar";
 import ProfileCompletionBar from "@/components/ProfileCompletionBar";
 import JobListItem from "@/app/jobs/JobListItem";
 import PostApplyProfileNudge from "@/components/PostApplyProfileNudge";
-import EnablePushNudge from "@/components/EnablePushNudge";
 
 const PAGE_SIZE = 12;
 const POPULAR_COMBOS_COUNT = 40;
@@ -156,7 +154,6 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
   const [applying, setApplying] = useState(false);
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
   const [nudgePercent, setNudgePercent] = useState<number | null>(null);
-  const [showPushNudge, setShowPushNudge] = useState(false);
   // بيتحط بس لو فيه اختلاف واحد أو أكتر (تخصص و/أو مستوى) بين بروفايل الباحث ووظيفة
   // selectedJob — شوف handleApplyClick.
   const [applyMismatches, setApplyMismatches] = useState<MismatchItem[] | null>(null);
@@ -291,14 +288,10 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
       // تنبيه اكتمال البروفايل — تحفيزي بس، بعد نجاح التقديم فعليًا. try/catch منفصل
       // ومعزول تمامًا عن نجاح التقديم نفسه (اللي خلص فوق قبل السطر ده)؛ لو حصل أي خطأ
       // غير متوقع هنا بنتجاهله بصمت من غير ما يبان للمستخدم أو يأثر على أي حاجة تانية.
-      // أولوية لتنبيه اكتمال البروفايل لو الاتنين هيظهروا في نفس اللحظة — مودال التنبيهات
-      // ببساطة بيتفوّت النهاردة (مش بيتسجل "اتشاف")، فهيتفحص تاني عادي في أول تقديم جاي.
       try {
         const percent = calculateProfileCompletion(s);
         if (shouldShowProfileNudge(percent)) {
           setNudgePercent(percent);
-        } else if (shouldShowPushNudge()) {
-          setShowPushNudge(true);
         }
       } catch {
         // متجاهلينها عمدًا — التقديم نجح بالفعل، ده مجرد تحفيز إضافي مش أساسي
@@ -646,10 +639,6 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
 
       {nudgePercent !== null && (
         <PostApplyProfileNudge percent={nudgePercent} onClose={() => setNudgePercent(null)} />
-      )}
-
-      {showPushNudge && auth.currentUser && (
-        <EnablePushNudge role="job_seeker" uid={auth.currentUser.uid} onClose={() => setShowPushNudge(false)} />
       )}
     </div>
   );

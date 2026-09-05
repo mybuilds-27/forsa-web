@@ -9,6 +9,7 @@ import { auth, db } from "@/lib/firebase";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import NotificationBell from "./NotificationBell";
 import EnableNotificationsButton from "./EnableNotificationsButton";
+import EnablePushNudge from "./EnablePushNudge";
 import LogoMark from "./LogoMark";
 
 const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
@@ -194,6 +195,7 @@ export default function Navbar() {
         {showAdminLink && <Link href="/admin" style={linkStyle}>📊 لوحة الإدارة</Link>}
         {signedIn && <NotificationBell />}
         {signedIn && <EnableNotificationsButton />}
+        {signedIn && <EnablePushNudge />}
       </div>
 
       {signedIn && (

@@ -1,46 +1,41 @@
 "use client";
 
-import { useState } from "react";
-import { markPushNudgeSeen } from "@/lib/pushNudge";
+import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { enablePushNotifications } from "@/lib/pushNotifications";
+import { shouldShowPushNudge, dismissPushNudgeForSession } from "@/lib/pushNudge";
 
-type Role = "job_seeker" | "employer";
-
-type Props = {
-  role: Role;
-  uid: string;
-  onClose: () => void;
-};
-
-const CONTENT: Record<Role, { title: string; body: string }> = {
-  job_seeker: {
-    title: "🔔 عايز تعرف أول ما حد يرد عليك؟",
-    body: "فعّل التنبيهات عشان توصلك رسالة فورية أول ما صاحب العمل يقبل أو يرفض تقديمك، أو تلاقي وظيفة جديدة تناسب تخصصك.",
-  },
-  employer: {
-    title: "🔔 عايز تعرف أول ما حد يقدّم على وظيفتك؟",
-    body: "فعّل التنبيهات عشان توصلك رسالة فورية أول ما حد جديد يقدّم على الوظيفة اللي نشرتها.",
-  },
-};
-
-// بيظهر بعد أول تقديم/أول نشر وظيفة ناجح بس (شوف shouldShowPushNudge في lib/pushNudge.ts)،
-// ومرة واحدة بس لكل مستخدم على نفس الجهاز/المتصفح بغض النظر عن نتيجة التفاعل. زرار "فعّل
-// التنبيهات" بينادي enablePushNotifications مباشرة من غير عرض تفاصيل خطأ هنا لو فشلت —
-// زرار EnableNotificationsButton الدائم في الـNavbar أصلًا بيغطي إعادة المحاولة وتفاصيل
-// الخطأ بالكامل لو المستخدم حابب يجرّب تاني بعدين.
-export default function EnablePushNudge({ role, uid, onClose }: Props) {
+// بيتعرض من Navbar.tsx (نفس نمط EnableNotificationsButton.tsx — مفيش props خالص، بيتابع
+// حالة الدخول بنفسه) لأي مستخدم مسجّل دخول طول ما الإذن لسه "default"، بغض النظر عن أي
+// حدث معيّن — شوف shouldShowPushNudge في lib/pushNudge.ts. بيظهر مرة واحدة بس لكل فتحة
+// موقع (تاب/جلسة جديدة، مش كل تنقّل SPA لأن Navbar نفسها ما بتتعملهاش remount بينهم)، وبيقفل
+// لباقي نفس الجلسة بمجرد أي تفاعل. زرار "فعّل التنبيهات" بينادي enablePushNotifications
+// مباشرة من غير عرض تفاصيل خطأ هنا لو فشلت — زرار EnableNotificationsButton الدائم في
+// الـNavbar أصلًا بيغطي إعادة المحاولة وتفاصيل الخطأ بالكامل.
+export default function EnablePushNudge() {
+  const [uid, setUid] = useState<string | null>(null);
+  // قراءة أولية بس وقت أول render — بتحدد "هل نظهر النهاردة" مرة واحدة، مش بتتغيّر تاني
+  // لوحدها بعد كده (القفل بيحصل عبر setVisible صراحةً).
+  const [visible, setVisible] = useState(() => shouldShowPushNudge());
   const [loading, setLoading] = useState(false);
-  const { title, body } = CONTENT[role];
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => setUid(user ? user.uid : null));
+    return () => unsubscribe();
+  }, []);
+
+  if (!uid || !visible) return null;
 
   function dismiss() {
-    markPushNudgeSeen();
-    onClose();
+    dismissPushNudgeForSession();
+    setVisible(false);
   }
 
   async function handleEnable() {
     setLoading(true);
     try {
-      await enablePushNotifications(uid);
+      await enablePushNotifications(uid!);
     } finally {
       dismiss();
     }
@@ -82,8 +77,11 @@ export default function EnablePushNudge({ role, uid, onClose }: Props) {
           ✕
         </button>
 
-        <h2 style={{ marginBottom: 6, fontSize: 19 }}>{title}</h2>
-        <p style={{ color: "#4A5568", fontSize: 13.5, lineHeight: 1.7, marginBottom: 20 }}>{body}</p>
+        <h2 style={{ marginBottom: 6, fontSize: 19 }}>🔔 عايز توصلك التحديثات فورًا؟</h2>
+        <p style={{ color: "#4A5568", fontSize: 13.5, lineHeight: 1.7, marginBottom: 20 }}>
+          فعّل التنبيهات عشان توصلك رسالة فورية أول ما حد يرد على تقديمك، يقدّم على وظيفتك، أو
+          تلاقي وظيفة جديدة تناسبك.
+        </p>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button

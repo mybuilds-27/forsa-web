@@ -3,15 +3,13 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { collection, getDocs, limit, query, startAfter, where, QueryDocumentSnapshot } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import {
   GOVERNORATES,
   SPECIALIZATION_OPTIONS,
   EXPERIENCE_LEVELS,
 } from "@/lib/constants";
 import SeekerDetailModal from "./SeekerDetailModal";
-import EnablePushNudge from "@/components/EnablePushNudge";
-import { shouldShowPushNudge } from "@/lib/pushNudge";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 
 const PAGE_SIZE = 12;
@@ -26,11 +24,6 @@ export default function TalentSearchTab({ employerPlan }: Props) {
   // مش state دائم، فلو رجع للتبويب من غير ما يمر بنشر وظيفة تاني، مش هيلاقي البانر تاني.
   const justPostedJobId = searchParams.get("justPosted");
   const [bannerDismissed, setBannerDismissed] = useState(false);
-  // نفس نقطة الدخول اللي بنعرض بيها بانر "تم النشر بنجاح" — أول نشر وظيفة ناجح، مرة واحدة
-  // بس لكل مستخدم (شوف shouldShowPushNudge في lib/pushNudge.ts). قراءة أولية بس (زي حالة
-  // permission في EnableNotificationsButton.tsx)، من غير useEffect، لأن justPostedJobId
-  // ثابتة من أول render (الكومبوننت ده بيتعمله remount كامل مع كل تنقّل من PostJobTab).
-  const [showPushNudge, setShowPushNudge] = useState(() => !!justPostedJobId && shouldShowPushNudge());
 
   const [specFilter, setSpecFilter] = useState("");
   const [govFilter, setGovFilter] = useState("");
@@ -263,10 +256,6 @@ export default function TalentSearchTab({ employerPlan }: Props) {
           defaultInviteJobId={justPostedJobId || undefined}
           onClose={() => setSelectedSeeker(null)}
         />
-      )}
-
-      {showPushNudge && auth.currentUser && (
-        <EnablePushNudge role="employer" uid={auth.currentUser.uid} onClose={() => setShowPushNudge(false)} />
       )}
     </div>
   );
