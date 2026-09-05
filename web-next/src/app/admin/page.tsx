@@ -7,6 +7,7 @@ import {
   doc,
   documentId,
   getCountFromServer,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -124,6 +125,8 @@ type Stats = {
   // فعليًا)، و"عائد" يعني حساب قديم رجع يستخدم الموقع. شوف الحساب في loadCoreStats.
   activeUsers24hNew: number;
   activeUsers24hReturning: number;
+  appInstalls: number;
+  pushEnabledUsers: number;
 };
 
 type FunnelStats = {
@@ -370,6 +373,8 @@ export default function AdminPage() {
         totalUsersSnap,
         activeUsersSnap,
         jobsSeoData,
+        appInstallsDoc,
+        pushEnabledCountSnap,
       ] = await Promise.all([
         getDocs(collection(db, "job_seekers")),
         getDocs(collection(db, "employers")),
@@ -382,6 +387,12 @@ export default function AdminPage() {
         getDocs(collection(db, "users")),
         getDocs(query(collection(db, "users"), where("lastActiveAt", ">=", oneDayAgo))),
         getActiveJobsSeoData(),
+        // عداد تراكمي بسيط (مستند واحد) — شوف lib/appInstalls.ts.
+        getDoc(doc(db, "app_installs", "total")),
+        // getCountFromServer برضه هنا (زي allPosts/activePosts) — استعلام عدّ رخيص من غير
+        // قراءة مستندات فعليًا، بدل collectionGroup على fcmTokens اللي كانت هتحتاج قراءة كل
+        // توكن لكل جهاز لكل مستخدم بس عشان نعدّ المستخدمين الفريدين.
+        getCountFromServer(query(collection(db, "users"), where("pushEnabled", "==", true))),
       ]);
 
       setSeoData({
@@ -432,6 +443,8 @@ export default function AdminPage() {
         activeUsers24h: activeUsersSnap.size,
         activeUsers24hNew,
         activeUsers24hReturning,
+        appInstalls: appInstallsDoc.data()?.count || 0,
+        pushEnabledUsers: pushEnabledCountSnap.data().count,
       });
     } catch (err) {
       console.error("Admin stats failed", err);
@@ -636,6 +649,8 @@ export default function AdminPage() {
           <StatCard label="الإعلانات النشطة" value={stats.activePosts} />
           <StatCard label="كل التقديمات" value={stats.applications} />
           {visits30d !== null && <StatCard label="الزيارات آخر 30 يوم" value={visits30d} />}
+          <StatCard label="تثبيتات التطبيق" value={stats.appInstalls} />
+          <StatCard label="مفعّلين التنبيهات" value={stats.pushEnabledUsers} />
         </div>
       )}
 
