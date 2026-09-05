@@ -5,6 +5,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SiteVisitTracker from "@/components/SiteVisitTracker";
+import AppInstallTracker from "@/components/AppInstallTracker";
 
 const META_PIXEL_ID = "1678267889939692";
 const GA_MEASUREMENT_ID = "G-3J7CEB9JRC";
@@ -121,6 +122,7 @@ export default function RootLayout({
           `}
         </Script>
         <SiteVisitTracker />
+        <AppInstallTracker />
         <Navbar />
         {children}
         <Footer />

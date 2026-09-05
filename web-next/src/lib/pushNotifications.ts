@@ -1,4 +1,4 @@
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { getMessaging, getToken } from "firebase/messaging";
 import { app, db } from "./firebase";
 
@@ -42,6 +42,18 @@ async function saveTokenToFirestore(uid: string, token: string) {
     },
     { merge: true }
   );
+}
+
+// حقل بسيط على users/{uid} بيتحدّث لما تسجيل التوكن ينجح فعليًا — لوحة الأدمن بتعدّه بـ
+// getCountFromServer (استعلام رخيص، مفيش قراءة مستندات) بدل collectionGroup على fcmTokens
+// (اللي كانت هتحتاج قراءة كل توكن لكل جهاز لكل مستخدم بس عشان نعدّ المستخدمين الفريدين).
+// معزولة بـtry/catch خاص بيها — فشلها ميأثرش على نجاح تفعيل التنبيهات نفسه (best-effort).
+async function markPushEnabledOnUser(uid: string) {
+  try {
+    await updateDoc(doc(db, "users", uid), { pushEnabled: true });
+  } catch (err) {
+    console.error("[pushNotifications] فشل تسجيل pushEnabled", err);
+  }
 }
 
 export type EnablePushResult = {
@@ -115,6 +127,7 @@ export async function enablePushNotifications(uid: string): Promise<EnablePushRe
 
     if (token) {
       await saveTokenToFirestore(uid, token);
+      await markPushEnabledOnUser(uid);
     }
     return { permission, tokenSaved: Boolean(token) };
   } catch (err) {
