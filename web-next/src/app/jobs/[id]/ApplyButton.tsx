@@ -7,11 +7,13 @@ import { auth, db } from "@/lib/firebase";
 import { buildSeekerSnapshot } from "@/lib/seekerSnapshot";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { shouldShowProfileNudge } from "@/lib/profileNudge";
+import { shouldShowPushNudge } from "@/lib/pushNudge";
 import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
 import { EXPERIENCE_LEVELS } from "@/lib/constants";
 import ScreeningQuestionsModal, { ScreeningQuestion } from "@/components/ScreeningQuestionsModal";
 import RegisterModal from "@/components/RegisterModal";
 import PostApplyProfileNudge from "@/components/PostApplyProfileNudge";
+import EnablePushNudge from "@/components/EnablePushNudge";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import SpecializationMismatchModal, { MismatchItem } from "@/components/SpecializationMismatchModal";
 
@@ -31,6 +33,7 @@ export default function ApplyButton({ jobId, employerId, jobSpecialization, jobL
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [nudgePercent, setNudgePercent] = useState<number | null>(null);
+  const [showPushNudge, setShowPushNudge] = useState(false);
   // بيتحط بس لو فيه اختلاف واحد أو أكتر (تخصص و/أو مستوى) بين بروفايل الباحث والوظيفة —
   // شوف handleApplyClick.
   const [applyMismatches, setApplyMismatches] = useState<MismatchItem[] | null>(null);
@@ -99,10 +102,14 @@ export default function ApplyButton({ jobId, employerId, jobSpecialization, jobL
       // تنبيه اكتمال البروفايل — تحفيزي بس، بعد نجاح التقديم فعليًا. try/catch منفصل
       // ومعزول تمامًا عن نجاح التقديم نفسه (اللي خلص فوق قبل السطر ده)؛ لو حصل أي خطأ
       // غير متوقع هنا بنتجاهله بصمت من غير ما يبان للمستخدم أو يأثر على أي حاجة تانية.
+      // أولوية لتنبيه اكتمال البروفايل لو الاتنين هيظهروا في نفس اللحظة — مودال التنبيهات
+      // ببساطة بيتفوّت النهاردة (مش بيتسجل "اتشاف")، فهيتفحص تاني عادي في أول تقديم جاي.
       try {
         const percent = calculateProfileCompletion(s);
         if (shouldShowProfileNudge(percent)) {
           setNudgePercent(percent);
+        } else if (shouldShowPushNudge()) {
+          setShowPushNudge(true);
         }
       } catch {
         // متجاهلينها عمدًا — التقديم نجح بالفعل، ده مجرد تحفيز إضافي مش أساسي
@@ -411,6 +418,10 @@ export default function ApplyButton({ jobId, employerId, jobSpecialization, jobL
 
       {nudgePercent !== null && (
         <PostApplyProfileNudge percent={nudgePercent} onClose={() => setNudgePercent(null)} />
+      )}
+
+      {showPushNudge && auth.currentUser && (
+        <EnablePushNudge role="job_seeker" uid={auth.currentUser.uid} onClose={() => setShowPushNudge(false)} />
       )}
     </>
   );
