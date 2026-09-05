@@ -39,6 +39,8 @@ const POPULAR_COMBOS_COUNT = 40;
 const RECOMMENDED_COUNT = 6;
 
 // كل الحقول اللي JobListItem.tsx محتاجها لعرض الكارت — نفس فكرة RelatedJobs.tsx بالظبط.
+// keywords جديدة (مش موجودة قبل كده في الـtype، بس متاحة أصلًا في مستندات job_posts) —
+// لازمة لحساب تقاطع الكلمات المفتاحية مع الباحث في sortByGovernorateThenKeywords.
 type RecommendedJob = {
   id: string;
   title: string;
@@ -49,6 +51,7 @@ type RecommendedJob = {
   jobType: string;
   jobLevel?: string;
   specialization?: string;
+  keywords?: string[];
   featured?: boolean;
   createdAt?: any;
   showSalary?: boolean;
@@ -66,11 +69,36 @@ async function fetchActiveJobsFor(constraints: any[]) {
     .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now);
 }
 
-// أولوية: (1) نفس التخصص بالظبط، (2) لو مفيش كفاية، وظائف فيها كلمات مفتاحية بتتقاطع مع
-// كلمات الباحث — نفس منطق RelatedJobs.tsx (jobs/[id]/RelatedJobs.tsx) بس من غير الطبقة
-// الثالثة "أحدث الوظائف" اللي هو بيستخدمها كـfallback أخير، لأن المفروض هنا القسم يختفي
-// تمامًا لو مفيش تطابق حقيقي (مش نعرض وظائف عشوائية تحت مسمى "موصى بيها").
-async function getRecommendedJobs(specialization: string, keywords: string[]): Promise<RecommendedJob[]> {
+function keywordOverlapCount(jobKeywords: string[] | undefined, seekerKeywords: string[]): number {
+  if (!jobKeywords || jobKeywords.length === 0) return 0;
+  return jobKeywords.filter((k) => seekerKeywords.includes(k)).length;
+}
+
+// ترتيب متدرّج مش نظام نقاط: نفس محافظة الباحث أولًا (زي فلسفة onNewJobPostMatchSeekers في
+// functions/index.js بالظبط — الجغرافيا قيد عملي أقوى من تقاطع الكلمات، مش عامل قابل
+// للموازنة معاه)، وجوه كل مجموعة محافظة، الأكتر تقاطع كلمات مفتاحية أولًا. Array.prototype.sort
+// مستقر في JS الحديث، فترتيب createdAt الأصلي (من الاستعلام) بيتحافظ عليه تلقائيًا كـtiebreaker
+// أخير من غير أي مقارنة إضافية. لو الباحث من غير محافظة/كلمات محددة، المعيار المفقود بيرجع
+// صفر تلقائيًا للكل فالترتيب بيرجع للمعيار التاني بس — من غير أي حالة خاصة إضافية.
+function sortByGovernorateThenKeywords(jobs: RecommendedJob[], governorate: string, keywords: string[]): RecommendedJob[] {
+  return [...jobs].sort((a, b) => {
+    const govDiff = Number(b.governorate === governorate) - Number(a.governorate === governorate);
+    if (govDiff !== 0) return govDiff;
+    return keywordOverlapCount(b.keywords, keywords) - keywordOverlapCount(a.keywords, keywords);
+  });
+}
+
+// أولوية: (1) نفس التخصص + نفس مستوى الخبرة، (2) نفس التخصص بس، (3) لو مفيش كفاية، وظائف
+// فيها كلمات مفتاحية بتتقاطع مع كلمات الباحث — نفس منطق RelatedJobs.tsx (jobs/[id]/RelatedJobs.tsx)
+// بس من غير الطبقة الثالثة "أحدث الوظائف" اللي هو بيستخدمها كـfallback أخير، لأن المفروض هنا
+// القسم يختفي تمامًا لو مفيش تطابق حقيقي (مش نعرض وظائف عشوائية تحت مسمى "موصى بيها"). جوه
+// المجموعتين (1) و(2)، الترتيب الفرعي بمحافظة الباحث ثم تقاطع الكلمات (sortByGovernorateThenKeywords).
+async function getRecommendedJobs(
+  specialization: string,
+  keywords: string[],
+  jobLevel: string,
+  governorate: string
+): Promise<RecommendedJob[]> {
   const results: RecommendedJob[] = [];
   const seen = new Set<string>();
 
@@ -86,14 +114,21 @@ async function getRecommendedJobs(specialization: string, keywords: string[]): P
 
   if (specialization) {
     try {
-      addJobs(
-        await fetchActiveJobsFor([
-          where("isActive", "==", true),
-          where("specialization", "==", specialization),
-          orderBy("createdAt", "desc"),
-          limit(RECOMMENDED_COUNT),
-        ])
-      );
+      // دفعة أكبر من الاحتياج النهائي (24 بدل 6) عشان نقدر نقسّم بمستوى الخبرة ونرتّب
+      // بالمحافظة/الكلمات المفتاحية صح قبل ما نقطع لآخر RECOMMENDED_COUNT — لو جبنا 6 بس
+      // زي الأول ممكن نفوّت وظيفة أنسب فعليًا موجودة بعدهم في الترتيب الزمني الخام.
+      const specMatches = await fetchActiveJobsFor([
+        where("isActive", "==", true),
+        where("specialization", "==", specialization),
+        orderBy("createdAt", "desc"),
+        limit(24),
+      ]);
+
+      const sameLevel = specMatches.filter((j) => jobLevel && j.jobLevel === jobLevel);
+      const otherLevel = specMatches.filter((j) => !(jobLevel && j.jobLevel === jobLevel));
+
+      addJobs(sortByGovernorateThenKeywords(sameLevel, governorate, keywords));
+      addJobs(sortByGovernorateThenKeywords(otherLevel, governorate, keywords));
     } catch (err) {
       console.error("Recommended jobs (specialization) failed", err);
     }
@@ -128,9 +163,11 @@ type Props = {
   completionPercent?: number;
   specialization?: string;
   keywords?: string[];
+  jobLevel?: string;
+  governorate?: string;
 };
 
-export default function JobsTab({ completionPercent, specialization, keywords }: Props) {
+export default function JobsTab({ completionPercent, specialization, keywords, jobLevel, governorate }: Props) {
   const [jobs, setJobs] = useState<JobPost[]>([]);
   const [recommendedJobs, setRecommendedJobs] = useState<RecommendedJob[]>([]);
   const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
@@ -249,10 +286,10 @@ export default function JobsTab({ completionPercent, specialization, keywords }:
   useEffect(() => {
     // getRecommendedJobs بترجع [] لوحدها لو مفيش specialization ولا keywords (مفيش داعي
     // لفحص مبكر هنا) — طالما مفيش حاجة نطابق عليها، بترجع نتيجة فاضية من غير أي استعلام.
-    getRecommendedJobs(specialization || "", Array.isArray(keywords) ? keywords : [])
+    getRecommendedJobs(specialization || "", Array.isArray(keywords) ? keywords : [], jobLevel || "", governorate || "")
       .then(setRecommendedJobs)
       .catch((err) => console.error("Recommended jobs fetch failed", err));
-  }, [specialization, keywords]);
+  }, [specialization, keywords, jobLevel, governorate]);
 
   async function handleLoadMore() {
     setLoadingMore(true);
