@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { collection, query, where, getCountFromServer, getDocs, limit, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS } from "@/lib/constants";
+import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS, KEYWORD_OPTIONS } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
-import KeywordsPicker from "@/components/KeywordsPicker";
+import KeywordsPicker, { MAX_KEYWORDS } from "@/components/KeywordsPicker";
 
 const AGE_OPTIONS = Array.from({ length: 50 }, (_, i) => 16 + i);
 
@@ -89,6 +89,18 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
   const [specSelect, setSpecSelect] = useState("");
   const [specOther, setSpecOther] = useState("");
   const [keywords, setKeywords] = useState<string[]>([]);
+
+  // مطابقة نصية بسيطة بين المسمى الوظيفي والقايمة الكاملة للكلمات المفتاحية (KEYWORD_OPTIONS) —
+  // مفيش ربط فعلي بين SPECIALIZATION_OPTIONS وKEYWORD_CATEGORIES في نموذج البيانات الحالي
+  // (فئات الكلمات مبنية على نوع المهارة/البرنامج، مش على التخصص)، فالمطابقة هنا بتغطي كل
+  // الكلمات المتاحة بدل قايمة فرعية خاصة بالتخصص المختار. toLowerCase() بيفرق بس مع الكلمات
+  // الإنجليزية (Excel, Word...)، وبيبقى no-op آمن للعربي.
+  const titleKeywordSuggestions = useMemo(() => {
+    const trimmed = title.trim();
+    if (!trimmed) return [];
+    const lowerTitle = trimmed.toLowerCase();
+    return KEYWORD_OPTIONS.filter((k) => !keywords.includes(k) && lowerTitle.includes(k.toLowerCase()));
+  }, [title, keywords]);
   const [jobType, setJobType] = useState("");
   const [jobLevel, setJobLevel] = useState("");
   const [governorate, setGovernorate] = useState("");
@@ -611,6 +623,32 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>المسمى الوظيفي</label>
               <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="مثال: محاسب أول" style={inputStyle} />
+              {titleKeywordSuggestions.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 8 }}>
+                  <span style={{ fontSize: 12, color: "#4A5568" }}>كلمات مقترحة من العنوان:</span>
+                  {titleKeywordSuggestions.map((kw) => (
+                    <button
+                      key={kw}
+                      type="button"
+                      onClick={() => keywords.length < MAX_KEYWORDS && setKeywords([...keywords, kw])}
+                      disabled={keywords.length >= MAX_KEYWORDS}
+                      style={{
+                        fontSize: 12.5,
+                        padding: "3px 10px",
+                        borderRadius: 999,
+                        border: "1px solid #14213D33",
+                        background: "#F1EAD9",
+                        color: "#14213D",
+                        cursor: keywords.length >= MAX_KEYWORDS ? "not-allowed" : "pointer",
+                        opacity: keywords.length >= MAX_KEYWORDS ? 0.5 : 1,
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      + {kw}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label style={labelStyle}>التخصص</label>
