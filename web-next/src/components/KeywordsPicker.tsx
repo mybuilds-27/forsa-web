@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { KEYWORD_CATEGORIES } from "@/lib/constants";
+import { getKeywordUsageCounts } from "@/lib/keywordUsage";
 
 // حد أقصى 8 كلمات مفتاحية — قايمة أطول من كده هتفقد الغرض منها (تحديد دقيق لمهارات/مجالات
 // الباحث أو الوظيفة)، ومهمة للمطابقة في "وظائف موصى بيها ليك" (JobsTab.tsx).
@@ -29,6 +30,13 @@ type Props = {
 // (PostJobTab.tsx).
 export default function KeywordsPicker({ value, onChange }: Props) {
   const [pendingKeyword, setPendingKeyword] = useState("");
+  // {} في أول render (قبل ما القراءة تخلص) — الترتيب بيرجع للأصلي تلقائيًا لحد ما القيم
+  // توصل، من غير أي حالة تحميل خاصة أو flicker مزعج (مجرد قايمة منسدلة بترتّب نفسها).
+  const [usageCounts, setUsageCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    getKeywordUsageCounts().then(setUsageCounts);
+  }, []);
 
   const atLimit = value.length >= MAX_KEYWORDS;
 
@@ -59,9 +67,14 @@ export default function KeywordsPicker({ value, onChange }: Props) {
             // لو خلصت كل كلماتها من غير ما تسيب optgroup فاضي.
             const available = cat.keywords.filter((k) => !value.includes(k));
             if (available.length === 0) return null;
+            // الأكتر استخدامًا فعليًا (من stats/keyword_usage عبر usageCounts) أول، والباقي
+            // بترتيبهم الأصلي — sort مستقر في JS الحديث، فلو usageCounts لسه فاضية (أول
+            // render، أو السكريبت لسه ما اتشغّلش) كل الكلمات بتاخد صفر وترجع للترتيب
+            // الأصلي تلقائيًا من غير أي حالة خاصة.
+            const sorted = [...available].sort((a, b) => (usageCounts[b] || 0) - (usageCounts[a] || 0));
             return (
               <optgroup key={cat.category} label={cat.category}>
-                {available.map((k) => (
+                {sorted.map((k) => (
                   <option key={k} value={k}>
                     {k}
                   </option>
