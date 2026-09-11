@@ -9,6 +9,7 @@ import AppInstallTracker from "@/components/AppInstallTracker";
 
 const META_PIXEL_ID = "1678267889939692";
 const GA_MEASUREMENT_ID = "G-3J7CEB9JRC";
+const ADSENSE_CLIENT_ID = "ca-pub-3556923690765050";
 
 const cairo = Cairo({
   variable: "--font-cairo",
@@ -121,6 +122,12 @@ export default function RootLayout({
             gtag('config', '${GA_MEASUREMENT_ID}');
           `}
         </Script>
+        <Script
+          id="adsbygoogle-init"
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
+          strategy="afterInteractive"
+          crossOrigin="anonymous"
+        />
         <SiteVisitTracker />
         <AppInstallTracker />
         <Navbar />
