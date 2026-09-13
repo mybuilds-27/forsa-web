@@ -22,6 +22,7 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firest
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "@/lib/firebase";
 import { normalizeEgyptianPhone } from "@/lib/phoneAuth";
+import { authErrorMessage } from "@/lib/errorMessages";
 import { logClientError } from "@/lib/errorLog";
 import { logFunnelEvent } from "@/lib/registrationFunnel";
 
@@ -164,7 +165,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
         console.error("Google redirect result failed", err);
         logClientError("google_redirect_result", err);
         setErrorColor(COLORS.stamp);
-        setError("حصلت مشكلة في تسجيل الدخول بجوجل، جرب طريقة تانية");
+        setError(authErrorMessage(err));
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -225,6 +226,17 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     } catch (err: any) {
       console.warn("popup failed, falling back to redirect", err);
       logClientError("google_popup_signin", err);
+
+      // المستخدم قفل نافذة جوجل بنفسه (أو فيه محاولة تانية شغالة بالفعل) — مش خطأ تقني
+      // نحتاج نعمله fallback بـsignInWithRedirect (اللي هيودّيه لجوجل تاني فورًا في نفس
+      // التاب من غير ما يطلب)، إحنا بس بنوريه رسالة واضحة ونسيبه يجرب تاني لما يكون جاهز.
+      if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") {
+        authInProgressRef.current = false;
+        setError(authErrorMessage(err));
+        setGoogleLoading(false);
+        return;
+      }
+
       try {
         localStorage.setItem(PENDING_ROLE_STORAGE_KEY, role);
         await signInWithRedirect(auth, provider);
@@ -235,7 +247,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
         logClientError("google_redirect_signin", err2);
         localStorage.removeItem(PENDING_ROLE_STORAGE_KEY);
         authInProgressRef.current = false;
-        setError("حصلت مشكلة في تسجيل الدخول بجوجل، جرب طريقة تانية (إيميل أو تليفون)");
+        setError(authErrorMessage(err2));
         setGoogleLoading(false);
       }
     }
@@ -283,20 +295,6 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     setSelectedMethod(null);
   }
 
-  function emailAuthErrorMessage(err: any): string {
-    const map: Record<string, string> = {
-      "auth/email-already-in-use": 'الإيميل ده متسجل بالفعل — جرب "دخول" بدل "إنشاء حساب"',
-      "auth/invalid-email": "صيغة الإيميل مش صحيحة",
-      "auth/weak-password": "الباسورد لازم يكون 6 أحرف على الأقل",
-      "auth/wrong-password": "الباسورد غلط",
-      "auth/user-not-found": "مفيش حساب مسجل بالإيميل ده",
-      "auth/invalid-credential": "الإيميل أو الباسورد غلط",
-      "auth/missing-password": "اكتب الباسورد",
-      "auth/network-request-failed": "تأكد من اتصال الإنترنت وحاول تاني",
-    };
-    return map[err?.code] || "حصلت مشكلة، حاول تاني";
-  }
-
   async function handleEmailSignUp() {
     setError("");
     setErrorColor(COLORS.stamp);
@@ -317,7 +315,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     } catch (err: any) {
       console.error("Email sign up failed", err);
       logClientError("email_signup", err);
-      setError(emailAuthErrorMessage(err));
+      setError(authErrorMessage(err));
     } finally {
       authInProgressRef.current = false;
       setEmailSaving(false);
@@ -336,7 +334,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     } catch (err: any) {
       console.error("Email login failed", err);
       logClientError("email_login", err);
-      setError(emailAuthErrorMessage(err));
+      setError(authErrorMessage(err));
     } finally {
       authInProgressRef.current = false;
       setEmailSaving(false);
@@ -426,30 +424,26 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
       setErrorColor(COLORS.success);
       setError("اتبعتلك لينك إعادة تعيين الباسورد على إيميلك");
     } catch (err: any) {
+      console.error("Password reset failed", err);
+      logClientError("password_reset", err);
       setErrorColor(COLORS.stamp);
-      setError(emailAuthErrorMessage(err));
+      setError(authErrorMessage(err));
     }
   }
 
   // مفيش كود خطأ فايربيز موثوق نميّز بيه "فشل بسبب reCAPTCHA جوه WebView" تحديدًا — فشل
   // reCAPTCHA جوه WebView بيطلع بأكواد عامة أو غير متوقعة (مش كود مخصص). فبدل ما نحاول
   // نستنتج السبب من نوع الخطأ نفسه، بنستخدم isWebView اللي أصلاً عندنا (كشف مستقل وموثوق
-  // من الـUser-Agent) — أي خطأ من غير رسالة محددة واضحة (رقم غلط، محاولات كتير، إلخ) وإحنا
-  // جوه WebView الأرجح إنه بسبب reCAPTCHA، فبنوجّه المستخدم لفتح متصفح حقيقي بدل رسالة عامة.
+  // من الـUser-Agent) — لو authErrorMessage المشتركة رجعت الرسالة العامة الافتراضية (يعني
+  // مفيش كود محدد معروف لهذا الخطأ) وإحنا جوه WebView، الأرجح إنه بسبب reCAPTCHA، فبنوجّه
+  // المستخدم لفتح متصفح حقيقي بدل الرسالة العامة.
   function phoneAuthErrorMessage(err: any): string {
-    const map: Record<string, string> = {
-      "auth/invalid-phone-number": "رقم التليفون مش صحيح",
-      "auth/too-many-requests": "محاولات كتير جدًا — جرب تاني بعد شوية",
-      "auth/invalid-verification-code": "كود التحقق غلط",
-      "auth/code-expired": "الكود ده انتهت صلاحيته — اطلب كود جديد",
-      "auth/quota-exceeded": "الخدمة مش متاحة دلوقتي — جرب تاني لاحقًا",
-      "auth/operation-not-allowed": "تسجيل الدخول برقم التليفون لسه مش مفعّل على الموقع",
-    };
-    if (map[err?.code]) return map[err.code];
-    if (isWebView) {
+    const specific = authErrorMessage(err);
+    const isGenericFallback = specific.startsWith("حصلت مشكلة غير متوقعة");
+    if (isGenericFallback && isWebView) {
       return "التسجيل بالتليفون مش شغال من جوه المتصفح ده — افتح الصفحة في متصفح حقيقي (كروم أو سفاري) وجرب تاني";
     }
-    return err?.code === "auth/network-request-failed" ? "تأكد من اتصال الإنترنت وحاول تاني" : "حصلت مشكلة، حاول تاني";
+    return specific;
   }
 
   // بينضّف أي verifier اتعمله render قبل كده على العنصر ده (لو موجود) — لازم تتنادى قبل أي
