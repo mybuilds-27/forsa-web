@@ -358,6 +358,22 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       const user = auth.currentUser;
       if (!user) return;
 
+      // تحديث إجباري لتوكن المصادقة قبل أي كتابة — لو الجلسة طالت والتوكن المحفوظ محليًا
+      // بقى منتهي/غير صالح، auth.currentUser فوق بيفضل شايله في الذاكرة عادي (مفيش أي مؤشر
+      // بصري إنه مشكلة)، لكن أي كتابة Firestore بعد كده هترفض بـpermission-denied غامض —
+      // ده أرجح تفسير وحيد بيغطي حادثة اتسجلت permission-denied من غير أي أثر في error_logs
+      // (نفس السبب منع كتابة job_posts وerror_logs مع بعض في نفس اللحظة). getIdToken(true)
+      // بيعمل رحلة شبكة حقيقية للتجديد؛ لو فشلت فعلًا (جلسة منتهية فعليًا مش مجرد تجديد
+      // عادي)، بنوقف هنا برسالة واضحة بدل ما نكمل ونوصل لرفض غامض في الكتابة الفعلية.
+      try {
+        await user.getIdToken(true);
+      } catch (err) {
+        console.error("Failed to refresh auth token before posting", err);
+        logClientError(isEditMode ? "job_post_update" : "job_post_create", err, { stage: "token_refresh" });
+        alert("يظهر إن جلستك انتهت — سجّل دخولك تاني وجرب تنشر الوظيفة من جديد.");
+        return;
+      }
+
       // employerPlan (الـprop) بتتحمّل مرة واحدة بس وقت فتح صفحة /employer — لو الباقة
       // اتغيّرت (ترقية بعد طلب واتساب، أو انتهاء صلاحية) والمستخدم فاتح نفس الصفحة من فترة،
       // القيمة القديمة ممكن تبقى غير متطابقة مع employers/{uid}.plan الحقيقي وقت الحفظ.
