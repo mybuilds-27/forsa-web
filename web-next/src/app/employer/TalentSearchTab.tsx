@@ -9,6 +9,7 @@ import {
   SPECIALIZATION_OPTIONS,
   EXPERIENCE_LEVELS,
   LANGUAGE_LEVELS,
+  MILITARY_STATUS_LABELS,
 } from "@/lib/constants";
 import { normalizeEntries } from "@/lib/profileFields";
 import { activePillStyle, pausedPillStyle } from "@/lib/jobCardStyles";
@@ -242,6 +243,14 @@ export default function TalentSearchTab({ employerPlan }: Props) {
               const languageEntries = normalizeEntries(s.languages);
               const keywordList: string[] = Array.isArray(s.keywords) ? s.keywords : [];
               const hasExtraTags = !!educationLabel || languageEntries.length > 0 || keywordList.length > 0;
+              // نفس شرطي الخصوصية بالظبط المستخدمين في SeekerDetailModal.tsx — حالة التجنيد
+              // بس لو رجّالة (السؤال أصلًا مش مطروح على الستات)، والراتب بس لو الباحث سامح
+              // بعرضه لأصحاب الأعمال (showSalaryToEmployers)، مش أي راتب متسجّل في البروفايل.
+              const militaryStatusLabel =
+                s.gender === "male" && s.militaryStatus
+                  ? MILITARY_STATUS_LABELS[s.militaryStatus] || s.militaryStatus
+                  : undefined;
+              const showExpectedSalary = s.showSalaryToEmployers && s.expectedSalary;
               return (
               <div
                 key={s.id}
@@ -267,22 +276,29 @@ export default function TalentSearchTab({ employerPlan }: Props) {
                   </div>
                   <div style={{ fontSize: 13, color: "#4A5568", marginTop: 2 }}>{s.jobTitle || ""}</div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                    {s.specialization && <span style={tagStyle}>{s.specialization}</span>}
-                    {s.governorate && <span style={tagStyle}>{s.governorate}</span>}
+                    {s.specialization && <span style={tagStyle}>التخصص: {s.specialization}</span>}
+                    {s.governorate && <span style={tagStyle}>المحافظة: {s.governorate}</span>}
                     <span style={tagStyle}>{s.yearsOfExperience || 0} سنوات خبرة</span>
                   </div>
                   {hasExtraTags && (
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-                      {educationLabel && <span style={tagStyle}>🎓 {educationLabel}</span>}
+                      {educationLabel && <span style={tagStyle}>🎓 المؤهل: {educationLabel}</span>}
                       {languageEntries.map((l) => (
                         <span key={l.name} style={tagStyle}>
-                          {l.name}
+                          اللغة: {l.name}
                           {l.level ? ` (${LANGUAGE_LEVELS[l.level] || l.level})` : ""}
                         </span>
                       ))}
                       {keywordList.map((k) => (
                         <span key={k} style={tagStyle}>{k}</span>
                       ))}
+                    </div>
+                  )}
+                  {(militaryStatusLabel || showExpectedSalary) && (
+                    <div style={{ fontSize: 12.5, color: "#4A5568", marginTop: 6 }}>
+                      {militaryStatusLabel && <span>حالة التجنيد: {militaryStatusLabel}</span>}
+                      {militaryStatusLabel && showExpectedSalary && <span> · </span>}
+                      {showExpectedSalary && <span>الراتب المتوقع: {s.expectedSalary} جنيه</span>}
                     </div>
                   )}
                 </div>
