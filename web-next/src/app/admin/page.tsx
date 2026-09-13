@@ -49,6 +49,10 @@ import {
 
 const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
 
+// نفس الشكل بالظبط المستخدم في PostJobTab.tsx/ApplicantCard.tsx/ScreeningQuestionsModal.tsx —
+// مخزّن كـscreeningQuestions على مستند job_posts نفسه (مش جوه إجابات المتقدمين).
+type ScreeningQuestion = { id: string; text: string; type: "text" | "number"; required: boolean };
+
 // حجم دفعة "كل الإعلانات المنشورة على الموقع" — نفس الرقم مستخدم في in query لـjob_views/
 // applications تحت (حد الـin في Firestore بيسمح بأكتر بكتير، بس مفيش داعي نتخطى حجم الصفحة نفسها)
 const POSTS_PAGE_SIZE = 10;
@@ -912,6 +916,22 @@ export default function AdminPage() {
                   <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>{formatDate(p.createdAt)}</span>
                 </div>
               </div>
+
+              {p.screeningQuestions && p.screeningQuestions.length > 0 && (
+                <div style={{ marginTop: 14, padding: "10px 14px", background: "#FAF6EC", borderRadius: 8, border: "1px solid #14213D14" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#14213D", marginBottom: 6 }}>
+                    ❓ أسئلة الفرز ({p.screeningQuestions.length})
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {p.screeningQuestions.map((q: ScreeningQuestion) => (
+                      <div key={q.id} style={{ fontSize: 13.5, color: "#14213D" }}>
+                        • {q.text}
+                        {!q.required && <span style={{ color: "#4A5568" }}> (اختياري)</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div
                 style={{
