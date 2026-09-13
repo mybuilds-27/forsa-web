@@ -65,6 +65,13 @@ function formatDate(ts: any) {
   return d.toLocaleDateString("ar-EG");
 }
 
+// تاريخ ووقت مع بعض (مش تاريخ بس زي formatDate) — مستخدمة في تفاصيل حالات أخطاء التسجيل
+// القابلة للتوسيع تحت، عشان الأدمن يقدر يميّز بين حالتين في نفس اليوم.
+function formatDateTime(ts: Timestamp | undefined): string {
+  if (!ts?.toDate) return "";
+  return ts.toDate().toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" });
+}
+
 // أكتر قيمة تكررت في مصفوفة (code أو message)، وعدد تكرارها — null بيتحسب كقيمة لوحدها
 // (يعني "مفيش قيمة مسجلة")، فلو ده الأكتر تكرارًا، القيمة الراجعة بتبقى null.
 function mostFrequentValue(values: (string | null)[]): { value: string | null; count: number } {
@@ -83,19 +90,30 @@ function mostFrequentValue(values: (string | null)[]): { value: string | null; c
   return { value, count };
 }
 
+// أعلى عدد حالات فردية بنعرضها في تفاصيل الكارت القابلة للتوسيع — كفاية عمليًا لمراجعة آخر
+// حالات، ومحتاجة حد أقصى عشان لو فيه سبيك حالات كتير الكارت ميتكسرش بقايمة طويلة أوي.
+const MAX_AUTH_ERROR_ENTRIES = 20;
+
 // بيحسب عدد مستندات error_logs بـstep معيّن، وأكتر code تكرر بينهم، وأكتر message تكرر
-// كـfallback لو مفيش code مسجل خالص (بدون أي استعلام إضافي — نفس الـdocs المجلوبة أصلًا
-// من loadAuthErrorStats).
+// كـfallback لو مفيش code مسجل خالص، وكمان قايمة بآخر الحالات الفردية (تاريخ/وقت + الصفحة
+// + الكود بتاع كل حالة) للتفاصيل القابلة للتوسيع — كله من غير أي استعلام إضافي (نفس الـdocs
+// المجلوبة أصلًا من loadAuthErrorStats).
 function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
   const stepDocs = docs.filter((d) => d.data().step === step);
   const topCode = mostFrequentValue(stepDocs.map((d) => d.data().code ?? null));
   const topMessage = mostFrequentValue(stepDocs.map((d) => d.data().message ?? null));
+
+  const entries = stepDocs
+    .map((d) => ({ id: d.id, createdAt: d.data().createdAt, page: d.data().page ?? null, code: d.data().code ?? null }))
+    .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0))
+    .slice(0, MAX_AUTH_ERROR_ENTRIES);
 
   return {
     count: stepDocs.length,
     topErrorCode: topCode.value,
     topErrorCodeCount: topCode.count,
     topErrorMessage: topMessage.value,
+    entries,
   };
 }
 
@@ -147,11 +165,14 @@ type SignupMethodStats = {
 
 // count إجمالي الأخطاء المسجّلة للـstep ده، وtopErrorCode/topErrorCodeCount أكتر code
 // (زي auth/quota-exceeded) تكرر بينهم — null لو كل المستندات معندهاش code مسجل خالص.
+type AuthErrorEntry = { id: string; createdAt: Timestamp | undefined; page: string | null; code: string | null };
+
 type AuthErrorDetail = {
   count: number;
   topErrorCode: string | null;
   topErrorCodeCount: number;
   topErrorMessage: string | null;
+  entries: AuthErrorEntry[];
 };
 
 type AuthErrorStats = {
@@ -159,6 +180,11 @@ type AuthErrorStats = {
   phone_verify_code: AuthErrorDetail;
   google_popup_signin: AuthErrorDetail;
   google_redirect_signin: AuthErrorDetail;
+  // مش أخطاء تسجيل فعليًا، بس بتتحسب من نفس error_logs المجلوبة أصلًا هنا (بدون استعلام
+  // إضافي) — بتتعرض في قسم منفصل "أخطاء نشر الوظائف" تحت (شوف job_post_create/
+  // job_post_update في PostJobTab.tsx، اللي كانت بتفشل من غير أي تسجيل خالص قبل كده).
+  job_post_create: AuthErrorDetail;
+  job_post_update: AuthErrorDetail;
 };
 
 // reviewed مش موجود في المستندات القديمة خالص (لسه محدش راجعها) — undefined بيتعامل معاه
@@ -279,6 +305,8 @@ export default function AdminPage() {
         phone_verify_code: computeAuthErrorDetail(snap.docs, "phone_verify_code"),
         google_popup_signin: computeAuthErrorDetail(snap.docs, "google_popup_signin"),
         google_redirect_signin: computeAuthErrorDetail(snap.docs, "google_redirect_signin"),
+        job_post_create: computeAuthErrorDetail(snap.docs, "job_post_create"),
+        job_post_update: computeAuthErrorDetail(snap.docs, "job_post_update"),
       });
       setAuthErrorStatsError(false);
     } catch (err) {
@@ -744,11 +772,34 @@ export default function AdminPage() {
                 مفيش أخطاء تسجيل مسجّلة آخر 7 أيام 👍
               </div>
             ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <FunnelStepCard label="فشل إرسال كود التليفون" value={authErrorStats.phone_send_code.count} subtitle={authErrorSubtitle(authErrorStats.phone_send_code)} />
-                <FunnelStepCard label="فشل تأكيد كود التليفون" value={authErrorStats.phone_verify_code.count} subtitle={authErrorSubtitle(authErrorStats.phone_verify_code)} />
-                <FunnelStepCard label="فشل نافذة جوجل المنبثقة" value={authErrorStats.google_popup_signin.count} subtitle={authErrorSubtitle(authErrorStats.google_popup_signin)} />
-                <FunnelStepCard label="فشل تسجيل جوجل بالكامل" value={authErrorStats.google_redirect_signin.count} subtitle={authErrorSubtitle(authErrorStats.google_redirect_signin)} />
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
+                <AuthErrorCard label="فشل إرسال كود التليفون" detail={authErrorStats.phone_send_code} />
+                <AuthErrorCard label="فشل تأكيد كود التليفون" detail={authErrorStats.phone_verify_code} />
+                <AuthErrorCard label="فشل نافذة جوجل المنبثقة" detail={authErrorStats.google_popup_signin} />
+                <AuthErrorCard label="فشل تسجيل جوجل بالكامل" detail={authErrorStats.google_redirect_signin} />
+              </div>
+            )
+          )}
+        </div>
+      )}
+
+      {(authErrorStats || authErrorStatsError) && (
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 16, marginBottom: 12 }}>أخطاء نشر الوظائف (آخر 7 أيام)</h2>
+          {authErrorStatsError && (
+            <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
+              تعذر تحميل بيانات الأخطاء — باقي الإحصائيات تحت شغالة عادي.
+            </div>
+          )}
+          {authErrorStats && (
+            (authErrorStats.job_post_create.count + authErrorStats.job_post_update.count) === 0 ? (
+              <div style={{ fontSize: 13.5, color: "#2F6F4E", background: "rgba(47,111,78,0.1)", borderRadius: 8, padding: "10px 14px" }}>
+                مفيش أخطاء نشر/تعديل وظايف مسجّلة آخر 7 أيام 👍
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
+                <AuthErrorCard label="فشل نشر وظيفة جديدة" detail={authErrorStats.job_post_create} />
+                <AuthErrorCard label="فشل حفظ تعديل وظيفة" detail={authErrorStats.job_post_update} />
               </div>
             )
           )}
@@ -1134,6 +1185,62 @@ function FunnelStepCard({ label, value, subtitle }: { label: string; value: numb
       <div style={{ fontSize: 22, fontWeight: 900 }}>{value}</div>
       <div style={{ fontSize: 12, color: "#4A5568" }}>{label}</div>
       {subtitle && <div style={{ fontSize: 11, color: "#4A5568", marginTop: 4 }}>{subtitle}</div>}
+    </div>
+  );
+}
+
+// نسخة من FunnelStepCard مخصّصة بس لكروت أخطاء التسجيل التلاتة — بتضيف زرار توسيع يعرض آخر
+// الحالات الفردية (تاريخ/وقت، الصفحة، الكود) من غير ما تلمس FunnelStepCard نفسها (مستخدمة في
+// 3 أقسام تانية مالهاش علاقة بالتفاصيل دي: حالة التقديمات، قمع التسجيل، طرق التسجيل).
+function AuthErrorCard({ label, detail }: { label: string; detail: AuthErrorDetail }) {
+  const [expanded, setExpanded] = useState(false);
+  const subtitle = authErrorSubtitle(detail);
+
+  return (
+    <div style={{ background: "#fff", border: "1px solid #14213D22", borderRadius: 8, padding: "12px 16px", minWidth: 180, flex: "1 1 180px" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 22, fontWeight: 900 }}>{detail.count}</div>
+        <div style={{ fontSize: 12, color: "#4A5568" }}>{label}</div>
+        {subtitle && <div style={{ fontSize: 11, color: "#4A5568", marginTop: 4 }}>{subtitle}</div>}
+      </div>
+
+      {detail.count > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            style={{
+              display: "block",
+              width: "100%",
+              marginTop: 8,
+              padding: "4px 8px",
+              fontSize: 11,
+              background: "transparent",
+              border: "1px solid #14213D22",
+              borderRadius: 6,
+              color: "#14213D",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {expanded ? "إخفاء التفاصيل ▲" : `عرض آخر ${detail.entries.length} حالة ▼`}
+          </button>
+
+          {expanded && (
+            <div style={{ marginTop: 8, maxHeight: 220, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+              {detail.entries.map((entry) => (
+                <div key={entry.id} style={{ fontSize: 11, color: "#4A5568", borderTop: "1px solid #14213D14", paddingTop: 6 }}>
+                  <div>{formatDateTime(entry.createdAt)}</div>
+                  <div style={{ wordBreak: "break-all" }}>
+                    {entry.page || "صفحة غير مسجّلة"}
+                    {entry.code ? ` — ${entry.code}` : ""}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

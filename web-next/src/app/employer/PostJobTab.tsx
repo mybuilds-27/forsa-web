@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, query, where, getCountFromServer, getDocs, limit, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, query, where, getCountFromServer, getDoc, getDocs, limit, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS, KEYWORD_OPTIONS, SPECIALIZATION_KEYWORD_MAP } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
+import { logClientError } from "@/lib/errorLog";
 import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import KeywordsPicker, { MAX_KEYWORDS } from "@/components/KeywordsPicker";
@@ -357,9 +358,24 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       const user = auth.currentUser;
       if (!user) return;
 
+      // employerPlan (الـprop) بتتحمّل مرة واحدة بس وقت فتح صفحة /employer — لو الباقة
+      // اتغيّرت (ترقية بعد طلب واتساب، أو انتهاء صلاحية) والمستخدم فاتح نفس الصفحة من فترة،
+      // القيمة القديمة ممكن تبقى غير متطابقة مع employers/{uid}.plan الحقيقي وقت الحفظ.
+      // بنجيب القيمة الحية دلوقتي ونستخدمها هنا بدل الـprop — أهم حاجة عشان featured تحت،
+      // اللي قواعد Firestore غالبًا بتتحقق منها مقابل الباقة الفعلية وقت الكتابة، فمينفعش
+      // نبعت featured:true وإحنا مش بريميوم فعليًا (ده أرجح سبب لـpermission-denied وقت
+      // النشر). فشل الجلب (شبكة عابرة) بيرجّعنا للـprop القديمة بدل ما يمنع النشر بالكامل.
+      let currentPlan = employerPlan;
+      try {
+        const employerSnap = await getDoc(doc(db, "employers", user.uid));
+        currentPlan = employerSnap.data()?.plan || "free";
+      } catch (err) {
+        console.error("Failed to refresh employer plan before posting", err);
+      }
+
       // حد النشر الشهري بيتفعّل بس وقت النشر الجديد، مش وقت التعديل
       if (!isEditMode) {
-        const monthlyLimit = employerPlan === "premium" ? 10 : 5;
+        const monthlyLimit = currentPlan === "premium" ? 10 : 5;
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
@@ -376,7 +392,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         );
         if (countSnap.data().count >= monthlyLimit) {
           alert(
-            employerPlan === "premium"
+            currentPlan === "premium"
               ? `وصلت للحد الأقصى (${monthlyLimit} إعلانات) للباقة المدفوعة الشهر ده.`
               : `الباقة المجانية بتسمح بحد أقصى ${monthlyLimit} إعلانات جديدة شهريًا، وإنت وصلت للحد ده الشهر ده.`
           );
@@ -446,7 +462,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         contactValue: receiveMethod === "contact" ? contactValue : "",
         additionalBenefits: additionalBenefits || "",
         screeningQuestions,
-        featured: employerPlan === "premium",
+        featured: currentPlan === "premium",
         isActive: true,
       };
 
@@ -461,7 +477,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         onPosted();
       } else {
         const expiry = new Date();
-        expiry.setDate(expiry.getDate() + (employerPlan === "premium" ? 60 : 30));
+        expiry.setDate(expiry.getDate() + (currentPlan === "premium" ? 60 : 30));
         postData.expiresAt = Timestamp.fromDate(expiry);
         const addPromise = addDoc(collection(db, "job_posts"), {
           ...postData,
@@ -481,6 +497,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       }
     } catch (err: any) {
       console.error("Job post save failed", err);
+      logClientError(isEditMode ? "job_post_update" : "job_post_create", err);
       setSlowSaveNotice(false);
       if (err instanceof Error && err.message === "HARD_FAIL_TIMEOUT") {
         alert(
