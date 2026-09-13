@@ -118,9 +118,13 @@ export function findSpecialtyBySlug(slug: string): string | null {
 }
 
 // قائمة ابتدائية لصفحات SEO على مستوى المنطقة/الحي (أدق من صفحة المحافظة الكاملة) — أهم
-// 20 منطقة من الأكبر كثافة سكانية/وظائف في أكبر 5 محافظات بس، مش كل مدينة في
+// المناطق من الأكبر كثافة سكانية/وظائف في أكبر 5 محافظات بس، مش كل مدينة في
 // GOVERNORATE_CITIES لكل الـ27 محافظة دفعة واحدة. بنزود تدريجيًا بعدين.
+// العاشر من رمضان والعبور في الأول (قبل القاهرة/الجيزة) — الأقرب جغرافيًا لصاحب الموقع.
+// الإسكندرية مقتصرة على أشهر 3 مناطق بس (سيدي جابر، سموحة، الرمل) بدل الـ6 الأصليين.
 export const SEO_AREAS: { governorate: string; city: string }[] = [
+  { governorate: "الشرقية", city: "العاشر من رمضان" },
+  { governorate: "القليوبية", city: "العبور" },
   { governorate: "القاهرة", city: "مدينة نصر" },
   { governorate: "القاهرة", city: "المعادي" },
   { governorate: "القاهرة", city: "مصر الجديدة" },
@@ -135,12 +139,7 @@ export const SEO_AREAS: { governorate: string; city: string }[] = [
   { governorate: "الجيزة", city: "فيصل" },
   { governorate: "الإسكندرية", city: "سيدي جابر" },
   { governorate: "الإسكندرية", city: "سموحة" },
-  { governorate: "الإسكندرية", city: "المنتزه" },
-  { governorate: "الإسكندرية", city: "العجمي" },
-  { governorate: "الإسكندرية", city: "محرم بك" },
   { governorate: "الإسكندرية", city: "الرمل" },
-  { governorate: "الشرقية", city: "العاشر من رمضان" },
-  { governorate: "القليوبية", city: "العبور" },
 ];
 
 export function findAreaBySlug(governorate: string, citySlug: string): string | null {
