@@ -2,17 +2,48 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { collection, getDocs, limit, query, startAfter, where, QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, getDocs, limit, query, startAfter, where, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   GOVERNORATES,
   SPECIALIZATION_OPTIONS,
   EXPERIENCE_LEVELS,
+  LANGUAGE_LEVELS,
 } from "@/lib/constants";
+import { normalizeEntries } from "@/lib/profileFields";
+import { activePillStyle, pausedPillStyle } from "@/lib/jobCardStyles";
 import SeekerDetailModal from "./SeekerDetailModal";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 
 const PAGE_SIZE = 12;
+
+// نفس القيم الموجودة في select "المؤهل الدراسي" في JobPreferencesTab.tsx — مفيش export
+// مشترك لها حاليًا (مطابقة نفس نمط تكرار types صغيرة زي ScreeningQuestion في أكتر من ملف
+// بدل تجريد سابق لأوانه)، فبنعرّفها هنا بس عشان نحوّل الكود المخزّن لنص مقروء في البطاقة.
+const EDUCATION_LEVEL_LABELS: Record<string, string> = {
+  none: "بدون مؤهل دراسي",
+  literacy: "محو أمية",
+  primary: "ابتدائية",
+  preparatory: "إعدادية",
+  secondary: "ثانوية عامة / دبلوم",
+  bachelor: "بكالوريوس/ليسانس",
+  master: "ماجستير",
+  phd: "دكتوراه",
+};
+
+// مؤشر نشاط تقريبي بس (مش تاريخ دقيق) من updatedAt الموجودة بالفعل على job_seekers —
+// null للفترة المتوسطة (بين 14 يوم وشهرين) عشان نتجنب حكم مبالغ فيه، ولو updatedAt مفقودة
+// أصلًا (بروفايلات قديمة من قبل ما الحقل ده يتضاف) بنرجع null بدل افتراض "غير نشط" غلط.
+const RECENT_ACTIVITY_DAYS = 14;
+const INACTIVE_AFTER_DAYS = 60;
+
+function getActivityLabel(updatedAt: Timestamp | undefined): "recent" | "inactive" | null {
+  if (!updatedAt?.toDate) return null;
+  const daysSince = (Date.now() - updatedAt.toDate().getTime()) / (1000 * 60 * 60 * 24);
+  if (daysSince <= RECENT_ACTIVITY_DAYS) return "recent";
+  if (daysSince > INACTIVE_AFTER_DAYS) return "inactive";
+  return null;
+}
 
 type Props = {
   employerPlan: string;
@@ -205,7 +236,13 @@ export default function TalentSearchTab({ employerPlan }: Props) {
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {displayedResults.map((s) => (
+            {displayedResults.map((s) => {
+              const activity = getActivityLabel(s.updatedAt);
+              const educationLabel = s.educationLevel ? EDUCATION_LEVEL_LABELS[s.educationLevel] : undefined;
+              const languageEntries = normalizeEntries(s.languages);
+              const keywordList: string[] = Array.isArray(s.keywords) ? s.keywords : [];
+              const hasExtraTags = !!educationLabel || languageEntries.length > 0 || keywordList.length > 0;
+              return (
               <div
                 key={s.id}
                 onClick={() => setSelectedSeeker(s)}
@@ -223,16 +260,35 @@ export default function TalentSearchTab({ employerPlan }: Props) {
                   <img src={s.photoURL} alt={s.fullName || "باحث عن عمل"} style={{ width: 48, height: 48, objectFit: "cover", borderRadius: "50%", flexShrink: 0 }} />
                 )}
                 <div style={{ flex: 1 }}>
-                  <h4 style={{ margin: 0, fontSize: 16 }}>{s.fullName || "بدون اسم"}</h4>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <h4 style={{ margin: 0, fontSize: 16 }}>{s.fullName || "بدون اسم"}</h4>
+                    {activity === "recent" && <span style={activePillStyle}>نشط مؤخرًا</span>}
+                    {activity === "inactive" && <span style={pausedPillStyle}>غير نشط من فترة</span>}
+                  </div>
                   <div style={{ fontSize: 13, color: "#4A5568", marginTop: 2 }}>{s.jobTitle || ""}</div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
                     {s.specialization && <span style={tagStyle}>{s.specialization}</span>}
                     {s.governorate && <span style={tagStyle}>{s.governorate}</span>}
                     <span style={tagStyle}>{s.yearsOfExperience || 0} سنوات خبرة</span>
                   </div>
+                  {hasExtraTags && (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                      {educationLabel && <span style={tagStyle}>🎓 {educationLabel}</span>}
+                      {languageEntries.map((l) => (
+                        <span key={l.name} style={tagStyle}>
+                          {l.name}
+                          {l.level ? ` (${LANGUAGE_LEVELS[l.level] || l.level})` : ""}
+                        </span>
+                      ))}
+                      {keywordList.map((k) => (
+                        <span key={k} style={tagStyle}>{k}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {hasMore && (
