@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
@@ -17,6 +17,16 @@ type Props = {
   onClose: () => void;
 };
 
+// شكل مبسّط بس للحقول المستخدمة في jobLabel — jobs نفسها فضلت any[] زي ما كانت (مش هدف
+// التعديل ده)، بس مفيش داعي any هنا تحديدًا لمجرد قراءة 4 حقول نصية معروفة.
+type JobLabelFields = { title?: string; showCompanyName?: boolean; companyName?: string; city?: string; governorate?: string };
+
+// اسم عرض موحّد للوظيفة (في نتائج البحث وفي صندوق الاختيار المؤكّد) — نفس الحقول اللي كانت
+// متعروضة في نص <option> القديم بالظبط.
+function jobLabel(j: JobLabelFields): string {
+  return `${j.title} — ${j.showCompanyName && j.companyName ? j.companyName : "شركة غير معلنة"} — ${j.city} - ${j.governorate}`;
+}
+
 export default function InviteToJobModal({ seekerId, seekerName, employerPlan, defaultJobId, onClose }: Props) {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +34,51 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, d
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+
+  // نفس نمط البحث الحي في KeywordsPicker.tsx — بس اختيار واحد بس بدل چيبس متعددة: لما وظيفة
+  // تتختار، القايمة بتتقفل وبيتعرض اسمها بدل الحقل، وزرار "تغيير" بيرجّع لوضع البحث تاني.
+  const [searchText, setSearchText] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // composedPath() بدل contains(e.target) — نفس السبب المتوثّق في KeywordsPicker.tsx: لو
+    // العنصر المختار اتشال من الشجرة فورًا (مش حالتنا هنا فعليًا لأن القايمة بتتقفل خالص بعد
+    // الاختيار، لكن نفس النمط الآمن المُجرَّب بدل contains العادية).
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !e.composedPath().includes(containerRef.current)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // بعد ما يمسح اختياره (زرار "تغيير")، حقل البحث بيتعرض من جديد فاضي — بنفوكس عليه فورًا
+  // ونفتح القايمة عشان يقدر يدور تاني من غير ما يحتاج يدوس على الحقل الأول.
+  useEffect(() => {
+    if (isOpen && !selectedJobId) {
+      searchInputRef.current?.focus();
+    }
+  }, [isOpen, selectedJobId]);
+
+  const selectedJob = jobs.find((j) => j.id === selectedJobId);
+  const trimmedSearch = searchText.trim().toLowerCase();
+  const filteredJobs = trimmedSearch
+    ? jobs.filter((j) => jobLabel(j).toLowerCase().includes(trimmedSearch))
+    : jobs;
+
+  function selectJob(jobId: string) {
+    setSelectedJobId(jobId);
+    setSearchText("");
+    setIsOpen(false);
+  }
+
+  function clearSelection() {
+    setSelectedJobId("");
+    setIsOpen(true);
+  }
 
   useEffect(() => {
     async function loadJobs() {
@@ -175,18 +230,91 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, d
             {!loading && jobs.length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: "block", marginBottom: 4, fontSize: 13.5, fontWeight: 600 }}>الوظيفة</label>
-                <select
-                  value={selectedJobId}
-                  onChange={(e) => setSelectedJobId(e.target.value)}
-                  style={{ width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 6, fontSize: 14 }}
-                >
-                  <option value="">اختر وظيفة</option>
-                  {jobs.map((j) => (
-                    <option key={j.id} value={j.id}>
-                      {j.title} — {j.showCompanyName && j.companyName ? j.companyName : "شركة غير معلنة"} — {j.city} - {j.governorate}
-                    </option>
-                  ))}
-                </select>
+                {selectedJob ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      padding: "8px 12px",
+                      border: "1px solid #ccc",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      background: "#FAF6EC",
+                    }}
+                  >
+                    <span>{jobLabel(selectedJob)}</span>
+                    <button
+                      type="button"
+                      onClick={clearSelection}
+                      style={{
+                        flexShrink: 0,
+                        fontSize: 12.5,
+                        padding: "4px 10px",
+                        border: "1px solid #14213D",
+                        borderRadius: 6,
+                        background: "transparent",
+                        color: "#14213D",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      تغيير
+                    </button>
+                  </div>
+                ) : (
+                  <div ref={containerRef} style={{ position: "relative" }}>
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchText}
+                      onChange={(e) => {
+                        setSearchText(e.target.value);
+                        setIsOpen(true);
+                      }}
+                      onFocus={() => setIsOpen(true)}
+                      onKeyDown={(e) => e.key === "Escape" && setIsOpen(false)}
+                      placeholder="دور على وظيفة من إعلاناتك..."
+                      style={{ width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 6, fontSize: 14, fontFamily: "inherit" }}
+                    />
+                    {isOpen && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          right: 0,
+                          zIndex: 10,
+                          marginTop: 4,
+                          maxHeight: 220,
+                          overflowY: "auto",
+                          background: "#fff",
+                          border: "1px solid #ccc",
+                          borderRadius: 6,
+                          boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+                        }}
+                      >
+                        {filteredJobs.length === 0 ? (
+                          <div style={{ padding: "8px 10px", fontSize: 13, color: "#4A5568" }}>مفيش نتائج مطابقة</div>
+                        ) : (
+                          filteredJobs.map((j) => (
+                            <div
+                              key={j.id}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                selectJob(j.id);
+                              }}
+                              style={{ padding: "8px 10px", fontSize: 13.5, cursor: "pointer" }}
+                            >
+                              {jobLabel(j)}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
