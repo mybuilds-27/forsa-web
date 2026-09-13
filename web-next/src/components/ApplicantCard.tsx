@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
 import { normalizeEntries, SkillEntry } from "@/lib/profileFields";
@@ -29,13 +29,25 @@ type ScreeningQuestion = { id: string; text: string; type: "text" | "number"; re
 type Props = {
   applicant: { seekerSnapshot?: any; screeningAnswers?: Record<string, string>; jobPostId?: string; seekerId?: string; status?: string };
   screeningQuestions?: ScreeningQuestion[];
+  // بيتفعّل بس من لوحة الأدمن (admin/page.tsx) — لوحة صاحب العمل (CompanyTab.tsx) مبتبعتهاش
+  // خالص فمتشوفش تاريخ آخر تعديل لبروفايل الباحث. الفحص نفسه بيحصل بس لما ده true (شوف
+  // useEffect تحت) عشان صاحب العمل ميحاولش يقرا job_seekers/{uid} مباشرة أصلًا.
+  isAdmin?: boolean;
 };
 
 // نسخة مكبّرة من tagStyle/ghostActionStyle المشتركة، خاصة بكارت المتقدم بس — عشان متأثرش على كروت الوظائف في باقي الموقع
 const bigTagStyle: React.CSSProperties = { ...tagStyle, fontSize: 14, padding: "4px 12px" };
 const bigGhostActionStyle: React.CSSProperties = { ...ghostActionStyle, fontSize: 15, padding: "10px 16px" };
 
-export default function ApplicantCard({ applicant: a, screeningQuestions }: Props) {
+// undefined = لسه بيتحمّل، null = اتأكد إنه مش موجود (بروفايل قديم من قبل ما updatedAt يتضاف)
+// أو حصل خطأ في الجلب — الحالتين بيتعرضوا "غير معروف" في الواجهة.
+function formatLastProfileUpdate(value: Date | null | undefined): string {
+  if (value === undefined) return "...";
+  if (value === null) return "غير معروف";
+  return value.toLocaleDateString("ar-EG");
+}
+
+export default function ApplicantCard({ applicant: a, screeningQuestions, isAdmin }: Props) {
   const s = a.seekerSnapshot || {};
   const skills = normalizeEntries(s.skills);
   const languages = normalizeEntries(s.languages);
@@ -44,6 +56,30 @@ export default function ApplicantCard({ applicant: a, screeningQuestions }: Prop
   const [savingStatus, setSavingStatus] = useState(false);
   const [statusError, setStatusError] = useState("");
   const [showAutoCV, setShowAutoCV] = useState(false);
+  const [lastProfileUpdate, setLastProfileUpdate] = useState<Date | null | undefined>(undefined);
+
+  // updatedAt بتتحدث فعليًا في job_seekers/{uid} من كل تابات البروفايل (PersonalInfoTab،
+  // JobPreferencesTab، SkillsAndCVTab، إلخ — كلها بتحفظ serverTimestamp() عليها). seekerSnapshot
+  // مجرد نسخة مجمّدة وقت التقديم نفسه، فمبتعكسش أي تعديل بعد كده — لازم قراءة حية من
+  // job_seekers نفسها. قراءة مباشرة زي دي مسموحة للأدمن بالفعل (نفس النمط المستخدم في
+  // adminExports.ts وstats لوحة الأدمن)، فمفيش داعي لـCloud Function هنا.
+  useEffect(() => {
+    if (!isAdmin || !a.seekerId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, "job_seekers", a.seekerId!));
+        const updatedAt = snap.data()?.updatedAt;
+        if (!cancelled) setLastProfileUpdate(updatedAt?.toDate ? updatedAt.toDate() : null);
+      } catch (err) {
+        console.error("[ApplicantCard] فشل جلب تاريخ آخر تعديل لبروفايل الباحث", err);
+        if (!cancelled) setLastProfileUpdate(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, a.seekerId]);
 
   async function handleStatusChange(newStatus: ApplicationStatus) {
     if (!a.jobPostId || !a.seekerId) {
@@ -115,6 +151,12 @@ export default function ApplicantCard({ applicant: a, screeningQuestions }: Prop
         <span style={bigTagStyle}><BriefcaseIcon size={15} /> سنوات الخبرة: {s.yearsOfExperience || 0} سنوات</span>
         {s.militaryStatus && <span style={bigTagStyle}><ShieldIcon size={15} /> موقف التجنيد: {MILITARY_STATUS_LABELS[s.militaryStatus] || s.militaryStatus}</span>}
       </div>
+
+      {isAdmin && (
+        <div style={{ fontSize: 13, color: "#4A5568", marginTop: 8 }}>
+          🕓 آخر تعديل للبروفايل: {formatLastProfileUpdate(lastProfileUpdate)}
+        </div>
+      )}
 
       {skills.length > 0 && (
         <div style={{ marginTop: 12 }}>

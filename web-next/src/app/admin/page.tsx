@@ -983,7 +983,7 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   applicants.map((a, i) => (
-                    <ApplicantCard key={i} applicant={a} screeningQuestions={p.screeningQuestions} />
+                    <ApplicantCard key={i} applicant={a} screeningQuestions={p.screeningQuestions} isAdmin />
                   ))
                 )}
               </div>
