@@ -32,6 +32,16 @@ const EDUCATION_LABELS: Record<string, string> = {
   phd: "دكتوراه",
 };
 
+// نفس صيغة formatDateTime المستخدمة في admin/page.tsx بالظبط — تاريخ ووقت دقيقين، مش
+// مؤشر نسبي زي "نشط مؤخرًا" في البطاقة المختصرة (TalentSearchTab.tsx). ظاهرة هنا لكل من
+// يفتح المودال (أدمن أو صاحب عمل) عمدًا — فتح المودال نفسه أصلًا محكوم برصيد صاحب العمل
+// المحدود (كشف بيانات التواصل للباقة المدفوعة)، فمش نفس حساسية عرض تاريخ دقيق في قايمة
+// بطاقات مفتوحة للتصفح الحر زي ApplicantCard.tsx.
+function formatUpdatedAt(ts: { toDate?: () => Date } | undefined): string {
+  if (!ts?.toDate) return "غير معروف";
+  return ts.toDate().toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" });
+}
+
 const JOB_TYPE_LABELS: Record<string, string> = {
   full_time: "دوام كامل",
   part_time: "دوام جزئي",
@@ -166,7 +176,10 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
             <img src={s.photoURL} alt={s.fullName || "باحث عن عمل"} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: "50%", marginBottom: 14 }} />
           )}
           <h2 style={{ marginBottom: 4 }}>{s.fullName || "بدون اسم"}</h2>
-          <div style={{ color: "#4A5568", marginBottom: 12 }}>{s.jobTitle || ""}</div>
+          <div style={{ color: "#4A5568", marginBottom: 4 }}>{s.jobTitle || ""}</div>
+          <div style={{ fontSize: 12.5, color: "#4A5568", marginBottom: 12 }}>
+            🕓 آخر تحديث للبروفايل: {formatUpdatedAt(s.updatedAt)}
+          </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
             {s.specialization && <span style={tagStyle}>{s.specialization}</span>}
