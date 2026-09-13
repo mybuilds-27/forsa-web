@@ -626,32 +626,6 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>المسمى الوظيفي</label>
               <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="مثال: محاسب أول" style={inputStyle} />
-              {keywordSuggestions.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 8 }}>
-                  <span style={{ fontSize: 12, color: "#4A5568" }}>كلمات مقترحة من العنوان والتخصص:</span>
-                  {keywordSuggestions.map((kw) => (
-                    <button
-                      key={kw}
-                      type="button"
-                      onClick={() => keywords.length < MAX_KEYWORDS && setKeywords([...keywords, kw])}
-                      disabled={keywords.length >= MAX_KEYWORDS}
-                      style={{
-                        fontSize: 12.5,
-                        padding: "3px 10px",
-                        borderRadius: 999,
-                        border: "1px solid #14213D33",
-                        background: "#F1EAD9",
-                        color: "#14213D",
-                        cursor: keywords.length >= MAX_KEYWORDS ? "not-allowed" : "pointer",
-                        opacity: keywords.length >= MAX_KEYWORDS ? 0.5 : 1,
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      + {kw}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
             <div>
               <label style={labelStyle}>التخصص</label>
@@ -665,6 +639,32 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
               <div>
                 <label style={labelStyle}>اكتب التخصص</label>
                 <input type="text" value={specOther} onChange={(e) => setSpecOther(e.target.value)} required style={inputStyle} />
+              </div>
+            )}
+            {keywordSuggestions.length > 0 && (
+              <div style={{ gridColumn: "1 / -1", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 12, color: "#4A5568" }}>كلمات مقترحة من التخصص والعنوان:</span>
+                {keywordSuggestions.map((kw) => (
+                  <button
+                    key={kw}
+                    type="button"
+                    onClick={() => keywords.length < MAX_KEYWORDS && setKeywords([...keywords, kw])}
+                    disabled={keywords.length >= MAX_KEYWORDS}
+                    style={{
+                      fontSize: 12.5,
+                      padding: "3px 10px",
+                      borderRadius: 999,
+                      border: "1px solid #14213D33",
+                      background: "#F1EAD9",
+                      color: "#14213D",
+                      cursor: keywords.length >= MAX_KEYWORDS ? "not-allowed" : "pointer",
+                      opacity: keywords.length >= MAX_KEYWORDS ? 0.5 : 1,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    + {kw}
+                  </button>
+                ))}
               </div>
             )}
             <div style={{ gridColumn: "1 / -1" }}>

@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { KEYWORD_CATEGORIES } from "@/lib/constants";
+import { useEffect, useRef, useState } from "react";
+import { KEYWORD_OPTIONS } from "@/lib/constants";
 import { getKeywordUsageCounts } from "@/lib/keywordUsage";
 
 // حد أقصى 8 كلمات مفتاحية — قايمة أطول من كده هتفقد الغرض منها (تحديد دقيق لمهارات/مجالات
 // الباحث أو الوظيفة)، ومهمة للمطابقة في "وظائف موصى بيها ليك" (JobsTab.tsx).
 export const MAX_KEYWORDS = 8;
 
-// نفس شكل الـselect boxes التانية في نفس الفورمات (زي "نوع الدوام"/"التخصص" في
+// نفس شكل الـinput/select boxes التانية في نفس الفورمات (زي "نوع الدوام"/"التخصص" في
 // PostJobTab.tsx وJobPreferencesTab.tsx) — نفس القيم بالظبط (padding 8، حدود #ccc، radius 6).
-const selectStyle: React.CSSProperties = {
+const fieldStyle: React.CSSProperties = {
   width: "100%",
   padding: 8,
   border: "1px solid #ccc",
@@ -19,89 +19,127 @@ const selectStyle: React.CSSProperties = {
   fontFamily: "inherit",
 };
 
+// أعلى عدد نتائج بتتعرض في القايمة دفعة واحدة (بحث أو تصفح افتراضي) — كافي عمليًا وبيمنع
+// قايمة طويلة أوي تحتاج scroll جوّاني كبير.
+const MAX_RESULTS = 15;
+
 type Props = {
   value: string[];
   onChange: (next: string[]) => void;
 };
 
-// تجربة اختيار عن طريق قايمة منسدلة واحدة مقسّمة بفئات (optgroup لكل فئة من
-// KEYWORD_CATEGORIES) + زرار "إضافة"، بدل ما تتعرض كل الكلمات (80+ عنصر) كـchips دفعة واحدة.
+// تجربة بحث نصي حي (combobox بسيط بمكونات React أساسية، من غير أي مكتبة خارجية — مفيش
+// react-select ولا أي مكتبة مشابهة متبّتة في المشروع أصلًا، ومطلوب ده كان أبسط حل يحقق
+// المطلوب) بدل القايمة المنسدلة المقسّمة بفئات القديمة. الكتابة بتفلتر KEYWORD_OPTIONS
+// (القايمة المسطّحة الكاملة) فورًا، والنتائج مرتبة بالأكتر استخدامًا فعليًا (usageCounts) —
+// لو الحقل فاضي بيوريك افتراضيًا أعلى الكلمات استخدامًا كنقطة بداية للتصفح من غير كتابة.
 // نفس تجربة الاختيار مستخدمة في بروفايل الباحث (JobPreferencesTab.tsx) وفورم نشر الوظيفة
 // (PostJobTab.tsx).
 export default function KeywordsPicker({ value, onChange }: Props) {
-  const [pendingKeyword, setPendingKeyword] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
   // {} في أول render (قبل ما القراءة تخلص) — الترتيب بيرجع للأصلي تلقائيًا لحد ما القيم
-  // توصل، من غير أي حالة تحميل خاصة أو flicker مزعج (مجرد قايمة منسدلة بترتّب نفسها).
+  // توصل، من غير أي حالة تحميل خاصة أو flicker مزعج.
   const [usageCounts, setUsageCounts] = useState<Record<string, number>>({});
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getKeywordUsageCounts().then(setUsageCounts);
   }, []);
 
-  const atLimit = value.length >= MAX_KEYWORDS;
+  useEffect(() => {
+    // composedPath() بدل contains(e.target): بعد اختيار كلمة، الـre-render بيشيل الـ<div> بتاعها
+    // من نتائج القايمة فورًا (عشان اتضافت لـvalue)، فبيبقى detached من الشجرة وقت ما الحدث
+    // يوصل للـdocument — contains(e.target) كانت بترجع false غلط في الحالة دي وتقفل القايمة
+    // فورًا بعد كل اختيار. composedPath() بتتحسب مرة واحدة قبل أي تعديل في الشجرة، فبتفضل
+    // صح حتى لو العنصر اتشال بعد كده.
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !e.composedPath().includes(containerRef.current)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  function addKeyword() {
-    if (!pendingKeyword || value.includes(pendingKeyword) || atLimit) return;
-    onChange([...value, pendingKeyword]);
-    setPendingKeyword("");
+  const atLimit = value.length >= MAX_KEYWORDS;
+  const trimmedSearch = searchText.trim().toLowerCase();
+
+  // أي كلمة اتضافت بالفعل بتتشال من النتائج (متتكررش)، وبعدين فلترة بنص البحث لو موجود.
+  const candidates = KEYWORD_OPTIONS.filter((k) => !value.includes(k));
+  const matches = trimmedSearch
+    ? candidates.filter((k) => k.toLowerCase().includes(trimmedSearch))
+    : candidates;
+  // نفس منطق الترتيب بالاستخدام الفعلي اللي كان في القايمة المنسدلة القديمة — sort مستقر في
+  // JS الحديث، فلو usageCounts لسه فاضية كل الكلمات بتاخد صفر وترجع للترتيب الأصلي.
+  const results = [...matches]
+    .sort((a, b) => (usageCounts[b] || 0) - (usageCounts[a] || 0))
+    .slice(0, MAX_RESULTS);
+
+  function addKeyword(keyword: string) {
+    if (value.includes(keyword) || atLimit) return;
+    // القايمة فضلة مفتوحة (من غير setIsOpen(false)) عشان يقدر يضيف أكتر من كلمة ورا بعض من
+    // غير ما يحتاج يدوس على الحقل تاني في كل مرة — بتتقفل لوحدها لما يوصل للحد الأقصى (شرط
+    // atLimit في شرط عرض القايمة تحت).
+    onChange([...value, keyword]);
+    setSearchText("");
   }
 
   function removeKeyword(keyword: string) {
     onChange(value.filter((k) => k !== keyword));
   }
 
-  const addDisabled = atLimit || !pendingKeyword;
-
   return (
     <div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <select
-          value={pendingKeyword}
-          onChange={(e) => setPendingKeyword(e.target.value)}
+      <div ref={containerRef} style={{ position: "relative" }}>
+        <input
+          type="text"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          onFocus={() => setIsOpen(true)}
+          onKeyDown={(e) => e.key === "Escape" && setIsOpen(false)}
           disabled={atLimit}
-          style={{ ...selectStyle, flex: 1 }}
-        >
-          <option value="">اختار كلمة مفتاحية</option>
-          {KEYWORD_CATEGORIES.map((cat) => {
-            // أي كلمة اتضافت بالفعل بتتشال من خيارات القايمة (متتكررش)، والفئة كلها بتختفي
-            // لو خلصت كل كلماتها من غير ما تسيب optgroup فاضي.
-            const available = cat.keywords.filter((k) => !value.includes(k));
-            if (available.length === 0) return null;
-            // الأكتر استخدامًا فعليًا (من stats/keyword_usage عبر usageCounts) أول، والباقي
-            // بترتيبهم الأصلي — sort مستقر في JS الحديث، فلو usageCounts لسه فاضية (أول
-            // render، أو السكريبت لسه ما اتشغّلش) كل الكلمات بتاخد صفر وترجع للترتيب
-            // الأصلي تلقائيًا من غير أي حالة خاصة.
-            const sorted = [...available].sort((a, b) => (usageCounts[b] || 0) - (usageCounts[a] || 0));
-            return (
-              <optgroup key={cat.category} label={cat.category}>
-                {sorted.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </optgroup>
-            );
-          })}
-        </select>
-        <button
-          type="button"
-          onClick={addKeyword}
-          disabled={addDisabled}
-          style={{
-            flexShrink: 0,
-            padding: "8px 16px",
-            background: addDisabled ? "#F0EDE3" : "transparent",
-            color: addDisabled ? "#A0A8B4" : "#14213D",
-            border: addDisabled ? "1px solid #ccc" : "1px solid #14213D",
-            borderRadius: 6,
-            fontSize: 14,
-            fontWeight: 700,
-            cursor: addDisabled ? "not-allowed" : "pointer",
-            fontFamily: "inherit",
-          }}
-        >
-          إضافة
-        </button>
+          placeholder={atLimit ? `وصلت للحد الأقصى (${MAX_KEYWORDS} كلمات)` : "دور على كلمة مفتاحية..."}
+          style={fieldStyle}
+        />
+        {isOpen && !atLimit && (
+          <div
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: 0,
+              right: 0,
+              zIndex: 10,
+              marginTop: 4,
+              maxHeight: 220,
+              overflowY: "auto",
+              background: "#fff",
+              border: "1px solid #ccc",
+              borderRadius: 6,
+              boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+            }}
+          >
+            {!trimmedSearch && (
+              <div style={{ padding: "6px 10px", fontSize: 11.5, color: "#4A5568" }}>الأكتر استخدامًا</div>
+            )}
+            {results.length === 0 ? (
+              <div style={{ padding: "8px 10px", fontSize: 13, color: "#4A5568" }}>مفيش نتائج مطابقة</div>
+            ) : (
+              results.map((k) => (
+                <div
+                  key={k}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    addKeyword(k);
+                  }}
+                  style={{ padding: "8px 10px", fontSize: 13.5, cursor: "pointer" }}
+                >
+                  {k}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {atLimit && (
