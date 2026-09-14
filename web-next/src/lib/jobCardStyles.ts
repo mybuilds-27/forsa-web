@@ -49,6 +49,15 @@ export const featuredPillStyle: CSSProperties = { fontSize: 12, fontWeight: 700,
 export const appliedPillStyle: CSSProperties = { fontSize: 12, fontWeight: 700, background: "rgba(47,111,78,0.15)", color: "#2F6F4E", padding: "3px 10px", borderRadius: 999 };
 export const applicantBadgeStyle: CSSProperties = { fontSize: 13, fontWeight: 700, background: "#F0EDE3", color: "#14213D", padding: "5px 14px", borderRadius: 999, whiteSpace: "nowrap" };
 
+// شارة نسبة المطابقة في كارت المتقدم (applicantMatch.ts) — نفس ألوان الشارات التانية في
+// الملف ده بالظبط (أخضر active، برتقالي featured، أحمر stamp) بدل ألوان جديدة، بس بحدود
+// مختلفة حسب النسبة: ≥70% أخضر، 40-69% برتقالي، أقل من كده أحمر.
+export function matchPillStyle(percent: number): CSSProperties {
+  if (percent >= 70) return { fontSize: 13, fontWeight: 700, background: "rgba(47,111,78,0.12)", color: "#2F6F4E", padding: "4px 12px", borderRadius: 999, whiteSpace: "nowrap" };
+  if (percent >= 40) return { fontSize: 13, fontWeight: 700, background: "rgba(232,163,61,0.2)", color: "#8A570D", padding: "4px 12px", borderRadius: 999, whiteSpace: "nowrap" };
+  return { fontSize: 13, fontWeight: 700, background: "rgba(176,58,20,0.12)", color: "#B03A14", padding: "4px 12px", borderRadius: 999, whiteSpace: "nowrap" };
+}
+
 export const primaryActionStyle: CSSProperties = { padding: "8px 16px", fontSize: 13.5, fontWeight: 700, border: "none", background: "#14213D", color: "#fff", borderRadius: 8, cursor: "pointer" };
 export const ghostActionStyle: CSSProperties = { padding: "8px 14px", fontSize: 13, border: "1px solid #14213D33", background: "transparent", color: "#14213D", borderRadius: 8, cursor: "pointer" };
 export const toolBtnStyle: CSSProperties = { padding: "7px 12px", fontSize: 13, border: "1px solid #14213D33", background: "#fff", color: "#14213D", borderRadius: 8, cursor: "pointer" };

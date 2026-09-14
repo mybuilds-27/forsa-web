@@ -13,6 +13,7 @@ import {
 import { auth, db } from "@/lib/firebase";
 import EmployerOnboardingForm from "./EmployerOnboardingForm";
 import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
+import { calculateMatchPercent } from "@/lib/applicantMatch";
 import { EXPERIENCE_LEVELS } from "@/lib/constants";
 import { CONTACT_METHOD_LABELS, contactApplyText } from "@/lib/contactMethodLabels";
 import ShareButton from "@/components/ShareButton";
@@ -39,6 +40,9 @@ type JobPost = {
   governorate: string;
   jobType: string;
   jobLevel?: string;
+  minExperience?: number | null;
+  maxExperience?: number | null;
+  keywords?: string[];
   screeningQuestions?: { id: string; text: string; type: "text" | "number"; required: boolean }[];
   description?: string;
   isActive?: boolean;
@@ -198,7 +202,19 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
     setApplicantsError("");
     setLoadingApplicants(true);
     try {
-      setApplicants(await fetchApplicants(postId, user.uid));
+      const fetched = await fetchApplicants(postId, user.uid);
+      // بنرتّب من الأعلى مطابقة للأقل قبل ما نعرضهم — نفس job post object اللي بيتستخدم
+      // بعدين في الـrender نفسه (شوف matchPercent جوه applicants.map تحت) عشان الترتيب
+      // والنسبة المعروضة يفضلوا متطابقين مع بعض من نفس المصدر دايمًا.
+      const job = posts.find((p) => p.id === postId);
+      const sorted = job
+        ? [...fetched].sort(
+            (a, b) =>
+              (calculateMatchPercent(job, b.seekerSnapshot || {}) ?? -1) -
+              (calculateMatchPercent(job, a.seekerSnapshot || {}) ?? -1)
+          )
+        : fetched;
+      setApplicants(sorted);
     } catch (err) {
       console.error("Fetch applicants failed", err);
       setApplicantsError("حصل خطأ أثناء تحميل المتقدمين، حاول مرة أخرى.");
@@ -377,7 +393,12 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                     </div>
                   ) : (
                     applicants.map((a, i) => (
-                      <ApplicantCard key={i} applicant={a} screeningQuestions={p.screeningQuestions} />
+                      <ApplicantCard
+                        key={i}
+                        applicant={a}
+                        screeningQuestions={p.screeningQuestions}
+                        matchPercent={calculateMatchPercent(p, a.seekerSnapshot || {})}
+                      />
                     ))
                   )}
                 </div>

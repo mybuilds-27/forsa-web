@@ -12,6 +12,7 @@ import {
   jobCardContainerStyle,
   tagStyle,
   ghostActionStyle,
+  matchPillStyle,
   ApplicationStatus,
   APPLICATION_STATUS_LABELS,
   APPLICATION_STATUS_ORDER,
@@ -33,6 +34,10 @@ type Props = {
   // خالص فمتشوفش تاريخ آخر تعديل لبروفايل الباحث. الفحص نفسه بيحصل بس لما ده true (شوف
   // useEffect تحت) عشان صاحب العمل ميحاولش يقرا job_seekers/{uid} مباشرة أصلًا.
   isAdmin?: boolean;
+  // نسبة المطابقة بين المتقدم ده والوظيفة (applicantMatch.ts) — بتتحسب مرة واحدة في
+  // CompanyTab.tsx (عنده بيانات الوظيفة والمتقدمين مع بعض) وبتتبعت جاهزة هنا. null يعني
+  // مفيش معايير كفاية متاحة للمقارنة خالص — الشارة بتختفي تمامًا في الحالة دي.
+  matchPercent?: number | null;
 };
 
 // نسخة مكبّرة من tagStyle/ghostActionStyle المشتركة، خاصة بكارت المتقدم بس — عشان متأثرش على كروت الوظائف في باقي الموقع
@@ -47,7 +52,7 @@ function formatLastProfileUpdate(value: Date | null | undefined): string {
   return value.toLocaleDateString("ar-EG");
 }
 
-export default function ApplicantCard({ applicant: a, screeningQuestions, isAdmin }: Props) {
+export default function ApplicantCard({ applicant: a, screeningQuestions, isAdmin, matchPercent }: Props) {
   const s = a.seekerSnapshot || {};
   const skills = normalizeEntries(s.skills);
   const languages = normalizeEntries(s.languages);
@@ -112,7 +117,10 @@ export default function ApplicantCard({ applicant: a, screeningQuestions, isAdmi
             />
           )}
           <div>
-            <h4 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#14213D" }}>{s.fullName || "بدون اسم"}</h4>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <h4 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#14213D" }}>{s.fullName || "بدون اسم"}</h4>
+              {matchPercent != null && <span style={matchPillStyle(matchPercent)}>🎯 {matchPercent}% مطابقة</span>}
+            </div>
             {s.jobTitle && <div style={{ fontSize: 16, color: "#4A5568" }}>{s.jobTitle}</div>}
           </div>
         </div>
