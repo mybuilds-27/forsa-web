@@ -369,6 +369,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             employerId={job.employerId}
             jobSpecialization={job.specialization}
             jobLevel={job.jobLevel}
+            jobMinExperience={job.minExperience}
+            jobMaxExperience={job.maxExperience}
             screeningQuestions={job.screeningQuestions || []}
           />
         )}

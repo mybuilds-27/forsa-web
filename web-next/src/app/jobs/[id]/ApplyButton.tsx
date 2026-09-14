@@ -20,10 +20,20 @@ type Props = {
   employerId: string;
   jobSpecialization?: string;
   jobLevel?: string;
+  jobMinExperience?: number | null;
+  jobMaxExperience?: number | null;
   screeningQuestions?: ScreeningQuestion[];
 };
 
-export default function ApplyButton({ jobId, employerId, jobSpecialization, jobLevel, screeningQuestions = [] }: Props) {
+export default function ApplyButton({
+  jobId,
+  employerId,
+  jobSpecialization,
+  jobLevel,
+  jobMinExperience,
+  jobMaxExperience,
+  screeningQuestions = [],
+}: Props) {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [applied, setApplied] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -121,15 +131,15 @@ export default function ApplyButton({ jobId, employerId, jobSpecialization, jobL
     }
   }
 
-  // فحص تطابق التخصص والمستوى قبل التقديم — قراءة واحدة لـjob_seekers/{uid} هنا (handleApply
-  // بتقراها تاني بعدين لبناء seekerSnapshot)، بتفضيل متعمّد إننا منلمسش handleApply نفسها
-  // اللي بتكتب فعليًا على Firestore. لو أي طرف (الوظيفة أو الباحث) معندوش قيمة محددة لفحص
-  // معيّن، الفحص ده بيتجاهل تمامًا. لو فيه أكتر من اختلاف، بيتعرضوا كلهم مع بعض في مودال
-  // واحد بدل تنبيهين متتاليين.
+  // فحص تطابق التخصص والمستوى ونطاق سنوات الخبرة قبل التقديم — قراءة واحدة لـjob_seekers/{uid}
+  // هنا (handleApply بتقراها تاني بعدين لبناء seekerSnapshot)، بتفضيل متعمّد إننا منلمسش
+  // handleApply نفسها اللي بتكتب فعليًا على Firestore. لو أي طرف (الوظيفة أو الباحث) معندوش
+  // قيمة محددة لفحص معيّن، الفحص ده بيتجاهل تمامًا. لو فيه أكتر من اختلاف، بيتعرضوا كلهم مع
+  // بعض في مودال واحد بدل تنبيهين متتاليين.
   async function handleApplyClick() {
     const user = auth.currentUser;
     if (!user) return;
-    if (jobSpecialization || jobLevel) {
+    if (jobSpecialization || jobLevel || jobMinExperience != null || jobMaxExperience != null) {
       setCheckingMatch(true);
       try {
         const seekerDoc = await getDoc(doc(db, "job_seekers", user.uid));
@@ -148,6 +158,30 @@ export default function ApplyButton({ jobId, employerId, jobSpecialization, jobL
             label: "المستوى",
             message: `الوظيفة دي بتستهدف مستوى ${EXPERIENCE_LEVELS[jobLevel] || jobLevel}، وانت بتدوّر على مستوى ${EXPERIENCE_LEVELS[seekerData.jobLevel] || seekerData.jobLevel}.`,
           });
+        }
+
+        // typeof بدل truthy check عادي — 0 سنة خبرة قيمة حقيقية ومعتبرة (خريج جديد مثلًا)،
+        // مش نفس معنى "الباحث معندوش قيمة محفوظة خالص" (undefined، زي لو لسه ما دخلش تاب
+        // البيانات الوظيفية أصلًا) اللي بنتجاهله زي باقي الفحوصات فوق.
+        if (
+          (jobMinExperience != null || jobMaxExperience != null) &&
+          typeof seekerData.yearsOfExperience === "number"
+        ) {
+          const years = seekerData.yearsOfExperience;
+          const belowMin = jobMinExperience != null && years < jobMinExperience;
+          const aboveMax = jobMaxExperience != null && years > jobMaxExperience;
+          if (belowMin || aboveMax) {
+            const rangeText =
+              jobMinExperience != null && jobMaxExperience != null
+                ? `من ${jobMinExperience} لـ${jobMaxExperience} سنة`
+                : jobMinExperience != null
+                ? `${jobMinExperience}+ سنة`
+                : `حتى ${jobMaxExperience} سنة`;
+            mismatches.push({
+              label: "سنوات الخبرة",
+              message: `الوظيفة دي بتطلب خبرة ${rangeText}، وانت عندك ${years} سنة.`,
+            });
+          }
         }
 
         if (mismatches.length > 0) {
