@@ -15,7 +15,7 @@ const COLORS = {
 };
 
 const LATEST_JOBS_COUNT = 6;
-const FEATURED_JOBS_COUNT = 8;
+const FEATURED_JOBS_COUNT = 6;
 const EXAMPLE_COMBOS_COUNT = 40;
 const HOME_COMPANIES_COUNT = 12;
 
@@ -276,6 +276,23 @@ export default async function HomePage() {
           <div style={{ marginBottom: 40 }}>
             <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>⭐ وظائف مميزة</h2>
             <PublicJobsList jobs={featuredJobs} layout="grid" />
+            <div style={{ textAlign: "center", marginTop: 20 }}>
+              <Link
+                href="/jobs"
+                style={{
+                  display: "inline-block",
+                  padding: "10px 22px",
+                  borderRadius: 8,
+                  border: `1.5px solid ${COLORS.ink}`,
+                  color: COLORS.ink,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                }}
+              >
+                تصفح كل الوظائف ←
+              </Link>
+            </div>
           </div>
         )}
 
