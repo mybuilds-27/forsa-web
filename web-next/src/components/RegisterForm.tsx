@@ -71,9 +71,14 @@ type Props = {
   // عليه — بيفتح فورم الإيميل في وضع "دخول" مباشرة. undefined يعني معندناش زرار خارجي بيطلب
   // كده (زي مودال التقديم على وظيفة).
   openLoginSignal?: number;
+  // بيتنادى كل ما phoneLoading يتغيّر — المودالات اللي بتلف الفورم دي (RegisterModal.tsx)
+  // بتستخدمه عشان تمنع قفل نفسها وقت طلب كود تحقق شغال، عشان متعملش unmount للفورم أثناء
+  // ما clearRecaptchaVerifier() لسه مستخدم من جوه signInWithPhoneNumber المعلّق (شوف تعليق
+  // getRecaptchaVerifier تحت). undefined يعني معندناش حد محتاج يعرف (زي /register نفسها).
+  onBusyChange?: (busy: boolean) => void;
 };
 
-export default function RegisterForm({ role, onRoleChange, showRoleToggle = true, onSuccess, openLoginSignal }: Props) {
+export default function RegisterForm({ role, onRoleChange, showRoleToggle = true, onSuccess, openLoginSignal, onBusyChange }: Props) {
   const router = useRouter();
 
   const [isWebView, setIsWebView] = useState(false);
@@ -121,6 +126,11 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
   const [otpCode, setOtpCode] = useState("");
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [phoneLoading, setPhoneLoading] = useState(false);
+
+  useEffect(() => {
+    onBusyChange?.(phoneLoading);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phoneLoading]);
   // otpContext بيفرّق بين خطوة الكود بتاعة تسجيل جديد بالتليفون، وخطوة الكود بتاعة استرجاع
   // دخول مستخدم قديم اتسجل بالتليفون قبل ما يبقى عندنا باسورد (شوف handleOtpFallback تحت).
   const [otpContext, setOtpContext] = useState<"signup" | "login-fallback">("signup");

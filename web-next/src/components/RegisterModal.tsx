@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import RegisterForm from "./RegisterForm";
 
 type Props = {
@@ -11,9 +12,20 @@ type Props = {
 };
 
 export default function RegisterModal({ onClose, onSuccess }: Props) {
+  // true أثناء أي طلب كود/تحقق تليفون شغال جوه RegisterForm (شوف onBusyChange هناك) — بنمنع
+  // قفل المودال في الحالة دي عشان مينفعش يحصل unmount للفورم وهي لسه مستخدمة الـreCAPTCHA
+  // widget من جوه signInWithPhoneNumber المعلّق، وده كان بيسبب "already rendered" في المحاولة
+  // الجاية لو المستخدم قفل وفتح تاني بسرعة.
+  const [busy, setBusy] = useState(false);
+
+  function handleClose() {
+    if (busy) return;
+    onClose();
+  }
+
   return (
     <div
-      onClick={onClose}
+      onClick={handleClose}
       style={{
         position: "fixed",
         inset: 0,
@@ -40,7 +52,8 @@ export default function RegisterModal({ onClose, onSuccess }: Props) {
         }}
       >
         <button
-          onClick={onClose}
+          onClick={handleClose}
+          disabled={busy}
           style={{
             position: "absolute",
             top: 14,
@@ -50,7 +63,8 @@ export default function RegisterModal({ onClose, onSuccess }: Props) {
             borderRadius: "50%",
             border: "1.5px solid #ccc",
             background: "#fff",
-            cursor: "pointer",
+            cursor: busy ? "not-allowed" : "pointer",
+            opacity: busy ? 0.5 : 1,
           }}
         >
           ✕
@@ -62,7 +76,7 @@ export default function RegisterModal({ onClose, onSuccess }: Props) {
           أكتر من دقيقة.
         </p>
 
-        <RegisterForm role="job_seeker" showRoleToggle={false} onSuccess={onSuccess} />
+        <RegisterForm role="job_seeker" showRoleToggle={false} onSuccess={onSuccess} onBusyChange={setBusy} />
       </div>
     </div>
   );
