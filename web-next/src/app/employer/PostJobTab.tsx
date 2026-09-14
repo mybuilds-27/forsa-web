@@ -450,6 +450,11 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         return;
       }
 
+      if (minExperience && maxExperience && Number(minExperience) > Number(maxExperience)) {
+        alert("الحد الأدنى لسنوات الخبرة أكبر من الحد الأقصى — راجع الرقمين.");
+        return;
+      }
+
       const finalCity = citySelect === "other" ? cityOther.trim() : citySelect;
       const finalSpecialization = specSelect === "other" ? specOther.trim() : specSelect;
 
