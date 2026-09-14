@@ -34,7 +34,11 @@ export default async function HomePage() {
   // getActivePublicJobs() بترجع الوظايف المميزة الأول دايمًا (حق مدفوع فعلي، ومطلوب يفضل
   // كده في /jobs وباقي الصفحات) — بس قسم "أحدث الوظائف" هنا لازم يبقى بالمعنى الحرفي
   // للأحدث، فبنعمل نسخة منفصلة مرتبة بالتاريخ بس قبل الاقتطاع، من غير ما نلمس الأراي الأصلي.
+  // بنستبعد الوظايف المميزة تمامًا هنا (فلترة على البيانات المجلوبة بالفعل، من غير استعلام
+  // إضافي ولا index جديد) عشان الوظيفة الواحدة متتكررش بين قسم "وظائف مميزة" وقسم "أحدث
+  // الوظائف" في نفس الصفحة.
   const latestJobs = [...jobs]
+    .filter((j) => !j.featured)
     .sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0))
     .slice(0, LATEST_JOBS_COUNT);
   const exampleCombos = seoData.combos.slice(0, EXAMPLE_COMBOS_COUNT);
