@@ -256,26 +256,6 @@ export default async function HomePage() {
           </div>
         )}
 
-        <div style={{ marginBottom: 40 }}>
-          <h3 style={{ fontSize: 15, color: COLORS.ink, marginBottom: 4 }}>
-            تصفح حسب المنطقة:
-          </h3>
-          <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 12 }}>
-            أشهر المناطق في أكبر محافظات مصر.
-          </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {SEO_AREAS.map((a) => (
-              <Link
-                key={`${a.governorate}-${a.city}`}
-                href={`/jobs/${slugify(a.governorate)}/area/${slugify(a.city)}`}
-                style={{ ...tagStyle, textDecoration: "none", color: COLORS.ink, padding: "8px 14px", fontSize: 13.5 }}
-              >
-                {a.city} - {a.governorate}
-              </Link>
-            ))}
-          </div>
-        </div>
-
         {featuredJobs.length > 0 && (
           <div style={{ marginBottom: 40 }}>
             <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>⭐ وظائف مميزة</h2>
@@ -323,6 +303,26 @@ export default async function HomePage() {
             </div>
           </div>
         )}
+
+        <div style={{ marginBottom: 40 }}>
+          <h3 style={{ fontSize: 15, color: COLORS.ink, marginBottom: 4 }}>
+            تصفح حسب المنطقة:
+          </h3>
+          <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 12 }}>
+            أشهر المناطق في أكبر محافظات مصر.
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {SEO_AREAS.map((a) => (
+              <Link
+                key={`${a.governorate}-${a.city}`}
+                href={`/jobs/${slugify(a.governorate)}/area/${slugify(a.city)}`}
+                style={{ ...tagStyle, textDecoration: "none", color: COLORS.ink, padding: "8px 14px", fontSize: 13.5 }}
+              >
+                {a.city} - {a.governorate}
+              </Link>
+            ))}
+          </div>
+        </div>
 
         {exampleCombos.length > 0 && (
           <div style={{ marginBottom: 40 }}>
