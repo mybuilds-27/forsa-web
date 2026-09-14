@@ -57,6 +57,24 @@ function withGracePeriod<T>(promise: Promise<T>, onSlow: () => void): Promise<T>
   });
 }
 
+// navigator.connection (Network Information API) مش موجود في TypeScript's lib.dom.d.ts
+// الافتراضية (ولا في متصفحات زي Safari/Firefox أصلاً) — النوع ده بيوصف بس الحقول اللي
+// محتاجينها منه لو موجود، وبيرجع undefined بأمان لو مش مدعوم بدل ما يكسر.
+type NetworkInformation = { effectiveType?: string; downlink?: number; rtt?: number };
+
+// معلومات تشخيصية عن حالة الاتصال وقت HARD_FAIL_TIMEOUT بس (شوف withGracePeriod فوق) —
+// عشان نقدر نفرّق في لوحة الأدمن بين "النت اتقطع فعليًا وقت الحفظ" و"مشكلة تانية غير متوقعة"،
+// من غير ما نغيّر سلوك المهلة نفسها.
+function getConnectionDiagnostics(): Record<string, unknown> {
+  const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
+  return {
+    online: navigator.onLine,
+    connectionEffectiveType: connection?.effectiveType ?? null,
+    connectionDownlinkMbps: connection?.downlink ?? null,
+    connectionRttMs: connection?.rtt ?? null,
+  };
+}
+
 // مسودة الفورم بتتحفظ محليًا (وضع النشر الجديد بس، مش التعديل) عشان لو حصل ريفريش بالغلط
 // أثناء الكتابة متضيعش كل البيانات. مفيش أي حاجة حساسة بتتخزن هنا — نفس حقول الفورم العادية
 // بس (مش uid المستخدم ولا أي بيانات تسجيل دخول)، وبتتمسح فورًا بعد ما النشر ينجح فعليًا.
@@ -534,9 +552,14 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       }
     } catch (err: any) {
       console.error("Job post save failed", err);
-      logClientError(isEditMode ? "job_post_update" : "job_post_create", err);
+      const isHardTimeout = err instanceof Error && err.message === "HARD_FAIL_TIMEOUT";
+      logClientError(
+        isEditMode ? "job_post_update" : "job_post_create",
+        err,
+        isHardTimeout ? getConnectionDiagnostics() : undefined
+      );
       setSlowSaveNotice(false);
-      if (err instanceof Error && err.message === "HARD_FAIL_TIMEOUT") {
+      if (isHardTimeout) {
         alert(
           "حصلت مشكلة في الاتصال ومقدرناش نتأكد من نجاح الحفظ خلال وقت معقول — تأكد من اتصال الإنترنت وجرب تاني. لو الوظيفة اتنشرت فعلاً هتلاقيها في قائمة إعلاناتك."
         );
