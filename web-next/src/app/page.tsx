@@ -1,7 +1,7 @@
 import Link from "next/link";
 import BrowseByCombos from "@/components/BrowseByCombos";
 import PublicJobsList from "@/components/PublicJobsList";
-import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
+import { getActivePublicJobs, getActiveJobsSeoData, getFeaturedPublicJobs } from "@/lib/publicJobsQuery";
 import { getCompanies } from "@/lib/companiesQuery";
 import { GOVERNORATES, SEO_AREAS, SPECIALIZATION_OPTIONS, slugify } from "@/lib/constants";
 import { JOB_TYPE_LABELS, tagStyle } from "@/lib/jobCardStyles";
@@ -15,6 +15,7 @@ const COLORS = {
 };
 
 const LATEST_JOBS_COUNT = 6;
+const FEATURED_JOBS_COUNT = 8;
 const EXAMPLE_COMBOS_COUNT = 40;
 const HOME_COMPANIES_COUNT = 12;
 
@@ -24,7 +25,12 @@ const HOME_COMPANIES_COUNT = 12;
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [jobs, seoData, companies] = await Promise.all([getActivePublicJobs(), getActiveJobsSeoData(), getCompanies()]);
+  const [jobs, seoData, companies, featuredJobs] = await Promise.all([
+    getActivePublicJobs(),
+    getActiveJobsSeoData(),
+    getCompanies(),
+    getFeaturedPublicJobs(FEATURED_JOBS_COUNT),
+  ]);
   // getActivePublicJobs() بترجع الوظايف المميزة الأول دايمًا (حق مدفوع فعلي، ومطلوب يفضل
   // كده في /jobs وباقي الصفحات) — بس قسم "أحدث الوظائف" هنا لازم يبقى بالمعنى الحرفي
   // للأحدث، فبنعمل نسخة منفصلة مرتبة بالتاريخ بس قبل الاقتطاع، من غير ما نلمس الأراي الأصلي.
@@ -265,6 +271,13 @@ export default async function HomePage() {
             ))}
           </div>
         </div>
+
+        {featuredJobs.length > 0 && (
+          <div style={{ marginBottom: 40 }}>
+            <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>⭐ وظائف مميزة</h2>
+            <PublicJobsList jobs={featuredJobs} layout="grid" />
+          </div>
+        )}
 
         {latestJobs.length > 0 && (
           <div style={{ marginBottom: 40 }}>

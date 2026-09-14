@@ -2,6 +2,10 @@ import { collection, getDocs, limit, orderBy, query, where, type QueryConstraint
 import { db } from "./firebase";
 import { GOVERNORATES, SPECIALIZATION_OPTIONS } from "./constants";
 
+// شكل مبسّط بس لمستند job_posts للحقول اللي getFeaturedPublicJobs محتاجاها — بدل any، عشان
+// فحص expiresAt يبقى type-safe من غير ما نحتاج نعرّف النوع الكامل الحقيقي للمستند.
+type JobPostDoc = { id: string; expiresAt?: { toMillis: () => number } } & Record<string, unknown>;
+
 export async function getActivePublicJobs(filters: { governorate?: string; city?: string; specialization?: string } = {}) {
   const constraints: QueryConstraint[] = [where("isActive", "==", true)];
   if (filters.governorate) constraints.push(where("governorate", "==", filters.governorate));
@@ -15,6 +19,28 @@ export async function getActivePublicJobs(filters: { governorate?: string; city?
     .map((d) => ({ id: d.id, ...d.data() } as any))
     .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now)
     .sort((a, b) => Number(!!b.featured) - Number(!!a.featured));
+}
+
+// وظايف الباقة المدفوعة النشطة بس، من الأحدث — قسم "⭐ وظائف مميزة" في الصفحة الرئيسية.
+// استعلام مستقل (isActive + featured equality + orderBy createdAt) بدل الاعتماد على الـ50
+// وظيفة المجلوبين في getActivePublicJobs() فوق، عشان وظيفة مميزة أقدم من آخر 50 وظيفة نشطة
+// عمومًا (لو إجمالي الوظائف النشطة زاد عن كده يومًا ما) متتفوتش من القسم ده. الـcomposite
+// index المطلوب (isActive ASC + featured DESC + createdAt DESC) موجود بالفعل في
+// firestore.indexes.json (بيتشارك مع getFilteredPublicJobs تحت) — مفيش حاجة جديدة تتنشر.
+export async function getFeaturedPublicJobs(limitCount: number) {
+  const snap = await getDocs(
+    query(
+      collection(db, "job_posts"),
+      where("isActive", "==", true),
+      where("featured", "==", true),
+      orderBy("createdAt", "desc"),
+      limit(limitCount)
+    )
+  );
+  const now = Date.now();
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }) as JobPostDoc)
+    .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now);
 }
 
 // نفس شكل استعلام JobsTab.tsx بالظبط (isActive + orderBy(featured) + orderBy(createdAt) +
