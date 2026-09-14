@@ -23,6 +23,17 @@ export function salaryText(p: any): string {
   return "غير محدد";
 }
 
+// null لو الوظيفة من غير minExperience/maxExperience خالص — القسم اللي بيستخدمها لازم
+// يختفي بالكامل في الحالة دي، مش يعرض نص فاضي. نفس نمط salaryText فوق: دالة واحدة مشتركة
+// بين JobListItem.tsx وjobs/[id]/page.tsx بدل تكرارها.
+export function experienceRangeText(p: { minExperience?: number | null; maxExperience?: number | null }): string | null {
+  const { minExperience, maxExperience } = p;
+  if (minExperience == null && maxExperience == null) return null;
+  if (minExperience != null && maxExperience != null) return `${minExperience}-${maxExperience} سنوات`;
+  if (minExperience != null) return `${minExperience}+ سنوات`;
+  return `حتى ${maxExperience} سنوات`;
+}
+
 export const jobCardContainerStyle: CSSProperties = {
   border: "1px solid #14213D33",
   borderRadius: 14,

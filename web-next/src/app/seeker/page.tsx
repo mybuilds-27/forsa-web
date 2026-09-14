@@ -88,6 +88,7 @@ function SeekerPageInner() {
             keywords={profileData.keywords}
             jobLevel={profileData.jobLevel}
             governorate={profileData.governorate}
+            yearsOfExperience={profileData.yearsOfExperience}
           />
         )}
         {activeTab === "saved" && <SavedJobsTab />}

@@ -10,7 +10,7 @@ import RelatedJobs from "./RelatedJobs";
 import WhatsAppContactLink from "@/components/WhatsAppContactLink";
 import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify } from "@/lib/constants";
 import { toWhatsAppNumber } from "@/lib/phoneAuth";
-import { featuredPillStyle, JOB_TYPE_LABELS, salaryText, sanitizeJobDescription, tagStyle } from "@/lib/jobCardStyles";
+import { featuredPillStyle, JOB_TYPE_LABELS, salaryText, sanitizeJobDescription, tagStyle, experienceRangeText } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
@@ -331,6 +331,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <InfoChip icon="🕒" label="نوع الدوام" value={JOB_TYPE_LABELS[job.jobType] || job.jobType} />
         {job.jobLevel && (
           <InfoChip icon="📊" label="المستوى" value={EXPERIENCE_LEVELS[job.jobLevel] || job.jobLevel} />
+        )}
+        {experienceRangeText(job) && (
+          <InfoChip icon="🧭" label="الخبرة المطلوبة" value={experienceRangeText(job)!} />
         )}
         {job.specialization && <InfoChip icon="🏷️" label="التخصص" value={job.specialization} />}
       </div>

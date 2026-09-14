@@ -107,6 +107,10 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
   }, [title, specSelect, keywords]);
   const [jobType, setJobType] = useState("");
   const [jobLevel, setJobLevel] = useState("");
+  // نطاق رقمي إضافي جنب jobLevel، مش بديل له — jobLevel بيحدد الدرجة الوظيفية (مبتدئ/مدير
+  // قسم/إلخ)، والنطاق ده بيحدد عدد سنوات الخبرة المطلوبة رقميًا، بغض النظر عن الدرجة.
+  const [minExperience, setMinExperience] = useState("");
+  const [maxExperience, setMaxExperience] = useState("");
   const [governorate, setGovernorate] = useState("");
   const [citySelect, setCitySelect] = useState("");
   const [cityOther, setCityOther] = useState("");
@@ -194,6 +198,8 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setKeywords(Array.isArray(p.keywords) ? p.keywords : []);
     setJobType(p.jobType || "");
     setJobLevel(p.jobLevel || "");
+    setMinExperience(p.minExperience?.toString() || "");
+    setMaxExperience(p.maxExperience?.toString() || "");
     setGovernorate(p.governorate || "");
 
     const savedCity = p.city || "";
@@ -237,7 +243,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     if (isEditMode) return;
     const timeoutId = setTimeout(() => {
       const draft = {
-        title, specSelect, specOther, keywords, jobType, jobLevel, governorate, citySelect, cityOther,
+        title, specSelect, specOther, keywords, jobType, jobLevel, minExperience, maxExperience, governorate, citySelect, cityOther,
         description, vacancies, salaryNegotiable, salaryFrom, salaryTo, showSalary,
         ageFrom, ageTo, needsCar, requirements, hoursPerDay, daysOffPerMonth,
         socialInsurance, privateHealthInsurance, transportationAvailable, transportationAreas,
@@ -252,7 +258,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timeoutId);
   }, [
-    isEditMode, title, specSelect, specOther, keywords, jobType, jobLevel, governorate, citySelect, cityOther,
+    isEditMode, title, specSelect, specOther, keywords, jobType, jobLevel, minExperience, maxExperience, governorate, citySelect, cityOther,
     description, vacancies, salaryNegotiable, salaryFrom, salaryTo, showSalary,
     ageFrom, ageTo, needsCar, requirements, hoursPerDay, daysOffPerMonth,
     socialInsurance, privateHealthInsurance, transportationAvailable, transportationAreas,
@@ -279,6 +285,8 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setKeywords(Array.isArray(draft.keywords) ? draft.keywords : []);
     setJobType(draft.jobType || "");
     setJobLevel(draft.jobLevel || "");
+    setMinExperience(draft.minExperience || "");
+    setMaxExperience(draft.maxExperience || "");
     setGovernorate(draft.governorate || "");
     setCitySelect(draft.citySelect || "");
     setCityOther(draft.cityOther || "");
@@ -454,6 +462,8 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         keywords,
         jobType,
         jobLevel,
+        minExperience: minExperience ? Number(minExperience) : null,
+        maxExperience: maxExperience ? Number(maxExperience) : null,
         governorate,
         city: finalCity,
         vacancies: Number(vacancies || 1),
@@ -534,6 +544,8 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setKeywords([]);
     setJobType("");
     setJobLevel("");
+    setMinExperience("");
+    setMaxExperience("");
     setGovernorate("");
     setCitySelect("");
     setCityOther("");
@@ -722,6 +734,14 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label style={labelStyle}>الحد الأدنى لسنوات الخبرة (اختياري)</label>
+              <input type="number" min="0" value={minExperience} onChange={(e) => setMinExperience(e.target.value)} placeholder="غير محدد" style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>الحد الأقصى لسنوات الخبرة (اختياري)</label>
+              <input type="number" min="0" value={maxExperience} onChange={(e) => setMaxExperience(e.target.value)} placeholder="غير محدد" style={inputStyle} />
             </div>
             <div>
               <label style={labelStyle}>المحافظة</label>

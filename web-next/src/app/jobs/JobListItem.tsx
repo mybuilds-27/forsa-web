@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { jobCardContainerStyle, tagStyle, featuredPillStyle, JOB_TYPE_LABELS, salaryText } from "@/lib/jobCardStyles";
+import { jobCardContainerStyle, tagStyle, featuredPillStyle, JOB_TYPE_LABELS, salaryText, experienceRangeText } from "@/lib/jobCardStyles";
 import { EXPERIENCE_LEVELS } from "@/lib/constants";
 import ShareButton from "@/components/ShareButton";
 
@@ -39,6 +39,7 @@ export default function JobListItem({ job, saved, onToggleSave }: Props) {
   const postedDate = job.createdAt?.toDate ? job.createdAt.toDate() : null;
   const salary = salaryText(job);
   const showSalary = salary !== "غير محدد";
+  const experienceRange = experienceRangeText(job);
 
   return (
     <Link
@@ -93,6 +94,7 @@ export default function JobListItem({ job, saved, onToggleSave }: Props) {
         {job.specialization && <span style={tagStyle}>التخصص: {job.specialization}</span>}
         <span style={tagStyle}>🕐 {JOB_TYPE_LABELS[job.jobType] || job.jobType}</span>
         {job.jobLevel && <span style={tagStyle}>📊 {EXPERIENCE_LEVELS[job.jobLevel] || job.jobLevel}</span>}
+        {experienceRange && <span style={tagStyle}>🧭 الخبرة المطلوبة: {experienceRange}</span>}
         {showSalary && <span style={tagStyle}>💰 {salary}</span>}
       </div>
       {/* تلميح بسيط إن الكارت كله قابل للدوسة ووراه تفاصيل أكتر — مش زرار منفصل */}
