@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS } from "@/lib/constants";
-import KeywordsPicker from "@/components/KeywordsPicker";
+import { SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SPECIALIZATION_KEYWORD_MAP } from "@/lib/constants";
+import KeywordsPicker, { MAX_KEYWORDS } from "@/components/KeywordsPicker";
 import { h3Style, descStyle, gridStyle, labelStyle, inputStyle, saveBtnStyle, savedMsgStyle } from "./sharedStyles";
 
 type Props = {
@@ -46,6 +46,14 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
     setShowSalary(!!initialData.showSalaryToEmployers);
     setKeywords(Array.isArray(initialData.keywords) ? initialData.keywords : []);
   }, [initialData]);
+
+  // نفس منطق اقتراح الكلمات في PostJobTab.tsx بالظبط، بس مصدر واحد بس هنا (تخصص الباحث عبر
+  // SPECIALIZATION_KEYWORD_MAP) بدل المصدرين هناك — مفيش مطابقة نصية بالعنوان هنا لأن "المسمى
+  // الوظيفي المطلوب" عند الباحث نص حر مفتوح، مش وصف وظيفة فعلي زي عنوان إعلان صاحب العمل.
+  const keywordSuggestions = useMemo(() => {
+    const fromSpec = SPECIALIZATION_KEYWORD_MAP[specSelect] || [];
+    return fromSpec.filter((k) => !keywords.includes(k));
+  }, [specSelect, keywords]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -110,6 +118,32 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
           <div>
             <label style={labelStyle}>اكتب تخصصك</label>
             <input type="text" value={specOther} onChange={(e) => setSpecOther(e.target.value)} placeholder="مثال: تخصص نادر مش موجود في القايمة" style={inputStyle} />
+          </div>
+        )}
+        {keywordSuggestions.length > 0 && (
+          <div style={{ gridColumn: "1 / -1", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 12, color: "#4A5568" }}>كلمات مقترحة من التخصص:</span>
+            {keywordSuggestions.map((kw) => (
+              <button
+                key={kw}
+                type="button"
+                onClick={() => keywords.length < MAX_KEYWORDS && setKeywords([...keywords, kw])}
+                disabled={keywords.length >= MAX_KEYWORDS}
+                style={{
+                  fontSize: 12.5,
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  border: "1px solid #14213D33",
+                  background: "#F1EAD9",
+                  color: "#14213D",
+                  cursor: keywords.length >= MAX_KEYWORDS ? "not-allowed" : "pointer",
+                  opacity: keywords.length >= MAX_KEYWORDS ? 0.5 : 1,
+                  fontFamily: "inherit",
+                }}
+              >
+                + {kw}
+              </button>
+            ))}
           </div>
         )}
         <div style={{ gridColumn: "1 / -1" }}>
