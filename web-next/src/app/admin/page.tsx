@@ -23,6 +23,7 @@ import ShareButton from "@/components/ShareButton";
 import PostJobTab from "../employer/PostJobTab";
 import Link from "next/link";
 import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
+import { calculateMatchPercent } from "@/lib/applicantMatch";
 import { exportAllUsersExcel } from "@/lib/adminExports";
 import { EXPERIENCE_LEVELS, slugify } from "@/lib/constants";
 import { CONTACT_METHOD_LABELS, contactApplyText } from "@/lib/contactMethodLabels";
@@ -604,7 +605,18 @@ export default function AdminPage() {
       return;
     }
     setOpenApplicantsFor(postId);
-    setApplicants(await fetchApplicants(postId, employerId));
+    const fetched = await fetchApplicants(postId, employerId);
+    // نفس منطق CompanyTab.tsx بالظبط — بنرتّب من الأعلى مطابقة للأقل بنفس job post object
+    // اللي بيتستخدم بعدين في الـrender نفسه (شوف matchPercent جوه applicants.map تحت).
+    const job = posts.find((p) => p.id === postId);
+    const sorted = job
+      ? [...fetched].sort(
+          (a, b) =>
+            (calculateMatchPercent(job, b.seekerSnapshot || {}) ?? -1) -
+            (calculateMatchPercent(job, a.seekerSnapshot || {}) ?? -1)
+        )
+      : fetched;
+    setApplicants(sorted);
   }
 
   if (status === "loading") {
@@ -1034,7 +1046,13 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   applicants.map((a, i) => (
-                    <ApplicantCard key={i} applicant={a} screeningQuestions={p.screeningQuestions} isAdmin />
+                    <ApplicantCard
+                      key={i}
+                      applicant={a}
+                      screeningQuestions={p.screeningQuestions}
+                      isAdmin
+                      matchPercent={calculateMatchPercent(p, a.seekerSnapshot || {})}
+                    />
                   ))
                 )}
               </div>
