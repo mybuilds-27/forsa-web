@@ -1725,11 +1725,34 @@ exports.premiumExpiryReminders = onSchedule(
     // رجوع تلقائي للباقة المجانية — ده الإجراء الأهم (تغيير فعلي في صلاحيات الحساب)، فبيتنفذ
     // الأول ومضمون بغض النظر عن نجاح الإيميل؛ الإيميل بعده إخطار بس، فشله ميرجعش plan للمدفوعة.
     if (expiredCandidates.length > 0) {
+      // بنجيب وظائف كل شركة من دول النشطة والمعلّمة "مميزة" قبل الـbatch، عشان نلغي التمييز
+      // عنها في نفس العملية اللي بترجّع الباقة لمجانية — من غيره حقل featured على الوظيفة
+      // نفسها بيفضل true للأبد (مبيتحدّثش تلقائيًا مع تغيير باقة الشركة)، فتفضل الوظيفة
+      // ظاهرة "⭐ مميزة" حتى بعد ما الاشتراك يخلص فعليًا. فشل الجلب هنا ميوقفش رجوع الباقة
+      // نفسها — بيسيب الوظائف المميزة زي ما هي بس، بدل ما يمنع الإجراء الأهم.
+      let featuredJobRefs = [];
+      try {
+        const featuredSnaps = await Promise.all(
+          expiredCandidates.map((c) =>
+            db
+              .collection("job_posts")
+              .where("employerId", "==", c.ref.id)
+              .where("isActive", "==", true)
+              .where("featured", "==", true)
+              .get()
+          )
+        );
+        featuredJobRefs = featuredSnaps.flatMap((snap) => snap.docs.map((d) => d.ref));
+      } catch (err) {
+        logger.error("premiumExpiryReminders: فشل جلب الوظائف المميزة للشركات المنتهية", err);
+      }
+
       try {
         const batch = db.batch();
         expiredCandidates.forEach((c) => {
           batch.update(c.ref, { plan: "free", expiryReminderSent: true });
         });
+        featuredJobRefs.forEach((ref) => batch.update(ref, { featured: false }));
         await batch.commit();
       } catch (err) {
         logger.error("premiumExpiryReminders: فشل batch commit للرجوع التلقائي للباقة المجانية", err);

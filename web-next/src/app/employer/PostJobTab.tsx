@@ -389,9 +389,15 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       // اللي قواعد Firestore غالبًا بتتحقق منها مقابل الباقة الفعلية وقت الكتابة، فمينفعش
       // نبعت featured:true وإحنا مش بريميوم فعليًا (ده أرجح سبب لـpermission-denied وقت
       // النشر). فشل الجلب (شبكة عابرة) بيرجّعنا للـprop القديمة بدل ما يمنع النشر بالكامل.
+      // مهم: لازم نجيب باقة صاحب العمل الحقيقي (editingPost.data.employerId وقت التعديل)
+      // مش user.uid على طول — الأدمن بيقدر يعدّل وظايف شركات تانية من لوحة التحكم
+      // (admin/page.tsx)، فـuser.uid هناك بيكون uid الأدمن نفسه مش صاحب الوظيفة، وقراءة
+      // employers/{user.uid} في الحالة دي كانت بترجع باقة الأدمن (لو عنده حساب صاحب عمل
+      // بريميوم للاختبار مثلاً) وتتكتب على وظيفة شركة تانية بالكامل — نفس نمط employerId تحت.
+      const planOwnerUid = isEditMode && editingPost ? editingPost.data.employerId : user.uid;
       let currentPlan = employerPlan;
       try {
-        const employerSnap = await getDoc(doc(db, "employers", user.uid));
+        const employerSnap = await getDoc(doc(db, "employers", planOwnerUid));
         currentPlan = employerSnap.data()?.plan || "free";
       } catch (err) {
         console.error("Failed to refresh employer plan before posting", err);
