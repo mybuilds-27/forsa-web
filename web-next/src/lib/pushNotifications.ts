@@ -1,5 +1,5 @@
 import { doc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { getMessaging, getToken } from "firebase/messaging";
+import { getMessaging, getToken, type Messaging } from "firebase/messaging";
 import { app, db } from "./firebase";
 
 // بيتفحص قبل أي استخدام لأي API خاص بالـPush — متصفحات قديمة أو WebViews معينة (زي WebView
@@ -99,6 +99,20 @@ async function waitForActiveServiceWorker(): Promise<ServiceWorkerRegistration> 
   return Promise.race([navigator.serviceWorker.ready, timeout]);
 }
 
+const GET_TOKEN_TIMEOUT_MS = 15000;
+
+// getToken() (FCM SDK) بتعمل داخليًا PushManager.subscribe() وتسجّل الاشتراك مع سيرفرات FCM —
+// طلب شبكة حقيقي لسيرفرات جوجل، من غير أي مهلة زمنية مدمجة في الـSDK نفسها. لوحظ إنها ممكن
+// تفضل معلّقة بلا رد (لا نجاح ولا فشل) لدقايق على شبكات موبايل معينة أو مشاكل عابرة في FCM
+// backend — نفس فئة المشكلة اللي اتصلحت في waitForActiveServiceWorker فوق، بنفس الحل
+// (Promise.race بمهلة قصوى) عشان الزرار ميفضلش "جاري التفعيل..." للأبد.
+async function getTokenWithTimeout(messaging: Messaging, options: Parameters<typeof getToken>[1]): Promise<string> {
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error("انتهت مهلة انتظار توكن الإشعارات (15 ثانية)")), GET_TOKEN_TIMEOUT_MS);
+  });
+  return Promise.race([getToken(messaging, options), timeout]);
+}
+
 // بيتنادى فقط كرد فعل مباشر لدوسة زرار من المستخدم (مش تلقائي أبدًا) — إذن الإشعارات
 // one-shot في المتصفح، فلازم نحافظ على الفرصة الوحيدة دي لتوقيت مقصود من المستخدم نفسه.
 // بيرجّع null بس لو محتاجناش نطلب الإذن أصلًا (isPushSupported=false) أو الطلب نفسه فشل
@@ -120,7 +134,7 @@ export async function enablePushNotifications(uid: string): Promise<EnablePushRe
     await navigator.serviceWorker.register("/firebase-messaging-sw.js");
     const registration = await waitForActiveServiceWorker();
     const messaging = getMessaging(app);
-    const token = await getToken(messaging, {
+    const token = await getTokenWithTimeout(messaging, {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
       serviceWorkerRegistration: registration,
     });
