@@ -29,6 +29,7 @@ import { EXPERIENCE_LEVELS, slugify } from "@/lib/constants";
 import { CONTACT_METHOD_LABELS, contactApplyText } from "@/lib/contactMethodLabels";
 import { getActiveJobsSeoData, type JobCombo } from "@/lib/publicJobsQuery";
 import ApplicantCard from "@/components/ApplicantCard";
+import ContactRevealViewers from "@/components/ContactRevealViewers";
 import BrowseByCombos from "@/components/BrowseByCombos";
 import {
   jobCardContainerStyle,
@@ -1043,6 +1044,7 @@ export default function AdminPage() {
                       : isContactMethod
                       ? `التقديم على الوظيفة دي بيتم عبر ${CONTACT_METHOD_LABELS[p.contactMethod || ""] || "التواصل المباشر"} مباشرة، مش من خلال الموقع.`
                       : "لسه محدش قدّم على الإعلان ده."}
+                    {isContactMethod && <ContactRevealViewers jobPostId={p.id} />}
                   </div>
                 ) : (
                   applicants.map((a, i) => (

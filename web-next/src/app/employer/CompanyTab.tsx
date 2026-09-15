@@ -18,6 +18,7 @@ import { EXPERIENCE_LEVELS } from "@/lib/constants";
 import { CONTACT_METHOD_LABELS, contactApplyText } from "@/lib/contactMethodLabels";
 import ShareButton from "@/components/ShareButton";
 import ApplicantCard from "@/components/ApplicantCard";
+import ContactRevealViewers from "@/components/ContactRevealViewers";
 import {
   jobCardContainerStyle,
   tagStyle,
@@ -390,6 +391,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                         : isContactMethod
                         ? `التقديم على الوظيفة دي بيتم عبر ${CONTACT_METHOD_LABELS[p.contactMethod || ""] || "التواصل المباشر"} مباشرة، مش من خلال الموقع.`
                         : "لسه محدش قدّم على الإعلان ده."}
+                      {isContactMethod && <ContactRevealViewers jobPostId={p.id} />}
                     </div>
                   ) : (
                     applicants.map((a, i) => (

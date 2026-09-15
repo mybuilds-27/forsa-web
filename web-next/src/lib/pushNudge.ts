@@ -1,6 +1,6 @@
 import { isIOS, isPushSupported, isStandalone } from "./pushNotifications";
 
-// نفس فلسفة SESSION_FLAG_PREFIX في lib/whatsappClicks.ts — إشارة مؤقتة لجلسة المتصفح
+// نفس فلسفة SESSION_FLAG_PREFIX في lib/jobViews.ts — إشارة مؤقتة لجلسة المتصفح
 // الحالية بس (sessionStorage بيتصفّر تلقائيًا مع كل تاب/جلسة جديدة)، عكس localStorage
 // الدائم. المستخدم اللي يقفل المودال (✕ أو الخلفية أو "لاحقًا") مش هيشوفه تاني في نفس
 // التاب، لكن لو فتح الموقع من جديد (تاب جديد أو بعد إعادة تحميل) هيرجع يظهر تاني لو

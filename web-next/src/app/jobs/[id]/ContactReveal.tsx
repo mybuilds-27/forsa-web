@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import RegisterModal from "@/components/RegisterModal";
-import WhatsAppContactLink from "@/components/WhatsAppContactLink";
+import { logContactReveal } from "@/lib/contactReveal";
 
 const CONTACT_METHOD_LABELS: Record<string, string> = { email: "إيميل", whatsapp: "واتساب", phone: "تليفون" };
 
@@ -29,6 +29,13 @@ export default function ContactReveal({ jobId, jobTitle, contactMethod, contactV
     const unsubscribe = onAuthStateChanged(auth, (user) => setLoggedIn(!!user));
     return () => unsubscribe();
   }, []);
+
+  // بيتسجّل لحظة ما العرض الحقيقي يظهر لمستخدم مسجّل دخول — أي وسيلة تواصل (واتساب/إيميل/
+  // تليفون)، مش بس ضغطة فعلية على زرار (بعض الطرق زي الإيميل/التليفون أصلًا مالهاش زرار
+  // يتضغط، النص بيظهر مباشرة). شوف lib/contactReveal.ts لتفاصيل شكل التخزين.
+  useEffect(() => {
+    if (loggedIn) logContactReveal(jobId);
+  }, [loggedIn, jobId]);
 
   if (loggedIn === null) return null;
 
@@ -65,14 +72,27 @@ export default function ContactReveal({ jobId, jobTitle, contactMethod, contactV
 
   if (contactMethod === "whatsapp" && whatsappNumber) {
     return (
-      <WhatsAppContactLink
-        jobId={jobId}
+      <a
         href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
           `مرحبًا، شفت إعلان وظيفة ${jobTitle} على موقع الشغل وحابب أتقدملها`
         )}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "#25D366",
+          color: "#fff",
+          fontWeight: 700,
+          fontSize: 14.5,
+          padding: "10px 18px",
+          borderRadius: 8,
+          textDecoration: "none",
+        }}
       >
         <WhatsAppIcon size={18} /> تواصل عبر واتساب
-      </WhatsAppContactLink>
+      </a>
     );
   }
 
