@@ -14,6 +14,14 @@ import { auth, db } from "@/lib/firebase";
 import EmployerOnboardingForm from "./EmployerOnboardingForm";
 import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
 import { calculateMatchPercent } from "@/lib/applicantMatch";
+import {
+  fetchInvitationStats,
+  fetchContactRevealStats,
+  buildDailyApplicationCounts,
+  InvitationStats,
+  ContactRevealStats,
+  DailyCount,
+} from "@/lib/employerStats";
 import { EXPERIENCE_LEVELS } from "@/lib/constants";
 import { CONTACT_METHOD_LABELS, contactApplyText } from "@/lib/contactMethodLabels";
 import ShareButton from "@/components/ShareButton";
@@ -87,6 +95,40 @@ function salaryText(p: JobPost) {
   return "غير محدد";
 }
 
+function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{ flex: "1 1 140px", minWidth: 140, background: "#F8F6F0", borderRadius: 8, padding: "12px 14px" }}>
+      <div style={{ fontSize: 20, fontWeight: 800, color: "#14213D" }}>{value}</div>
+      <div style={{ fontSize: 12, color: "#4A5568", marginTop: 2 }}>{label}</div>
+    </div>
+  );
+}
+
+// رسمة أعمدة بسيطة من غير أي مكتبة خارجية — نفس أسلوب المشروع (مقارنة، مثلًا، بـKeywordsPicker.tsx
+// اللي اتعمل combobox من غير مكتبة بدل ما نضيف dependency جديدة لتفصيلة بسيطة زي دي).
+function ApplicationsBarChart({ data }: { data: DailyCount[] }) {
+  if (data.length === 0) return null;
+  const max = Math.max(1, ...data.map((d) => d.count));
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 110 }}>
+      {data.map((d) => (
+        <div key={d.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+          <div style={{ fontSize: 11, color: "#4A5568" }}>{d.count}</div>
+          <div
+            style={{
+              width: "100%",
+              height: Math.max(4, (d.count / max) * 70),
+              background: "#14213D",
+              borderRadius: "4px 4px 0 0",
+            }}
+          />
+          <div style={{ fontSize: 11, color: "#4A5568" }}>{d.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 type Props = {
   companyData: any;
   onCompanyUpdated: () => void;
@@ -105,6 +147,9 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
   const [loadingApplicants, setLoadingApplicants] = useState(false);
   const [applicantsError, setApplicantsError] = useState("");
   const [detailPost, setDetailPost] = useState<JobPost | null>(null);
+  const [dailyApplications, setDailyApplications] = useState<DailyCount[]>([]);
+  const [invitationStats, setInvitationStats] = useState<InvitationStats | null>(null);
+  const [contactRevealStats, setContactRevealStats] = useState<ContactRevealStats | null>(null);
 
   async function loadMyJobPosts() {
     const user = auth.currentUser;
@@ -168,8 +213,25 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
         counts[jid] = (counts[jid] || 0) + 1;
       });
       setApplicantCounts(counts);
+      // رسمة "تقديمات آخر 7 أيام" في قسم الإحصائيات — من نفس appliedAt الموجودة بالفعل على
+      // المستندات المجلوبة فوق، من غير أي قراءة Firestore إضافية.
+      setDailyApplications(buildDailyApplicationCounts(appsSnap.docs.map((d) => d.data().appliedAt)));
     } catch (err) {
       console.error("[loadMyJobPosts] فشل استعلام applicantCounts (applications)", err);
+    }
+
+    // إحصائيات قسم "📊 إحصائيات": عدد الدعوات (كلي + الشهر ده) وعدد فتحات بطاقة المتقدم
+    // الشهر ده (للباقة المدفوعة بس) — قراءات count خفيفة (getCountFromServer)، منفصلة عن
+    // فشلها ميوقفش باقي بيانات الصفحة.
+    try {
+      const [invStats, revealStats] = await Promise.all([
+        fetchInvitationStats(user.uid, companyData?.plan || "free"),
+        fetchContactRevealStats(user.uid, companyData?.plan || "free"),
+      ]);
+      setInvitationStats(invStats);
+      setContactRevealStats(revealStats);
+    } catch (err) {
+      console.error("[loadMyJobPosts] فشل جلب إحصائيات الدعوات وفتح بطاقات المتقدمين", err);
     }
 
     setLoading(false);
@@ -177,6 +239,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
 
   useEffect(() => {
     loadMyJobPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function toggleActive(postId: string, makeActive: boolean) {
@@ -266,6 +329,33 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
       >
         تعديل بيانات الشركة
       </button>
+
+      <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20, marginBottom: 30 }}>
+        <h3 style={{ marginBottom: 14, fontSize: 17 }}>📊 إحصائيات</h3>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
+          <StatCard label="الوظائف" value={`${posts.filter((p) => p.isActive !== false).length} نشطة من ${posts.length}`} />
+          <StatCard label="إجمالي المشاهدات" value={Object.values(viewCounts).reduce((a, b) => a + b, 0)} />
+          <StatCard label="إجمالي المتقدمين" value={Object.values(applicantCounts).reduce((a, b) => a + b, 0)} />
+          <StatCard label="الدعوات المرسلة" value={invitationStats ? invitationStats.total : "..."} />
+        </div>
+
+        {(invitationStats || contactRevealStats) && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
+            {invitationStats && (
+              <StatCard label="دعوات الشهر ده" value={`${invitationStats.thisMonth} / ${invitationStats.monthlyLimit}`} />
+            )}
+            {contactRevealStats && (
+              <StatCard label="فتح بطاقات متقدمين الشهر ده" value={`${contactRevealStats.thisMonth} / ${contactRevealStats.monthlyLimit}`} />
+            )}
+          </div>
+        )}
+
+        <h4 style={{ fontSize: 14, color: "#4A5568", marginBottom: 4 }}>تقديمات آخر 7 أيام</h4>
+        <ApplicationsBarChart data={dailyApplications} />
+        <p style={{ fontSize: 11.5, color: "#4A5568", marginTop: 10 }}>
+          رسمة المشاهدات مش متاحة حاليًا — محتاجة تتبع يومي جديد، هنضيفها في مرحلة جاية.
+        </p>
+      </div>
 
       <h2 style={{ marginBottom: 16 }}>إعلاناتك المنشورة</h2>
 

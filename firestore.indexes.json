@@ -255,6 +255,22 @@
       "fields": [
         { "fieldPath": "__name__", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "invitations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "employerId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "contact_reveals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "employerId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
