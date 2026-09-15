@@ -96,10 +96,41 @@ function mostFrequentValue(values: (string | null)[]): { value: string | null; c
 // حالات، ومحتاجة حد أقصى عشان لو فيه سبيك حالات كتير الكارت ميتكسرش بقايمة طويلة أوي.
 const MAX_AUTH_ERROR_ENTRIES = 20;
 
+// مفتاح يوم محلي (مش UTC) بصيغة YYYY-MM-DD — نفس نمط localDateKey في employerStats.ts.
+function authErrorDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// بيوزّع كل مستندات الـstep (مش بس أول MAX_AUTH_ERROR_ENTRIES المعروضين في entries) على آخر
+// 7 أيام بتاريخ محلي، عشان يبان فين تركّزت الزيادة فعليًا لو حصلت. أيام من غير أي حالة بتظهر
+// بصفر (مش بتتشال) عشان يبان الفرق بين يوم هادي ويوم فيه تركّز واضح.
+function computeDailyErrorCounts(stepDocs: QueryDocumentSnapshot[], days = 7): { date: string; label: string; count: number }[] {
+  const buckets = new Map<string, number>();
+  const order: string[] = [];
+  const today = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = authErrorDateKey(d);
+    buckets.set(key, 0);
+    order.push(key);
+  }
+  for (const doc of stepDocs) {
+    const ts = doc.data().createdAt;
+    if (!ts?.toDate) continue;
+    const key = authErrorDateKey(ts.toDate());
+    if (buckets.has(key)) buckets.set(key, (buckets.get(key) || 0) + 1);
+  }
+  return order.map((key) => {
+    const [, m, day] = key.split("-");
+    return { date: key, label: `${day}/${m}`, count: buckets.get(key) || 0 };
+  });
+}
+
 // بيحسب عدد مستندات error_logs بـstep معيّن، وأكتر code تكرر بينهم، وأكتر message تكرر
 // كـfallback لو مفيش code مسجل خالص، وكمان قايمة بآخر الحالات الفردية (تاريخ/وقت + الصفحة
-// + الكود بتاع كل حالة) للتفاصيل القابلة للتوسيع — كله من غير أي استعلام إضافي (نفس الـdocs
-// المجلوبة أصلًا من loadAuthErrorStats).
+// + الكود بتاع كل حالة) للتفاصيل القابلة للتوسيع، وتوزيع يومي لآخر 7 أيام — كله من غير أي
+// استعلام إضافي (نفس الـdocs المجلوبة أصلًا من loadAuthErrorStats).
 function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
   const stepDocs = docs.filter((d) => d.data().step === step);
   const topCode = mostFrequentValue(stepDocs.map((d) => d.data().code ?? null));
@@ -116,6 +147,7 @@ function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
     topErrorCodeCount: topCode.count,
     topErrorMessage: topMessage.value,
     entries,
+    dailyCounts: computeDailyErrorCounts(stepDocs),
   };
 }
 
@@ -156,6 +188,11 @@ type Stats = {
 type FunnelStats = {
   roleSelected: number;
   methodSelected: number;
+  // تقسيم methodSelected بالطريقة (تليفون/جوجل/إيميل) لنفس فترة الـ7 أيام بالظبط — من نفس
+  // funnelEventsSnap المجلوب أصلًا في loadFunnelStats، بدون أي استعلام إضافي. بيدّي المقام
+  // الصح لحساب نسبة فشل reCAPTCHA (بدل signupMethodStats اللي بيحسب كل الوقت من غير فلتر
+  // تاريخ، فمش قابل للمقارنة بعدد أخطاء الـ7-أيام).
+  methodSelectedByMethod: { phone: number; google: number; email: number };
   completed: number;
 };
 
@@ -175,6 +212,7 @@ type AuthErrorDetail = {
   topErrorCodeCount: number;
   topErrorMessage: string | null;
   entries: AuthErrorEntry[];
+  dailyCounts: { date: string; label: string; count: number }[];
 };
 
 type AuthErrorStats = {
@@ -263,9 +301,15 @@ export default function AdminPage() {
 
       // "أكمل التسجيل" مش ليها حدث قمع منفصل — بتتحسب مباشرة من users بنفس فترة الـ7 أيام
       // اللي بيتحسب فيها باقي القمع، عشان النسب تكون متسقة.
+      const methodSelectedDocs = funnelEventsSnap.docs.filter((d) => d.data().step === "method_selected");
       setFunnelStats({
         roleSelected: funnelEventsSnap.docs.filter((d) => d.data().step === "role_selected").length,
-        methodSelected: funnelEventsSnap.docs.filter((d) => d.data().step === "method_selected").length,
+        methodSelected: methodSelectedDocs.length,
+        methodSelectedByMethod: {
+          phone: methodSelectedDocs.filter((d) => d.data().method === "phone").length,
+          google: methodSelectedDocs.filter((d) => d.data().method === "google").length,
+          email: methodSelectedDocs.filter((d) => d.data().method === "email").length,
+        },
         completed: recentUsersSnap.size,
       });
       setFunnelError(false);
@@ -786,7 +830,11 @@ export default function AdminPage() {
               </div>
             ) : (
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
-                <AuthErrorCard label="فشل إرسال كود التليفون" detail={authErrorStats.phone_send_code} />
+                <AuthErrorCard
+                  label="فشل إرسال كود التليفون"
+                  detail={authErrorStats.phone_send_code}
+                  attemptsTotal={funnelStats?.methodSelectedByMethod.phone}
+                />
                 <AuthErrorCard label="فشل تأكيد كود التليفون" detail={authErrorStats.phone_verify_code} />
                 <AuthErrorCard label="فشل نافذة جوجل المنبثقة" detail={authErrorStats.google_popup_signin} />
                 <AuthErrorCard label="فشل تسجيل جوجل بالكامل" detail={authErrorStats.google_redirect_signin} />
@@ -1212,9 +1260,20 @@ function FunnelStepCard({ label, value, subtitle }: { label: string; value: numb
 // نسخة من FunnelStepCard مخصّصة بس لكروت أخطاء التسجيل التلاتة — بتضيف زرار توسيع يعرض آخر
 // الحالات الفردية (تاريخ/وقت، الصفحة، الكود) من غير ما تلمس FunnelStepCard نفسها (مستخدمة في
 // 3 أقسام تانية مالهاش علاقة بالتفاصيل دي: حالة التقديمات، قمع التسجيل، طرق التسجيل).
-function AuthErrorCard({ label, detail }: { label: string; detail: AuthErrorDetail }) {
+function AuthErrorCard({
+  label,
+  detail,
+  attemptsTotal,
+}: {
+  label: string;
+  detail: AuthErrorDetail;
+  // إجمالي محاولات (نفس فترة الـ7 أيام) عشان تتحسب نسبة الفشل — undefined لو مفيش مقام
+  // منطقي متاح للـstep ده (زي أخطاء نشر الوظايف، أو أخطاء تأكيد الكود اللي مقامها مختلف).
+  attemptsTotal?: number;
+}) {
   const [expanded, setExpanded] = useState(false);
   const subtitle = authErrorSubtitle(detail);
+  const maxDailyCount = Math.max(...detail.dailyCounts.map((d) => d.count), 1);
 
   return (
     <div style={{ background: "#fff", border: "1px solid #14213D22", borderRadius: 8, padding: "12px 16px", minWidth: 180, flex: "1 1 180px" }}>
@@ -1222,7 +1281,40 @@ function AuthErrorCard({ label, detail }: { label: string; detail: AuthErrorDeta
         <div style={{ fontSize: 22, fontWeight: 900 }}>{detail.count}</div>
         <div style={{ fontSize: 12, color: "#4A5568" }}>{label}</div>
         {subtitle && <div style={{ fontSize: 11, color: "#4A5568", marginTop: 4 }}>{subtitle}</div>}
+        {attemptsTotal !== undefined && attemptsTotal > 0 && (
+          <div style={{ fontSize: 11, color: "#4A5568", marginTop: 2 }}>
+            نسبة الفشل: {detail.count} من {attemptsTotal} محاولة ({Math.round((detail.count / attemptsTotal) * 100)}%)
+          </div>
+        )}
       </div>
+
+      {/* توزيع الحالات على آخر 7 أيام (تاريخ محلي) — بيبان فورًا لو الزيادة متركزة في يوم أو
+          يومين معينين بدل ما تكون موزعة بالتساوي، من غير ما يحتاج الأدمن يضغط "عرض التفاصيل".
+          عمود لكل يوم حتى لو صفر (مش بيتشال) عشان يبان الفرق بصريًا. */}
+      {detail.count > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 10, color: "#4A5568", fontWeight: 700, marginBottom: 4 }}>توزيع آخر 7 أيام</div>
+          <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 40 }}>
+            {detail.dailyCounts.map((d) => (
+              <div
+                key={d.date}
+                title={`${d.label}: ${d.count}`}
+                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}
+              >
+                <div
+                  style={{
+                    width: "100%",
+                    height: d.count > 0 ? Math.max(Math.round((d.count / maxDailyCount) * 32), 3) : 1,
+                    background: d.count > 0 ? "#B03A14" : "#14213D14",
+                    borderRadius: 2,
+                  }}
+                />
+                <div style={{ fontSize: 8.5, color: "#4A5568" }}>{d.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {detail.count > 0 && (
         <>
