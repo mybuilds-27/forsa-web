@@ -95,17 +95,42 @@ function salaryText(p: JobPost) {
   return "غير محدد";
 }
 
-function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
+// "neutral" للأرقام المطلقة العادية (بيج فاتح، نفس لون الكارت الأصلي). "quota-ok"/"quota-warning"
+// لكروت حدود الاستهلاك الشهري بس — بيوضحوا بصريًا إن الرقم ده "استهلاك من حد" مش رقم مطلق
+// زي باقي الكروت، بألوان مستعارة من نظام الألوان الموجود بالفعل في jobCardStyles.ts (نفس
+// أزرق "interview" وكهرماني "shortlisted"/"featured")، مش ألوان جديدة كليًا.
+type StatCardTone = "neutral" | "quota-ok" | "quota-warning";
+
+const STAT_CARD_TONES: Record<StatCardTone, { bg: string; valueColor: string }> = {
+  neutral: { bg: "#F8F6F0", valueColor: "#14213D" },
+  "quota-ok": { bg: "rgba(43,108,176,0.10)", valueColor: "#1D4E8F" },
+  "quota-warning": { bg: "rgba(232,163,61,0.20)", valueColor: "#8A570D" },
+};
+
+// ≥80% من الحد الشهري مستهلك = تحذير (كهرماني) — أقل من كده = عادي (أزرق).
+function quotaTone(thisMonth: number, monthlyLimit: number): StatCardTone {
+  return monthlyLimit > 0 && thisMonth / monthlyLimit >= 0.8 ? "quota-warning" : "quota-ok";
+}
+
+function StatCard({ label, value, tone = "neutral" }: { label: string; value: React.ReactNode; tone?: StatCardTone }) {
+  const { bg, valueColor } = STAT_CARD_TONES[tone];
   return (
-    <div style={{ flex: "1 1 140px", minWidth: 140, background: "#F8F6F0", borderRadius: 8, padding: "12px 14px" }}>
-      <div style={{ fontSize: 20, fontWeight: 800, color: "#14213D" }}>{value}</div>
-      <div style={{ fontSize: 12, color: "#4A5568", marginTop: 2 }}>{label}</div>
+    <div style={{ flex: "1 1 140px", minWidth: 140, background: bg, borderRadius: 8, padding: "12px 14px" }}>
+      <div style={{ fontSize: 11.5, color: "#4A5568", marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 19, fontWeight: 800, color: valueColor }}>{value}</div>
     </div>
   );
 }
 
+// خط فاصل بسيط بين مجموعات قسم الإحصائيات (نظرة عامة / حدود الاستهلاك / الرسمة البيانية).
+function StatsSectionDivider() {
+  return <div style={{ borderTop: "1px solid #14213D14", margin: "18px 0" }} />;
+}
+
 // رسمة أعمدة بسيطة من غير أي مكتبة خارجية — نفس أسلوب المشروع (مقارنة، مثلًا، بـKeywordsPicker.tsx
-// اللي اتعمل combobox من غير مكتبة بدل ما نضيف dependency جديدة لتفصيلة بسيطة زي دي).
+// اللي اتعمل combobox من غير مكتبة بدل ما نضيف dependency جديدة لتفصيلة بسيطة زي دي). الأخضر
+// (#2F6F4E، نفس لون النجاح/الأزرار الإيجابية المستخدم في الموقع بالفعل) بدل الكحلي الأساسي
+// #14213D عمدًا — يميّز القسم البياني بصريًا عن باقي كروت الأرقام في نفس القسم.
 function ApplicationsBarChart({ data }: { data: DailyCount[] }) {
   if (data.length === 0) return null;
   const max = Math.max(1, ...data.map((d) => d.count));
@@ -118,7 +143,7 @@ function ApplicationsBarChart({ data }: { data: DailyCount[] }) {
             style={{
               width: "100%",
               height: Math.max(4, (d.count / max) * 70),
-              background: "#14213D",
+              background: "#2F6F4E",
               borderRadius: "4px 4px 0 0",
             }}
           />
@@ -344,8 +369,10 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
       </button>
 
       <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20, marginBottom: 30 }}>
-        <h3 style={{ marginBottom: 14, fontSize: 17 }}>📊 إحصائيات</h3>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
+        <h3 style={{ marginBottom: 16, fontSize: 17 }}>📊 إحصائيات</h3>
+
+        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#4A5568", marginBottom: 10 }}>نظرة عامة</h4>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <StatCard label="الوظائف" value={`${posts.filter((p) => p.isActive !== false).length} نشطة من ${posts.length}`} />
           <StatCard label="إجمالي المشاهدات" value={Object.values(viewCounts).reduce((a, b) => a + b, 0)} />
           <StatCard label="إجمالي المتقدمين" value={Object.values(applicantCounts).reduce((a, b) => a + b, 0)} />
@@ -356,29 +383,36 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
         </div>
 
         {(invitationStats || contactRevealStats || invitationStatsError || contactRevealStatsError) && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
-            {invitationStats && (
-              // dir="ltr" هنا مقصودة — "65 / 30" (رقمين وفاصل بس، من غير أي حرف قوي الاتجاه
-              // بينهم) جوه حاوية RTL بيتقلب بصريًا بمتصفحات كتير حسب خوارزمية Unicode bidi
-              // (UAX #9)، حتى لو الـstring نفسه في الـDOM صحيح 100%. عزل الاتجاه هنا بيضمن
-              // العرض الصحيح دايمًا بغض النظر عن عدد خانات الرقمين.
-              <StatCard
-                label="دعوات الشهر ده"
-                value={<span dir="ltr">{invitationStats.thisMonth} / {invitationStats.monthlyLimit}</span>}
-              />
-            )}
-            {invitationStatsError && <StatCard label="دعوات الشهر ده" value="تعذّر التحميل" />}
-            {contactRevealStats && (
-              <StatCard
-                label="فتح بطاقات متقدمين الشهر ده"
-                value={<span dir="ltr">{contactRevealStats.thisMonth} / {contactRevealStats.monthlyLimit}</span>}
-              />
-            )}
-            {contactRevealStatsError && <StatCard label="فتح بطاقات متقدمين الشهر ده" value="تعذّر التحميل" />}
-          </div>
+          <>
+            <StatsSectionDivider />
+            <h4 style={{ fontSize: 13, fontWeight: 700, color: "#4A5568", marginBottom: 10 }}>حدود الاستهلاك الشهري</h4>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {invitationStats && (
+                // dir="ltr" هنا مقصودة — "65 / 30" (رقمين وفاصل بس، من غير أي حرف قوي الاتجاه
+                // بينهم) جوه حاوية RTL بيتقلب بصريًا بمتصفحات كتير حسب خوارزمية Unicode bidi
+                // (UAX #9)، حتى لو الـstring نفسه في الـDOM صحيح 100%. عزل الاتجاه هنا بيضمن
+                // العرض الصحيح دايمًا بغض النظر عن عدد خانات الرقمين.
+                <StatCard
+                  label="دعوات الشهر ده"
+                  value={<span dir="ltr">{invitationStats.thisMonth} / {invitationStats.monthlyLimit}</span>}
+                  tone={quotaTone(invitationStats.thisMonth, invitationStats.monthlyLimit)}
+                />
+              )}
+              {invitationStatsError && <StatCard label="دعوات الشهر ده" value="تعذّر التحميل" />}
+              {contactRevealStats && (
+                <StatCard
+                  label="فتح بطاقات متقدمين الشهر ده"
+                  value={<span dir="ltr">{contactRevealStats.thisMonth} / {contactRevealStats.monthlyLimit}</span>}
+                  tone={quotaTone(contactRevealStats.thisMonth, contactRevealStats.monthlyLimit)}
+                />
+              )}
+              {contactRevealStatsError && <StatCard label="فتح بطاقات متقدمين الشهر ده" value="تعذّر التحميل" />}
+            </div>
+          </>
         )}
 
-        <h4 style={{ fontSize: 14, color: "#4A5568", marginBottom: 4 }}>تقديمات آخر 7 أيام</h4>
+        <StatsSectionDivider />
+        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#4A5568", marginBottom: 10 }}>تقديمات آخر 7 أيام</h4>
         <ApplicationsBarChart data={dailyApplications} />
       </div>
 
