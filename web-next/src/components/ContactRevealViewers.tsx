@@ -6,7 +6,7 @@ import { fetchContactRevealViewers, ContactRevealViewer } from "@/lib/contactRev
 type Props = { jobPostId: string };
 
 // قسم قابل للتوسيع (نفس نمط AuthErrorCard في admin/page.tsx) بيعرض مين شاف وسيلة التواصل
-// المباشرة للوظيفة دي (contact_reveals/{jobPostId}/viewers) — لصاحب العمل والأدمن مع بعض.
+// المباشرة للوظيفة دي (job_contact_views/{jobPostId}/viewers) — لصاحب العمل والأدمن مع بعض.
 // البيانات بتتجاب أول مرة بس القسم يتفتح (مش مع باقي بيانات الوظيفة في القايمة الرئيسية)،
 // عشان منعملش قراءة sub-collection لكل وظيفة من غير داعي.
 export default function ContactRevealViewers({ jobPostId }: Props) {

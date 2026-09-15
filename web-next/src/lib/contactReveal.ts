@@ -7,6 +7,10 @@ import { auth, db } from "./firebase";
 // المستخدم بتعمل overwrite (تحديث viewedAt بس) مش تكرار سجلات، فمفيش داعي لفلاج sessionStorage
 // زي القديم. whatsapp_clicks القديمة فضلت زي ما هي كبيانات تاريخية بس (مبيتحدّثش عليها تاني).
 //
+// job_contact_views (مش contact_reveals) عمدًا — فيه collection موجودة بالفعل اسمها
+// contact_reveals (شوف SeekerDetailModal.tsx) خاصة بميزة تانية تمامًا (حد كشف بيانات تواصل
+// الباحثين الشهري)، فاخترنا اسم مختلف واضح بدل ما نشارك اسم بالصدفة مع ميزة مالهاش أي علاقة.
+//
 // fullName هنا بتتقرا من بروفايل المستخدم نفسه (job_seekers/{uid} بتاعه هو، مش أي مصدر تاني)
 // وقت الكتابة — قاعدة Firestore المطلوبة (منفصلة، هتتضاف يدويًا في الكونسول) بتتأكد إن القيمة
 // المكتوبة فعلاً مطابقة لـjob_seekers/{uid}.fullName نفسها، فمينفعش حد يزوّر اسم مختلف حتى لو
@@ -19,7 +23,7 @@ export async function logContactReveal(jobPostId: string) {
     const seekerSnap = await getDoc(doc(db, "job_seekers", user.uid));
     const fullName = seekerSnap.exists() ? seekerSnap.data().fullName : null;
     if (!fullName) return;
-    await setDoc(doc(db, "contact_reveals", jobPostId, "viewers", user.uid), {
+    await setDoc(doc(db, "job_contact_views", jobPostId, "viewers", user.uid), {
       viewedAt: serverTimestamp(),
       fullName,
     });
@@ -31,7 +35,7 @@ export async function logContactReveal(jobPostId: string) {
 export type ContactRevealViewer = { uid: string; fullName: string; viewedAt: Timestamp | null };
 
 export async function fetchContactRevealViewers(jobPostId: string): Promise<ContactRevealViewer[]> {
-  const snap = await getDocs(collection(db, "contact_reveals", jobPostId, "viewers"));
+  const snap = await getDocs(collection(db, "job_contact_views", jobPostId, "viewers"));
   return snap.docs
     .map((d) => ({ uid: d.id, fullName: d.data().fullName || "مستخدم مسجّل", viewedAt: d.data().viewedAt ?? null }))
     .sort((a, b) => (b.viewedAt?.toMillis() || 0) - (a.viewedAt?.toMillis() || 0));
