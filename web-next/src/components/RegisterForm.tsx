@@ -36,6 +36,11 @@ const PENDING_ROLE_STORAGE_KEY = "elshoghl_pending_auth_role";
 // نفس القايمة المستخدمة في Navbar.tsx وpage.tsx وadmin/page.tsx لتحديد حساب الأدمن
 const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
 
+// 20 ثانية بدل 15 المستخدمة في GET_TOKEN_TIMEOUT_MS بتاع pushNotifications.ts — تحدي
+// reCAPTCHA + إرسال SMS عادة بياخد وقت أطول من مجرد جلب توكن FCM، وده بالظبط السيناريو
+// اللي بنحاول نديله مهلة كافية قبل ما نعتبره تعليق (شوف sendCodeTimeout تحت).
+const SEND_CODE_TIMEOUT_MS = 20000;
+
 const COLORS = {
   ink: "#14213D",
   inkSoft: "#4A5568",
@@ -482,6 +487,19 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     return recaptchaVerifierRef.current;
   }
 
+  // signInWithPhoneNumber (بيشمل تحدي reCAPTCHA الصامتة جواها) معندهاش timeout مدمج — لو
+  // الشبكة علّقت أثناء تحميل/تحقق reCAPTCHA (شائع جوه WebView فيسبوك/إنستجرام أو شبكات بطيئة)،
+  // الطلب ممكن يفضل معلّق للأبد، وphoneLoading هيفضل true معاه للأبد (يقفل المودال تمامًا من
+  // غير أي رسالة، شوف onBusyChange فوق). نفس نمط getTokenWithTimeout في pushNotifications.ts.
+  function sendCodeTimeout(): Promise<never> {
+    return new Promise((_, reject) => {
+      setTimeout(
+        () => reject(new Error("انتهت مهلة إرسال كود التحقق (20 ثانية) — جرب تاني أو من متصفح تاني")),
+        SEND_CODE_TIMEOUT_MS
+      );
+    });
+  }
+
   // لو الكومبوننت اتشال من الشاشة (المستخدم قفل مودال التسجيل/التقديم) وفيه verifier لسه
   // متعمّله render، لازم ننضفه — من غيره بيفضل widget معلّق من غير حاجة تقدر تنضفه تاني
   // (الـref نفسه بيروح مع الكومبوننت)، وأي فتح جديد للفورم في نفس التاب ممكن يصطدم بيه.
@@ -562,7 +580,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
 
     try {
       const verifier = getRecaptchaVerifier();
-      const result = await signInWithPhoneNumber(auth, normalized, verifier);
+      const result = await Promise.race([signInWithPhoneNumber(auth, normalized, verifier), sendCodeTimeout()]);
       setConfirmationResult(result);
       setPhoneStep("enter-code");
     } catch (err: any) {

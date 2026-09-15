@@ -127,10 +127,25 @@ function computeDailyErrorCounts(stepDocs: QueryDocumentSnapshot[], days = 7): {
   });
 }
 
+// نفس الـregex المستخدم في isInAppWebView() جوه RegisterForm.tsx (مكرر هنا بدل import مشترك،
+// زي نمط تكرار ADMIN_EMAILS في أكتر من ملف في المشروع ده) — بيكتشف لو userAgent المسجّل جاي
+// من متصفح فيسبوك/إنستجرام المدمج (WebView)، اللي معروف إن reCAPTCHA بتفشل فيه بشكل شائع
+// (شوف تعليق phoneAuthErrorMessage في RegisterForm.tsx).
+const WEBVIEW_USER_AGENT_PATTERN = /FBAN|FBAV|Instagram/i;
+
+// null لو مفيش حالات خالص (مفيش نسبة تتحسب) — بيحسب من كل مستندات الـstep (مش بس أول
+// MAX_AUTH_ERROR_ENTRIES)، من نفس الـdocs المجلوبة أصلًا، بدون أي قراءة إضافية.
+function computeWebViewFailurePercent(stepDocs: QueryDocumentSnapshot[]): number | null {
+  if (stepDocs.length === 0) return null;
+  const webViewCount = stepDocs.filter((d) => WEBVIEW_USER_AGENT_PATTERN.test(d.data().userAgent || "")).length;
+  return Math.round((webViewCount / stepDocs.length) * 100);
+}
+
 // بيحسب عدد مستندات error_logs بـstep معيّن، وأكتر code تكرر بينهم، وأكتر message تكرر
 // كـfallback لو مفيش code مسجل خالص، وكمان قايمة بآخر الحالات الفردية (تاريخ/وقت + الصفحة
-// + الكود بتاع كل حالة) للتفاصيل القابلة للتوسيع، وتوزيع يومي لآخر 7 أيام — كله من غير أي
-// استعلام إضافي (نفس الـdocs المجلوبة أصلًا من loadAuthErrorStats).
+// + الكود بتاع كل حالة) للتفاصيل القابلة للتوسيع، وتوزيع يومي لآخر 7 أيام، ونسبة الحالات
+// الجايه من WebView — كله من غير أي استعلام إضافي (نفس الـdocs المجلوبة أصلًا من
+// loadAuthErrorStats).
 function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
   const stepDocs = docs.filter((d) => d.data().step === step);
   const topCode = mostFrequentValue(stepDocs.map((d) => d.data().code ?? null));
@@ -148,6 +163,7 @@ function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
     topErrorMessage: topMessage.value,
     entries,
     dailyCounts: computeDailyErrorCounts(stepDocs),
+    webViewFailurePercent: computeWebViewFailurePercent(stepDocs),
   };
 }
 
@@ -213,6 +229,7 @@ type AuthErrorDetail = {
   topErrorMessage: string | null;
   entries: AuthErrorEntry[];
   dailyCounts: { date: string; label: string; count: number }[];
+  webViewFailurePercent: number | null;
 };
 
 type AuthErrorStats = {
@@ -1284,6 +1301,11 @@ function AuthErrorCard({
         {attemptsTotal !== undefined && attemptsTotal > 0 && (
           <div style={{ fontSize: 11, color: "#4A5568", marginTop: 2 }}>
             نسبة الفشل: {detail.count} من {attemptsTotal} محاولة ({Math.round((detail.count / attemptsTotal) * 100)}%)
+          </div>
+        )}
+        {detail.webViewFailurePercent !== null && (
+          <div style={{ fontSize: 11, color: "#4A5568", marginTop: 2 }}>
+            من WebView (فيسبوك/إنستجرام): {detail.webViewFailurePercent}%
           </div>
         )}
       </div>
