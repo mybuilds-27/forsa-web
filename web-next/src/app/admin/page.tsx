@@ -141,10 +141,83 @@ function computeWebViewFailurePercent(stepDocs: QueryDocumentSnapshot[]): number
   return Math.round((webViewCount / stepDocs.length) * 100);
 }
 
+// نسبة الحالات اللي عندها code فايربيز رسمي مسجّل (مش null) — بيفرّق بين "خطأ Firebase Auth
+// معروف بكود قياسي" و"استثناء JS خام (زي reCAPTCHA) من غير كود مخصص" من غير ما نضطر نفتح كل
+// حالة لوحدها.
+function computeCodePresentPercent(stepDocs: QueryDocumentSnapshot[]): number | null {
+  if (stepDocs.length === 0) return null;
+  const withCode = stepDocs.filter((d) => !!d.data().code).length;
+  return Math.round((withCode / stepDocs.length) * 100);
+}
+
+// أعلى (code + message) مختلفين تكرارًا (مش بس الأكتر واحد زي topErrorCode/topErrorMessage) —
+// عشان نتأكد الـcount الكلي مش خليط رسائل مختلفة مقنّع في رقم واحد. مجمّعة سوا (مش كل واحد
+// لوحده) لأن نفس الـcode ممكن يترافق مع أكتر من رسالة، والعكس.
+type ErrorVariant = { code: string | null; message: string | null; count: number };
+function topErrorVariants(stepDocs: QueryDocumentSnapshot[], topN = 3): ErrorVariant[] {
+  const counts = new Map<string, ErrorVariant>();
+  for (const doc of stepDocs) {
+    const code: string | null = doc.data().code ?? null;
+    const message: string | null = doc.data().message ?? null;
+    const key = `${code ?? ""}|${message ?? ""}`;
+    const existing = counts.get(key);
+    if (existing) existing.count += 1;
+    else counts.set(key, { code, message, count: 1 });
+  }
+  return Array.from(counts.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, topN);
+}
+
+// تصنيف مبسّط لمتصفح/نظام userAgent — مش parser شامل، بس كافي لتمييز الفئات الكبيرة المهمة
+// هنا (خصوصًا Safari/iOS اللي بيفعّل "Prevent Cross-Site Tracking" افتراضيًا وده سبب موثّق
+// لمشاكل reCAPTCHA/Firebase Phone Auth). الترتيب مهم: لازم نفحص العلامات الأكتر تحديدًا
+// (CriOS/FxiOS/SamsungBrowser) قبل العلامات العامة (Safari/Chrome)، لأن متصفحات تانية بتحط
+// "Safari" في الـuserAgent بتاعها كمان (زي كروم على iOS).
+function classifyBrowser(userAgent: string): string {
+  if (!userAgent) return "غير معروف";
+  const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+  const isAndroid = /Android/i.test(userAgent);
+  if (/SamsungBrowser/i.test(userAgent)) return "Samsung Internet";
+  if (/CriOS/i.test(userAgent)) return "Chrome / iOS";
+  if (/FxiOS/i.test(userAgent)) return "Firefox / iOS";
+  if (/EdgiOS|Edge|EdgA/i.test(userAgent)) return "Edge";
+  if (/OPR|Opera/i.test(userAgent)) return "Opera";
+  if (/Firefox/i.test(userAgent)) return "Firefox";
+  if (/Chrome/i.test(userAgent)) return isAndroid ? "Chrome / Android" : "Chrome";
+  if (/Safari/i.test(userAgent) && isIOS) return "Safari / iOS";
+  if (/Safari/i.test(userAgent)) return "Safari";
+  return "تاني";
+}
+
+type BrowserBreakdownEntry = { label: string; count: number };
+function computeBrowserBreakdown(stepDocs: QueryDocumentSnapshot[], topN = 4): BrowserBreakdownEntry[] {
+  const counts = new Map<string, number>();
+  for (const doc of stepDocs) {
+    const label = classifyBrowser(doc.data().userAgent || "");
+    counts.set(label, (counts.get(label) || 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, topN);
+}
+
+// نسبة الحالات اللي حصلت على /register مباشرة، مقابل أي مسار تاني (يعني جوه مودال — مودال
+// التقديم على وظيفة، مودال حفظ وظيفة، أو زرار كشف وسيلة التواصل) — عشان نعرف هل المشكلة
+// متركّزة في مسار تسجيل واحد بعينه. page بيتسجّل بالفعل مع كل خطأ (window.location.pathname
+// وقت حدوثه)، فمفيش أي قراءة إضافية مطلوبة.
+function computeRegisterPagePercent(stepDocs: QueryDocumentSnapshot[]): number | null {
+  if (stepDocs.length === 0) return null;
+  const onRegisterPage = stepDocs.filter((d) => (d.data().page ?? "") === "/register").length;
+  return Math.round((onRegisterPage / stepDocs.length) * 100);
+}
+
 // بيحسب عدد مستندات error_logs بـstep معيّن، وأكتر code تكرر بينهم، وأكتر message تكرر
 // كـfallback لو مفيش code مسجل خالص، وكمان قايمة بآخر الحالات الفردية (تاريخ/وقت + الصفحة
 // + الكود بتاع كل حالة) للتفاصيل القابلة للتوسيع، وتوزيع يومي لآخر 7 أيام، ونسبة الحالات
-// الجايه من WebView — كله من غير أي استعلام إضافي (نفس الـdocs المجلوبة أصلًا من
+// الجايه من WebView، وأعلى الرسائل/الأكواد تنوعًا، ونسبة وجود code، وتوزيع المتصفح/النظام،
+// ونسبة /register المباشرة — كله من غير أي استعلام إضافي (نفس الـdocs المجلوبة أصلًا من
 // loadAuthErrorStats).
 function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
   const stepDocs = docs.filter((d) => d.data().step === step);
@@ -164,6 +237,10 @@ function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
     entries,
     dailyCounts: computeDailyErrorCounts(stepDocs),
     webViewFailurePercent: computeWebViewFailurePercent(stepDocs),
+    codePresentPercent: computeCodePresentPercent(stepDocs),
+    topVariants: topErrorVariants(stepDocs),
+    browserBreakdown: computeBrowserBreakdown(stepDocs),
+    registerPagePercent: computeRegisterPagePercent(stepDocs),
   };
 }
 
@@ -230,6 +307,10 @@ type AuthErrorDetail = {
   entries: AuthErrorEntry[];
   dailyCounts: { date: string; label: string; count: number }[];
   webViewFailurePercent: number | null;
+  codePresentPercent: number | null;
+  topVariants: ErrorVariant[];
+  browserBreakdown: BrowserBreakdownEntry[];
+  registerPagePercent: number | null;
 };
 
 type AuthErrorStats = {
@@ -1308,6 +1389,16 @@ function AuthErrorCard({
             من WebView (فيسبوك/إنستجرام): {detail.webViewFailurePercent}%
           </div>
         )}
+        {detail.codePresentPercent !== null && (
+          <div style={{ fontSize: 11, color: "#4A5568", marginTop: 2 }}>
+            عندها code فايربيز: {detail.codePresentPercent}%
+          </div>
+        )}
+        {detail.registerPagePercent !== null && (
+          <div style={{ fontSize: 11, color: "#4A5568", marginTop: 2 }}>
+            من /register مباشرة: {detail.registerPagePercent}% (الباقي من مودال)
+          </div>
+        )}
       </div>
 
       {/* توزيع الحالات على آخر 7 أيام (تاريخ محلي) — بيبان فورًا لو الزيادة متركزة في يوم أو
@@ -1332,6 +1423,44 @@ function AuthErrorCard({
                   }}
                 />
                 <div style={{ fontSize: 8.5, color: "#4A5568" }}>{d.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* أعلى المتصفحات/الأنظمة تكرارًا (خصوصًا Safari/iOS — معروف إن "Prevent Cross-Site
+          Tracking" الافتراضي فيه بيسبب مشاكل reCAPTCHA/Firebase Phone Auth) وأعلى 3 رسائل/
+          أكواد مختلفة (بدل رسالة واحدة مجمّعة في subtitle فوق) — عشان نتأكد الـcount مش خليط
+          مشاكل مختلفة مقنّع في رقم واحد. */}
+      {detail.browserBreakdown.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 10, color: "#4A5568", fontWeight: 700, marginBottom: 4 }}>أعلى المتصفحات/الأنظمة</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {detail.browserBreakdown.map((b) => (
+              <div key={b.label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "#4A5568" }}>
+                <span>{b.label}</span>
+                <span style={{ fontWeight: 700 }}>{Math.round((b.count / detail.count) * 100)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {detail.topVariants.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 10, color: "#4A5568", fontWeight: 700, marginBottom: 4 }}>أعلى الرسائل/الأكواد تكرارًا</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            {detail.topVariants.map((v, i) => (
+              <div key={i} style={{ fontSize: 10.5, color: "#4A5568", borderTop: i > 0 ? "1px solid #14213D14" : undefined, paddingTop: i > 0 ? 5 : 0 }}>
+                <div style={{ fontWeight: 700 }}>
+                  {v.code || "(من غير code)"} — {v.count} مرة
+                </div>
+                {v.message && (
+                  <div style={{ wordBreak: "break-all" }}>
+                    {v.message.length > 70 ? `${v.message.slice(0, 70)}...` : v.message}
+                  </div>
+                )}
               </div>
             ))}
           </div>
