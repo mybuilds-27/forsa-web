@@ -213,12 +213,32 @@ function computeRegisterPagePercent(stepDocs: QueryDocumentSnapshot[]): number |
   return Math.round((onRegisterPage / stepDocs.length) * 100);
 }
 
+// اكتشفنا إن حالات step واحد ممكن تكون فعليًا خليط نوعين مختلفين تمامًا من الأخطاء (زي
+// phone_send_code: 67% "reCAPTCHA already rendered" من غير code، و33% auth/error-code:-39 -
+// حظر Firebase لمنطقة/شبكة اتصال، سبب مختلف تمامًا) — فحساب WebView/المتصفح/الصفحة على
+// الـstep كله مع بعض كان بيخلط بين مشكلتين مختلفتين في رقم واحد مضلل. بنقسّم كل الـstepDocs
+// لمجموعتين (عندها code فايربيز رسمي / من غيره) ونحسب نفس التفاصيل لكل مجموعة لوحدها.
+type ErrorGroupBreakdown = {
+  count: number;
+  webViewFailurePercent: number | null;
+  browserBreakdown: BrowserBreakdownEntry[];
+  registerPagePercent: number | null;
+};
+function computeErrorGroupBreakdown(groupDocs: QueryDocumentSnapshot[]): ErrorGroupBreakdown {
+  return {
+    count: groupDocs.length,
+    webViewFailurePercent: computeWebViewFailurePercent(groupDocs),
+    browserBreakdown: computeBrowserBreakdown(groupDocs),
+    registerPagePercent: computeRegisterPagePercent(groupDocs),
+  };
+}
+
 // بيحسب عدد مستندات error_logs بـstep معيّن، وأكتر code تكرر بينهم، وأكتر message تكرر
 // كـfallback لو مفيش code مسجل خالص، وكمان قايمة بآخر الحالات الفردية (تاريخ/وقت + الصفحة
-// + الكود بتاع كل حالة) للتفاصيل القابلة للتوسيع، وتوزيع يومي لآخر 7 أيام، ونسبة الحالات
-// الجايه من WebView، وأعلى الرسائل/الأكواد تنوعًا، ونسبة وجود code، وتوزيع المتصفح/النظام،
-// ونسبة /register المباشرة — كله من غير أي استعلام إضافي (نفس الـdocs المجلوبة أصلًا من
-// loadAuthErrorStats).
+// + الكود بتاع كل حالة) للتفاصيل القابلة للتوسيع، وتوزيع يومي لآخر 7 أيام، وأعلى الرسائل/
+// الأكواد تنوعًا، ونسبة وجود code، وتفصيل WebView/المتصفح/الصفحة مقسّم بين مجموعة "عندها
+// code" ومجموعة "من غيره" (بدل رقم واحد مخلوط) — كله من غير أي استعلام إضافي (نفس الـdocs
+// المجلوبة أصلًا من loadAuthErrorStats).
 function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
   const stepDocs = docs.filter((d) => d.data().step === step);
   const topCode = mostFrequentValue(stepDocs.map((d) => d.data().code ?? null));
@@ -229,6 +249,9 @@ function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
     .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0))
     .slice(0, MAX_AUTH_ERROR_ENTRIES);
 
+  const withCodeDocs = stepDocs.filter((d) => !!d.data().code);
+  const withoutCodeDocs = stepDocs.filter((d) => !d.data().code);
+
   return {
     count: stepDocs.length,
     topErrorCode: topCode.value,
@@ -236,11 +259,10 @@ function computeAuthErrorDetail(docs: any[], step: string): AuthErrorDetail {
     topErrorMessage: topMessage.value,
     entries,
     dailyCounts: computeDailyErrorCounts(stepDocs),
-    webViewFailurePercent: computeWebViewFailurePercent(stepDocs),
     codePresentPercent: computeCodePresentPercent(stepDocs),
     topVariants: topErrorVariants(stepDocs),
-    browserBreakdown: computeBrowserBreakdown(stepDocs),
-    registerPagePercent: computeRegisterPagePercent(stepDocs),
+    codeGroupBreakdown: computeErrorGroupBreakdown(withCodeDocs),
+    noCodeGroupBreakdown: computeErrorGroupBreakdown(withoutCodeDocs),
   };
 }
 
@@ -306,11 +328,10 @@ type AuthErrorDetail = {
   topErrorMessage: string | null;
   entries: AuthErrorEntry[];
   dailyCounts: { date: string; label: string; count: number }[];
-  webViewFailurePercent: number | null;
   codePresentPercent: number | null;
   topVariants: ErrorVariant[];
-  browserBreakdown: BrowserBreakdownEntry[];
-  registerPagePercent: number | null;
+  codeGroupBreakdown: ErrorGroupBreakdown;
+  noCodeGroupBreakdown: ErrorGroupBreakdown;
 };
 
 type AuthErrorStats = {
@@ -1384,19 +1405,9 @@ function AuthErrorCard({
             نسبة الفشل: {detail.count} من {attemptsTotal} محاولة ({Math.round((detail.count / attemptsTotal) * 100)}%)
           </div>
         )}
-        {detail.webViewFailurePercent !== null && (
-          <div style={{ fontSize: 11, color: "#4A5568", marginTop: 2 }}>
-            من WebView (فيسبوك/إنستجرام): {detail.webViewFailurePercent}%
-          </div>
-        )}
         {detail.codePresentPercent !== null && (
           <div style={{ fontSize: 11, color: "#4A5568", marginTop: 2 }}>
             عندها code فايربيز: {detail.codePresentPercent}%
-          </div>
-        )}
-        {detail.registerPagePercent !== null && (
-          <div style={{ fontSize: 11, color: "#4A5568", marginTop: 2 }}>
-            من /register مباشرة: {detail.registerPagePercent}% (الباقي من مودال)
           </div>
         )}
       </div>
@@ -1429,24 +1440,8 @@ function AuthErrorCard({
         </div>
       )}
 
-      {/* أعلى المتصفحات/الأنظمة تكرارًا (خصوصًا Safari/iOS — معروف إن "Prevent Cross-Site
-          Tracking" الافتراضي فيه بيسبب مشاكل reCAPTCHA/Firebase Phone Auth) وأعلى 3 رسائل/
-          أكواد مختلفة (بدل رسالة واحدة مجمّعة في subtitle فوق) — عشان نتأكد الـcount مش خليط
-          مشاكل مختلفة مقنّع في رقم واحد. */}
-      {detail.browserBreakdown.length > 0 && (
-        <div style={{ marginTop: 10 }}>
-          <div style={{ fontSize: 10, color: "#4A5568", fontWeight: 700, marginBottom: 4 }}>أعلى المتصفحات/الأنظمة</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {detail.browserBreakdown.map((b) => (
-              <div key={b.label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "#4A5568" }}>
-                <span>{b.label}</span>
-                <span style={{ fontWeight: 700 }}>{Math.round((b.count / detail.count) * 100)}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+      {/* أعلى 3 (code + message) مختلفين تكرارًا (بدل رسالة واحدة مجمّعة في subtitle فوق) —
+          عشان نتأكد الـcount مش خليط مشاكل مختلفة مقنّع في رقم واحد. */}
       {detail.topVariants.length > 0 && (
         <div style={{ marginTop: 10 }}>
           <div style={{ fontSize: 10, color: "#4A5568", fontWeight: 700, marginBottom: 4 }}>أعلى الرسائل/الأكواد تكرارًا</div>
@@ -1466,6 +1461,13 @@ function AuthErrorCard({
           </div>
         </div>
       )}
+
+      {/* توزيع WebView/المتصفح/الصفحة مقسّم بين مجموعة "عندها code فايربيز" ومجموعة "من غيره"
+          لوحدهم — بدل رقم واحد مخلوط بين نوعين مختلفين من الأخطاء (شوف تعليق
+          computeErrorGroupBreakdown فوق). Safari/iOS بالذات مهم هنا لأن "Prevent Cross-Site
+          Tracking" الافتراضي فيه سبب موثّق لمشاكل reCAPTCHA/Firebase Phone Auth. */}
+      <ErrorGroupSection title="عندها code فايربيز" group={detail.codeGroupBreakdown} />
+      <ErrorGroupSection title="من غير code (JS خام)" group={detail.noCodeGroupBreakdown} />
 
       {detail.count > 0 && (
         <>
@@ -1503,6 +1505,36 @@ function AuthErrorCard({
             </div>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+// قسم فرعي جوه AuthErrorCard بيعرض تفاصيل WebView/المتصفح/الصفحة لمجموعة واحدة بس (عندها code
+// أو من غيره) — null لو المجموعة فاضية (زي step معندوش أي حالات code خالص) عشان مايظهرش قسم
+// فاضي بعنوان بس.
+function ErrorGroupSection({ title, group }: { title: string; group: ErrorGroupBreakdown }) {
+  if (group.count === 0) return null;
+  return (
+    <div style={{ marginTop: 10, background: "#F8F6F0", borderRadius: 6, padding: "8px 10px" }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, color: "#14213D", marginBottom: 4 }}>
+        {title} ({group.count})
+      </div>
+      {group.webViewFailurePercent !== null && (
+        <div style={{ fontSize: 10, color: "#4A5568" }}>من WebView: {group.webViewFailurePercent}%</div>
+      )}
+      {group.registerPagePercent !== null && (
+        <div style={{ fontSize: 10, color: "#4A5568" }}>من /register مباشرة: {group.registerPagePercent}%</div>
+      )}
+      {group.browserBreakdown.length > 0 && (
+        <div style={{ marginTop: 3, display: "flex", flexDirection: "column", gap: 1 }}>
+          {group.browserBreakdown.map((b) => (
+            <div key={b.label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#4A5568" }}>
+              <span>{b.label}</span>
+              <span style={{ fontWeight: 700 }}>{Math.round((b.count / group.count) * 100)}%</span>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
