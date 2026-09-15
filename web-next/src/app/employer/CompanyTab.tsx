@@ -149,7 +149,9 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
   const [detailPost, setDetailPost] = useState<JobPost | null>(null);
   const [dailyApplications, setDailyApplications] = useState<DailyCount[]>([]);
   const [invitationStats, setInvitationStats] = useState<InvitationStats | null>(null);
+  const [invitationStatsError, setInvitationStatsError] = useState(false);
   const [contactRevealStats, setContactRevealStats] = useState<ContactRevealStats | null>(null);
+  const [contactRevealStatsError, setContactRevealStatsError] = useState(false);
 
   async function loadMyJobPosts() {
     const user = auth.currentUser;
@@ -221,17 +223,28 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
     }
 
     // إحصائيات قسم "📊 إحصائيات": عدد الدعوات (كلي + الشهر ده) وعدد فتحات بطاقة المتقدم
-    // الشهر ده (للباقة المدفوعة بس) — قراءات count خفيفة (getCountFromServer)، منفصلة عن
-    // فشلها ميوقفش باقي بيانات الصفحة.
-    try {
-      const [invStats, revealStats] = await Promise.all([
-        fetchInvitationStats(user.uid, companyData?.plan || "free"),
-        fetchContactRevealStats(user.uid, companyData?.plan || "free"),
-      ]);
-      setInvitationStats(invStats);
-      setContactRevealStats(revealStats);
-    } catch (err) {
-      console.error("[loadMyJobPosts] فشل جلب إحصائيات الدعوات وفتح بطاقات المتقدمين", err);
+    // الشهر ده (للباقة المدفوعة بس) — قراءات count خفيفة (getCountFromServer). Promise.allSettled
+    // بدل Promise.all عمدًا: الاستعلامين مستقلين تمامًا عن بعض، فمينفعش فشل واحد بس (index
+    // ناقص، قاعدة أمان، إلخ) يمسح نتيجة التاني الناجحة فعليًا — ده اللي كان بيحصل قبل كده.
+    const [invResult, revealResult] = await Promise.allSettled([
+      fetchInvitationStats(user.uid, companyData?.plan || "free"),
+      fetchContactRevealStats(user.uid, companyData?.plan || "free"),
+    ]);
+
+    if (invResult.status === "fulfilled") {
+      setInvitationStats(invResult.value);
+      setInvitationStatsError(false);
+    } else {
+      console.error("[loadMyJobPosts] فشل جلب إحصائيات الدعوات", invResult.reason);
+      setInvitationStatsError(true);
+    }
+
+    if (revealResult.status === "fulfilled") {
+      setContactRevealStats(revealResult.value);
+      setContactRevealStatsError(false);
+    } else {
+      console.error("[loadMyJobPosts] فشل جلب إحصائيات فتح بطاقات المتقدمين", revealResult.reason);
+      setContactRevealStatsError(true);
     }
 
     setLoading(false);
@@ -336,25 +349,27 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
           <StatCard label="الوظائف" value={`${posts.filter((p) => p.isActive !== false).length} نشطة من ${posts.length}`} />
           <StatCard label="إجمالي المشاهدات" value={Object.values(viewCounts).reduce((a, b) => a + b, 0)} />
           <StatCard label="إجمالي المتقدمين" value={Object.values(applicantCounts).reduce((a, b) => a + b, 0)} />
-          <StatCard label="الدعوات المرسلة" value={invitationStats ? invitationStats.total : "..."} />
+          <StatCard
+            label="الدعوات المرسلة"
+            value={invitationStats ? invitationStats.total : invitationStatsError ? "تعذّر التحميل" : "..."}
+          />
         </div>
 
-        {(invitationStats || contactRevealStats) && (
+        {(invitationStats || contactRevealStats || invitationStatsError || contactRevealStatsError) && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
             {invitationStats && (
               <StatCard label="دعوات الشهر ده" value={`${invitationStats.thisMonth} / ${invitationStats.monthlyLimit}`} />
             )}
+            {invitationStatsError && <StatCard label="دعوات الشهر ده" value="تعذّر التحميل" />}
             {contactRevealStats && (
               <StatCard label="فتح بطاقات متقدمين الشهر ده" value={`${contactRevealStats.thisMonth} / ${contactRevealStats.monthlyLimit}`} />
             )}
+            {contactRevealStatsError && <StatCard label="فتح بطاقات متقدمين الشهر ده" value="تعذّر التحميل" />}
           </div>
         )}
 
         <h4 style={{ fontSize: 14, color: "#4A5568", marginBottom: 4 }}>تقديمات آخر 7 أيام</h4>
         <ApplicationsBarChart data={dailyApplications} />
-        <p style={{ fontSize: 11.5, color: "#4A5568", marginTop: 10 }}>
-          رسمة المشاهدات مش متاحة حاليًا — محتاجة تتبع يومي جديد، هنضيفها في مرحلة جاية.
-        </p>
       </div>
 
       <h2 style={{ marginBottom: 16 }}>إعلاناتك المنشورة</h2>
