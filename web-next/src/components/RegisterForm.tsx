@@ -292,7 +292,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
 
   // اختيار "التسجيل بالتليفون" من شاشة اختيار الطريقة — مفيش تتبّع Pixel/funnel هنا، لأن
   // الحدث الحقيقي بتاع اختيار طريقة التليفون بيتفعّل بعدين جوه handleSendCode لما المستخدم
-  // فعليًا يدوس "ابعتلي كود التحقق"، زي ما كان بالظبط قبل التصميم الجديد.
+  // فعليًا يدوس "كمّل التسجيل"، زي ما كان بالظبط قبل التصميم الجديد.
   function selectPhoneMethod() {
     setError("");
     setSelectedMethod("phone");
@@ -519,15 +519,11 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
 
     const isSignup = otpContext === "signup";
 
-    if (isSignup) {
-      if (!fullName.trim()) {
-        setError("اكتب اسمك بالكامل");
-        return;
-      }
-      if (!phonePassword || phonePassword.length < 6) {
-        setError("اختار باسورد 6 أحرف على الأقل");
-        return;
-      }
+    // الباسورد بقى بيتطلب في خطوة الكود (تحت) مش هنا — الشاشة الأولى بقت اسم ورقم بس، عشان
+    // تبقى أبسط لمستخدم أقل دراية بالتكنولوجيا. شوف handleVerifyCode للتحقق من الباسورد.
+    if (isSignup && !fullName.trim()) {
+      setError("اكتب اسمك بالكامل");
+      return;
     }
 
     const normalized = normalizeEgyptianPhone((phoneOverride ?? phoneNumber).trim());
@@ -587,11 +583,19 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
     if (!normalized) return;
     setError("");
     setErrorColor(COLORS.stamp);
+
+    const isSignup = otpContext === "signup";
+    // الباسورد اتنقل هنا (شوف handleSendCode) — بنتحقق منه قبل ما نحاول نأكد الكود، عشان
+    // مانضيّعش محاولة تأكيد فعلية لو الباسورد لسه ناقص.
+    if (isSignup && (!phonePassword || phonePassword.length < 6)) {
+      setError("اختار باسورد 6 أحرف على الأقل");
+      return;
+    }
+
     setPhoneLoading(true);
     authInProgressRef.current = true;
     try {
       await confirmationResult.confirm(otpCode.trim());
-      const isSignup = otpContext === "signup";
       await linkPasswordIfNeeded(isSignup ? phonePassword : password, normalized);
       if (isSignup) {
         await routeAfterAuth(role, fullName.trim());
@@ -625,7 +629,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
         ? { label: "دخول", onClick: handleUnifiedLogin, disabled: emailSaving }
         : { label: "إنشاء حساب مجانًا", onClick: handleEmailSignUp, disabled: emailSaving };
     }
-    return { label: "ابعتلي كود التحقق", onClick: () => handleSendCode(), disabled: phoneLoading };
+    return { label: "كمّل التسجيل", onClick: () => handleSendCode(), disabled: phoneLoading };
   }
 
   const cta = finalCta();
@@ -725,7 +729,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
             ربطناها بـselectedMethod === "phone" بس، فلو الاسترجاع من الإيميل هيتكسر. */}
         {phoneStep === "enter-code" && (
           <div>
-            <label style={fieldLabelStyle}>كود التحقق</label>
+            <label style={fieldLabelStyle}>الرقم اللي وصلك</label>
             <input
               type="text"
               inputMode="numeric"
@@ -735,8 +739,29 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
               style={fieldInputStyle}
             />
             <div style={{ fontSize: 12, color: COLORS.inkSoft, marginTop: -4, marginBottom: 6 }}>
-              اتبعتلك رسالة نصية فيها الكود على {phoneNumber}
+              اتبعتلك رسالة فيها رقم على {phoneNumber} — اكتبه هنا
             </div>
+
+            {/* الباسورد اتنقل هنا من شاشة الاسم/الرقم — الشاشة الأولى بقت حقلين بس (اسم ورقم)،
+                أبسط لمستخدم أقل دراية بالتكنولوجيا. مش ظاهر في وضع استرجاع دخول قديم
+                (login-fallback) لأن الباسورد وقتها جاي من فورم الإيميل اللي فتح الاسترجاع
+                أصلًا (شوف handleVerifyCode/linkPasswordIfNeeded). */}
+            {otpContext === "signup" && (
+              <div style={{ marginTop: 10, marginBottom: 6 }}>
+                <label style={fieldLabelStyle}>اختار باسورد</label>
+                <input
+                  type="password"
+                  value={phonePassword}
+                  onChange={(e) => setPhonePassword(e.target.value)}
+                  placeholder="6 أحرف على الأقل"
+                  style={fieldInputStyle}
+                />
+                <div style={{ fontSize: 11.5, color: COLORS.inkSoft, marginTop: -4 }}>
+                  عشان تقدر تدخل المرة الجاية بالباسورد على طول من غير ما نبعتلك كود تاني
+                </div>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={otpContext === "login-fallback" ? cancelLoginOtp : resetPhoneCodeStep}
@@ -786,8 +811,8 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
           </>
         )}
 
-        {/* حقول التسجيل بالتليفون — نفس الحقول والمنطق بالظبط زي ما كانوا ظاهرين افتراضيًا
-            قبل كده، بس دلوقتي جوه زرار "التسجيل بالتليفون". */}
+        {/* حقول التسجيل بالتليفون — اسم ورقم بس (الباسورد بقى في شاشة الكود تحت، شوف
+            phoneStep === "enter-code" فوق) عشان الشاشة الأولى تبقى أبسط ما يمكن. */}
         {selectedMethod === "phone" && phoneStep === "enter-phone" && (
           <>
             <button type="button" onClick={backToMethodChooser} style={smallLinkStyle}>
@@ -812,19 +837,6 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
                 placeholder="01012345678"
                 style={fieldInputStyle}
               />
-            </div>
-            <div>
-              <label style={fieldLabelStyle}>اختار باسورد</label>
-              <input
-                type="password"
-                value={phonePassword}
-                onChange={(e) => setPhonePassword(e.target.value)}
-                placeholder="6 أحرف على الأقل"
-                style={fieldInputStyle}
-              />
-              <div style={{ fontSize: 11.5, color: COLORS.inkSoft, marginTop: -4 }}>
-                عشان تقدر تدخل المرة الجاية بالباسورد على طول من غير ما نبعتلك كود تاني
-              </div>
             </div>
           </>
         )}
@@ -875,7 +887,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
             {showOtpFallback && (
               <div style={{ marginTop: 10 }}>
                 <button type="button" onClick={handleOtpFallback} style={smallLinkStyle}>
-                  سجّلت بالتليفون قبل كده ولسه معندكش باسورد؟ ادخل بكود التحقق (OTP) بدلاً منه
+                  نسيت الباسورد؟ سجّل دخول بالكود
                 </button>
               </div>
             )}
@@ -886,8 +898,25 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
             (finalCta() بترجع الليبل/الدالة الصح تلقائيًا حسب الحالة الحالية، من غير تغيير). */}
         {!showingChooser && (
           <>
+            {/* صندوق بخلفية وحدود ملوّنة (نفس أسلوب صندوق "بيتم تسجيل الدخول..." فوق) بدل نص
+                ملوّن عادي بس — أوضح بصريًا لمستخدم بيمسح الشاشة بسرعة، خصوصًا رسايل مهمة زي
+                "اختار باسورد 6 أحرف على الأقل". errorColor ممكن يكون لون نجاح (COLORS.success،
+                زي رسالة إعادة تعيين الباسورد) مش بس لون خطأ، فالخلفية بتتغيّر معاه. */}
             {error && (
-              <div style={{ color: errorColor, fontSize: 13, textAlign: "center" }}>{error}</div>
+              <div
+                style={{
+                  background: errorColor === COLORS.success ? "rgba(47,111,78,0.08)" : "rgba(176,58,20,0.08)",
+                  border: `1px solid ${errorColor}33`,
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                  color: errorColor,
+                  textAlign: "center",
+                }}
+              >
+                {error}
+              </div>
             )}
             <button
               type="button"
