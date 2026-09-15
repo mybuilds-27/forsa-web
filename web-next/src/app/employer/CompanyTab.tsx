@@ -226,10 +226,15 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
     // الشهر ده (للباقة المدفوعة بس) — قراءات count خفيفة (getCountFromServer). Promise.allSettled
     // بدل Promise.all عمدًا: الاستعلامين مستقلين تمامًا عن بعض، فمينفعش فشل واحد بس (index
     // ناقص، قاعدة أمان، إلخ) يمسح نتيجة التاني الناجحة فعليًا — ده اللي كان بيحصل قبل كده.
+    // TEMP DEBUG — هيتشال بعد ما نلاقي سبب monthlyLimit الغلط في الإحصائيات.
+    console.log("[DEBUG CompanyTab] companyData?.plan:", companyData?.plan, "typeof:", typeof companyData?.plan);
     const [invResult, revealResult] = await Promise.allSettled([
       fetchInvitationStats(user.uid, companyData?.plan || "free"),
       fetchContactRevealStats(user.uid, companyData?.plan || "free"),
     ]);
+    // TEMP DEBUG
+    console.log("[DEBUG CompanyTab] invResult:", JSON.stringify(invResult));
+    console.log("[DEBUG CompanyTab] revealResult:", JSON.stringify(revealResult));
 
     if (invResult.status === "fulfilled") {
       setInvitationStats(invResult.value);
