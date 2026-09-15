@@ -170,6 +170,16 @@ export default async function HomePage() {
             ))}
           </select>
           <select
+            name="specialization"
+            defaultValue=""
+            style={{ flex: "1 1 150px", padding: 10, border: "1px solid #ccc", borderRadius: 8, fontSize: 14, fontFamily: "inherit" }}
+          >
+            <option value="">كل التخصصات</option>
+            {SPECIALIZATION_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <select
             name="jobType"
             defaultValue=""
             style={{ flex: "1 1 150px", padding: 10, border: "1px solid #ccc", borderRadius: 8, fontSize: 14, fontFamily: "inherit" }}
