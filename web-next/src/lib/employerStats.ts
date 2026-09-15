@@ -18,8 +18,6 @@ export type InvitationStats = { total: number; thisMonth: number; monthlyLimit: 
 export async function fetchInvitationStats(employerId: string, employerPlan: string): Promise<InvitationStats> {
   const monthlyLimit = employerPlan === "premium" ? 30 : 5;
   const startOfMonth = startOfCurrentMonth();
-  // TEMP DEBUG
-  console.log("[DEBUG fetchInvitationStats] employerId:", employerId, "employerPlan:", employerPlan, "monthlyLimit:", monthlyLimit);
 
   const [totalSnap, monthSnap] = await Promise.all([
     getCountFromServer(query(collection(db, "invitations"), where("employerId", "==", employerId))),
@@ -32,10 +30,7 @@ export async function fetchInvitationStats(employerId: string, employerPlan: str
     ),
   ]);
 
-  const result = { total: totalSnap.data().count, thisMonth: monthSnap.data().count, monthlyLimit };
-  // TEMP DEBUG
-  console.log("[DEBUG fetchInvitationStats] result:", JSON.stringify(result));
-  return result;
+  return { total: totalSnap.data().count, thisMonth: monthSnap.data().count, monthlyLimit };
 }
 
 export type ContactRevealStats = { thisMonth: number; monthlyLimit: number };
@@ -45,8 +40,6 @@ export type ContactRevealStats = { thisMonth: number; monthlyLimit: number };
 // contact_reveals هنا هي collection المستخدمة في SeekerDetailModal.tsx (حد شهري لكشف بيانات
 // التواصل) — مختلفة تمامًا عن job_contact_views (مشاهدات وسيلة تواصل الوظيفة نفسها).
 export async function fetchContactRevealStats(employerId: string, employerPlan: string): Promise<ContactRevealStats | null> {
-  // TEMP DEBUG
-  console.log("[DEBUG fetchContactRevealStats] employerId:", employerId, "employerPlan:", employerPlan);
   if (employerPlan !== "premium") return null;
   const startOfMonth = startOfCurrentMonth();
 
@@ -58,10 +51,7 @@ export async function fetchContactRevealStats(employerId: string, employerPlan: 
     )
   );
 
-  const result = { thisMonth: snap.data().count, monthlyLimit: 30 };
-  // TEMP DEBUG
-  console.log("[DEBUG fetchContactRevealStats] result:", JSON.stringify(result));
-  return result;
+  return { thisMonth: snap.data().count, monthlyLimit: 30 };
 }
 
 export type DailyCount = { date: string; label: string; count: number };

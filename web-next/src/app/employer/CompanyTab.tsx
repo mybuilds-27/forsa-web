@@ -226,15 +226,10 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
     // الشهر ده (للباقة المدفوعة بس) — قراءات count خفيفة (getCountFromServer). Promise.allSettled
     // بدل Promise.all عمدًا: الاستعلامين مستقلين تمامًا عن بعض، فمينفعش فشل واحد بس (index
     // ناقص، قاعدة أمان، إلخ) يمسح نتيجة التاني الناجحة فعليًا — ده اللي كان بيحصل قبل كده.
-    // TEMP DEBUG — هيتشال بعد ما نلاقي سبب monthlyLimit الغلط في الإحصائيات.
-    console.log("[DEBUG CompanyTab] companyData?.plan:", companyData?.plan, "typeof:", typeof companyData?.plan);
     const [invResult, revealResult] = await Promise.allSettled([
       fetchInvitationStats(user.uid, companyData?.plan || "free"),
       fetchContactRevealStats(user.uid, companyData?.plan || "free"),
     ]);
-    // TEMP DEBUG
-    console.log("[DEBUG CompanyTab] invResult:", JSON.stringify(invResult));
-    console.log("[DEBUG CompanyTab] revealResult:", JSON.stringify(revealResult));
 
     if (invResult.status === "fulfilled") {
       setInvitationStats(invResult.value);
@@ -363,11 +358,21 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
         {(invitationStats || contactRevealStats || invitationStatsError || contactRevealStatsError) && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
             {invitationStats && (
-              <StatCard label="دعوات الشهر ده" value={`${invitationStats.thisMonth} / ${invitationStats.monthlyLimit}`} />
+              // dir="ltr" هنا مقصودة — "65 / 30" (رقمين وفاصل بس، من غير أي حرف قوي الاتجاه
+              // بينهم) جوه حاوية RTL بيتقلب بصريًا بمتصفحات كتير حسب خوارزمية Unicode bidi
+              // (UAX #9)، حتى لو الـstring نفسه في الـDOM صحيح 100%. عزل الاتجاه هنا بيضمن
+              // العرض الصحيح دايمًا بغض النظر عن عدد خانات الرقمين.
+              <StatCard
+                label="دعوات الشهر ده"
+                value={<span dir="ltr">{invitationStats.thisMonth} / {invitationStats.monthlyLimit}</span>}
+              />
             )}
             {invitationStatsError && <StatCard label="دعوات الشهر ده" value="تعذّر التحميل" />}
             {contactRevealStats && (
-              <StatCard label="فتح بطاقات متقدمين الشهر ده" value={`${contactRevealStats.thisMonth} / ${contactRevealStats.monthlyLimit}`} />
+              <StatCard
+                label="فتح بطاقات متقدمين الشهر ده"
+                value={<span dir="ltr">{contactRevealStats.thisMonth} / {contactRevealStats.monthlyLimit}</span>}
+              />
             )}
             {contactRevealStatsError && <StatCard label="فتح بطاقات متقدمين الشهر ده" value="تعذّر التحميل" />}
           </div>
