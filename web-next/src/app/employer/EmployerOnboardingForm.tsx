@@ -5,6 +5,9 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, db, storage } from "@/lib/firebase";
 import { GOVERNORATES, GOVERNORATE_CITIES } from "@/lib/constants";
+import { friendlyErrorMessage } from "@/lib/errorMessages";
+import { logClientError } from "@/lib/errorLog";
+import { withGracePeriod, getConnectionDiagnostics } from "@/lib/withGracePeriod";
 import FileUploadButton from "@/components/FileUploadButton";
 
 type Props = {
@@ -26,6 +29,10 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
   const [logoURL, setLogoURL] = useState("");
   const [logoStatus, setLogoStatus] = useState("");
   const [saving, setSaving] = useState(false);
+  // بانر غير blocking بيبان لو الحفظ عدّى SAVE_TIMEOUT_MS ولسه شغال — نفس نمط PostJobTab.tsx
+  // (شوف lib/withGracePeriod.ts). مبيتمسحش لوحده بعد فترة ثابتة، بيتقفل بس لما الحفظ يخلص
+  // فعليًا (نجاح أو فشل حقيقي).
+  const [slowSaveNotice, setSlowSaveNotice] = useState(false);
 
   useEffect(() => {
     if (!initialData) return;
@@ -94,28 +101,75 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
       }
     }
 
-    await setDoc(doc(db, "employers", user.uid), data, { merge: true });
+    try {
+      // مستندين مستقلين عن بعض (بيانات الشركة العامة + بيانات التواصل الشخصية في مستند فرعي
+      // محمي) — بنكتبهم بالتوازي بدل واحد ورا التاني، ونلف العملية المجمّعة بـwithGracePeriod
+      // واحدة (نفس نمط PostJobTab.tsx، شوف lib/withGracePeriod.ts) عشان لو الحفظ اتعلّق
+      // (شبكة عابرة) الزرار مايفضلش عالق على "جاري الحفظ..." للأبد من غير أي رسالة.
+      const savePromise = Promise.all([
+        setDoc(doc(db, "employers", user.uid), data, { merge: true }),
+        setDoc(
+          doc(db, "employers", user.uid, "private", "contact"),
+          { contactPerson, phone },
+          { merge: true }
+        ),
+      ]);
+      await withGracePeriod(savePromise, () => setSlowSaveNotice(true));
+      setSlowSaveNotice(false);
 
-    // بيانات التواصل الشخصية — مستند فرعي محمي، يقراه صاحب الحساب بس
-    await setDoc(
-      doc(db, "employers", user.uid, "private", "contact"),
-      { contactPerson, phone },
-      { merge: true }
-    );
+      if (!isEditMode) {
+        // هنا أول تسجيل مكتمل فعليًا لصاحب العمل (بعد ما يكمّل بيانات شركته)، مش عند أول
+        // تسجيل دخول — ده مكان حدث CompleteRegistration الصح لـMeta Pixel بدل مكانه القديم
+        // في page.tsx
+        (window as any).fbq?.("track", "CompleteRegistration");
+      }
 
-    if (!isEditMode) {
-      // هنا أول تسجيل مكتمل فعليًا لصاحب العمل (بعد ما يكمّل بيانات شركته)، مش عند أول
-      // تسجيل دخول — ده مكان حدث CompleteRegistration الصح لـMeta Pixel بدل مكانه القديم
-      // في page.tsx
-      (window as any).fbq?.("track", "CompleteRegistration");
+      setSaving(false);
+      onSaved();
+    } catch (err) {
+      console.error("Employer profile save failed", err);
+      const isHardTimeout = err instanceof Error && err.message === "HARD_FAIL_TIMEOUT";
+      logClientError(
+        isEditMode ? "employer_profile_update" : "employer_profile_create",
+        err,
+        isHardTimeout ? getConnectionDiagnostics() : undefined
+      );
+      setSlowSaveNotice(false);
+      setSaving(false);
+      if (isHardTimeout) {
+        alert(
+          "حصلت مشكلة في الاتصال ومقدرناش نتأكد من نجاح الحفظ خلال وقت معقول — تأكد من اتصال الإنترنت وجرب تاني. لو البيانات اتحفظت فعلاً هتلاقيها محدثة."
+        );
+      } else {
+        alert(friendlyErrorMessage(err));
+      }
     }
-
-    setSaving(false);
-    onSaved();
   }
 
   return (
     <div dir="rtl" style={{ maxWidth: 700, margin: "0 auto", padding: "30px 20px" }}>
+      {slowSaveNotice && (
+        <div
+          style={{
+            position: "fixed",
+            top: 20,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 300,
+            background: "#E8A33D",
+            color: "#14213D",
+            padding: "12px 22px",
+            borderRadius: 10,
+            fontSize: 14.5,
+            fontWeight: 700,
+            boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
+            pointerEvents: "none",
+          }}
+        >
+          ⏳ بياخد وقت أطول من المعتاد، برجاء الانتظار...
+        </div>
+      )}
+
       <h2 style={{ fontSize: 22, marginBottom: 20 }}>
         {isEditMode ? "تعديل بيانات الشركة" : "بيانات الشركة"}
       </h2>

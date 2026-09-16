@@ -344,6 +344,10 @@ type AuthErrorStats = {
   // job_post_update في PostJobTab.tsx، اللي كانت بتفشل من غير أي تسجيل خالص قبل كده).
   job_post_create: AuthErrorDetail;
   job_post_update: AuthErrorDetail;
+  // نفس فكرة job_post_create/update بالظبط، بس لحفظ بيانات الشركة (EmployerOnboardingForm.tsx)
+  // — كانت بتفشل من غير try/catch ولا timeout ولا أي تسجيل خالص قبل كده، شوف lib/withGracePeriod.ts.
+  employer_profile_create: AuthErrorDetail;
+  employer_profile_update: AuthErrorDetail;
 };
 
 // reviewed مش موجود في المستندات القديمة خالص (لسه محدش راجعها) — undefined بيتعامل معاه
@@ -472,6 +476,8 @@ export default function AdminPage() {
         google_redirect_signin: computeAuthErrorDetail(snap.docs, "google_redirect_signin"),
         job_post_create: computeAuthErrorDetail(snap.docs, "job_post_create"),
         job_post_update: computeAuthErrorDetail(snap.docs, "job_post_update"),
+        employer_profile_create: computeAuthErrorDetail(snap.docs, "employer_profile_create"),
+        employer_profile_update: computeAuthErrorDetail(snap.docs, "employer_profile_update"),
       });
       setAuthErrorStatsError(false);
     } catch (err) {
@@ -980,6 +986,29 @@ export default function AdminPage() {
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
                 <AuthErrorCard label="فشل نشر وظيفة جديدة" detail={authErrorStats.job_post_create} />
                 <AuthErrorCard label="فشل حفظ تعديل وظيفة" detail={authErrorStats.job_post_update} />
+              </div>
+            )
+          )}
+        </div>
+      )}
+
+      {(authErrorStats || authErrorStatsError) && (
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 16, marginBottom: 12 }}>أخطاء حفظ بيانات الشركة (آخر 7 أيام)</h2>
+          {authErrorStatsError && (
+            <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
+              تعذر تحميل بيانات الأخطاء — باقي الإحصائيات تحت شغالة عادي.
+            </div>
+          )}
+          {authErrorStats && (
+            (authErrorStats.employer_profile_create.count + authErrorStats.employer_profile_update.count) === 0 ? (
+              <div style={{ fontSize: 13.5, color: "#2F6F4E", background: "rgba(47,111,78,0.1)", borderRadius: 8, padding: "10px 14px" }}>
+                مفيش أخطاء حفظ بيانات شركة مسجّلة آخر 7 أيام 👍
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
+                <AuthErrorCard label="فشل إنشاء بيانات شركة جديدة" detail={authErrorStats.employer_profile_create} />
+                <AuthErrorCard label="فشل تعديل بيانات شركة" detail={authErrorStats.employer_profile_update} />
               </div>
             )
           )}
