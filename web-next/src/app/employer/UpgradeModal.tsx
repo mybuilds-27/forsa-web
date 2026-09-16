@@ -9,6 +9,22 @@ type Props = {
 const WHATSAPP_NUMBER = "201012735333";
 const CONTACT_EMAIL = "elshoghl27@gmail.com";
 
+// قايمة مزايا الباقة المدفوعة — مُصدّرة عشان CompanyTab.tsx يستخدم نفس القايمة بالظبط في قسم
+// "حالة الباقة" لصاحب باقة مدفوعة بالفعل، مش نسخة تانية منفصلة ممكن تتفرّق عن دي بمرور الوقت.
+export function PremiumFeaturesList() {
+  return (
+    <ul style={{ margin: 0, padding: "0 20px", lineHeight: 2, fontSize: 14.5 }}>
+      <li>10 إعلانات وظائف شهريًا (بدل 5) — كل وظيفة نشطة 60 يوم (بدل 30)</li>
+      <li>30 دعوة مباشرة للكوادر شهريًا (بدل 5)</li>
+      <li>إمكانية تمييز إعلاناتك بشارة <strong>⭐ مميز</strong> — تظهر أول نتائج بحث الباحثين عن عمل</li>
+      <li>
+        التواصل المباشر مع الكوادر (تليفون وإيميل) من تبويب <strong>"البحث عن كوادر"</strong> —
+        لحد 30 عملية فتح بيانات تواصل شهريًا
+      </li>
+    </ul>
+  );
+}
+
 export default function UpgradeModal({ onClose }: Props) {
   const whatsappMessage = encodeURIComponent("أهلاً، عايز أرقّي باقتي على موقع الشغل للباقة المدفوعة.");
   const emailSubject = encodeURIComponent("طلب ترقية باقة صاحب عمل");
@@ -71,15 +87,9 @@ export default function UpgradeModal({ onClose }: Props) {
         </Link>
 
         <p style={{ color: "#4A5568", fontSize: 14, marginBottom: 6, fontWeight: 700 }}>الترقية للباقة المدفوعة بتديك:</p>
-        <ul style={{ margin: "0 0 20px", padding: "0 20px", lineHeight: 2, fontSize: 14.5 }}>
-          <li>10 إعلانات وظائف شهريًا (بدل 5) — كل وظيفة نشطة 60 يوم (بدل 30)</li>
-          <li>30 دعوة مباشرة للكوادر شهريًا (بدل 5)</li>
-          <li>إمكانية تمييز إعلاناتك بشارة <strong>⭐ مميز</strong> — تظهر أول نتائج بحث الباحثين عن عمل</li>
-          <li>
-            التواصل المباشر مع الكوادر (تليفون وإيميل) من تبويب <strong>"البحث عن كوادر"</strong> —
-            لحد 30 عملية فتح بيانات تواصل شهريًا
-          </li>
-        </ul>
+        <div style={{ marginBottom: 20 }}>
+          <PremiumFeaturesList />
+        </div>
 
         <p style={{ fontSize: 13.5, color: "#4A5568", marginBottom: 12 }}>
           للترقية، تواصل معانا وهنفعّلها لك يدويًا:

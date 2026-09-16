@@ -9,9 +9,11 @@ import {
   getDoc,
   doc,
   updateDoc,
+  Timestamp,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import EmployerOnboardingForm from "./EmployerOnboardingForm";
+import UpgradeModal, { PremiumFeaturesList } from "./UpgradeModal";
 import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
 import { calculateMatchPercent } from "@/lib/applicantMatch";
 import {
@@ -93,6 +95,15 @@ function salaryText(p: JobPost) {
   if (p.salaryFrom && p.salaryTo) return `${p.salaryFrom} - ${p.salaryTo} جنيه`;
   if (p.salaryFrom) return `يبدأ من ${p.salaryFrom} جنيه`;
   return "غير محدد";
+}
+
+// عدد الأيام المتبقية في الاشتراك المدفوع — null لو planExpiresAt مش متسجّل خالص (شركات مدفوعة
+// قديمة اتفعّلت قبل ما الحقل ده يتضاف، أو الأدمن نسي يحطه وقت التفعيل — شوف نفس الحساب بالظبط
+// في premiumExpiryReminders جوه functions/index.js). سالب أو صفر يعني الاشتراك خلص فعليًا وهيترجع
+// للباقة المجانية تلقائيًا مع أول تشغيل يومي للـCloud Function دي (مش فورًا).
+function planDaysLeft(planExpiresAt: Timestamp | null | undefined): number | null {
+  if (!planExpiresAt?.toMillis) return null;
+  return Math.ceil((planExpiresAt.toMillis() - Date.now()) / 86400000);
 }
 
 // "neutral" للأرقام المطلقة العادية (بيج فاتح، نفس لون الكارت الأصلي). "quota-ok"/"quota-warning"
@@ -177,6 +188,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
   const [invitationStatsError, setInvitationStatsError] = useState(false);
   const [contactRevealStats, setContactRevealStats] = useState<ContactRevealStats | null>(null);
   const [contactRevealStatsError, setContactRevealStatsError] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   async function loadMyJobPosts() {
     const user = auth.currentUser;
@@ -343,6 +355,9 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
     );
   }
 
+  const isPremiumPlan = companyData?.plan === "premium";
+  const daysLeft = isPremiumPlan ? planDaysLeft(companyData?.planExpiresAt) : null;
+
   return (
     <div dir="rtl" style={{ maxWidth: 800, margin: "0 auto" }}>
       <h2 style={{ marginBottom: 16 }}>بيانات شركتك</h2>
@@ -367,6 +382,45 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
       >
         تعديل بيانات الشركة
       </button>
+
+      {/* حالة الباقة — محتوى مختلف تمامًا حسب companyData?.plan. للمجانية: رسالة الحالة + زرار
+          يفتح UpgradeModal (نفس المودال اللي بيتفتح من زرار "طلب الترقية" في employer/page.tsx،
+          مش نسخة منفصلة). للمدفوعة: رسالة الحالة + نفس قايمة مزايا المودال (PremiumFeaturesList)
+          + عدد الأيام المتبقية من planExpiresAt — لو الحقل ده مش متسجّل (شركات مدفوعة قديمة أو
+          نسيان من الأدمن وقت التفعيل)، بنعرض رسالة الحالة بس من غير تاريخ، بدل حساب غلط. */}
+      <div
+        style={{
+          border: "1px solid #14213D22",
+          borderRadius: 10,
+          padding: 20,
+          marginBottom: 30,
+          background: isPremiumPlan ? "rgba(232,163,61,0.08)" : "#F8F6F0",
+        }}
+      >
+        <h3 style={{ marginBottom: isPremiumPlan ? 10 : 16, fontSize: 17 }}>
+          باقتك الحالية: {isPremiumPlan ? "مدفوعة ⭐" : "مجانية"}
+        </h3>
+
+        {isPremiumPlan ? (
+          <>
+            {daysLeft !== null && (
+              <p style={{ fontSize: 14, fontWeight: 700, color: daysLeft <= 7 ? "#8A570D" : "#14213D", marginBottom: 14 }}>
+                {daysLeft > 0 ? `باقي ${daysLeft} يوم في الاشتراك` : "اشتراكك انتهى وهيترجع للباقة المجانية تلقائيًا قريبًا"}
+              </p>
+            )}
+            <PremiumFeaturesList />
+          </>
+        ) : (
+          <button
+            onClick={() => setShowUpgradeModal(true)}
+            style={{ padding: "10px 20px", background: "#14213D", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}
+          >
+            شوف مزايا الباقة المدفوعة
+          </button>
+        )}
+      </div>
+
+      {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} />}
 
       <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20, marginBottom: 30 }}>
         <h3 style={{ marginBottom: 16, fontSize: 17 }}>📊 إحصائيات</h3>
