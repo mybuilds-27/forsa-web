@@ -12,6 +12,10 @@ import KeywordsPicker, { MAX_KEYWORDS } from "@/components/KeywordsPicker";
 
 const AGE_OPTIONS = Array.from({ length: 50 }, (_, i) => 16 + i);
 
+// نفس القايمة المستخدمة في باقي الملفات (Navbar.tsx، admin/page.tsx، InviteToJobModal.tsx)
+// لتحديد حساب الأدمن.
+const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
+
 // حفظ الوظيفة (addDoc/updateDoc) بيفضل معلّق أحيانًا لفترة أطول من الطبيعي (شبكة عابرة، إلخ)
 // — الرقمين دول بيحكموا مهلتين متدرّجتين بدل خط نهاية واحد قاطع (شوف withGracePeriod تحت):
 // SAVE_TIMEOUT_MS نقطة "خلي بالك، بياخد وقت أطول من المعتاد" بس، مش فشل — لسه مستنيين نفس
@@ -423,28 +427,34 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
 
       // حد النشر الشهري بيتفعّل بس وقت النشر الجديد، مش وقت التعديل
       if (!isEditMode) {
-        const monthlyLimit = currentPlan === "premium" ? 10 : 5;
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        startOfMonth.setHours(0, 0, 0, 0);
+        // الأدمن مستثنى تمامًا من الحد الشهري — نفس نمط حد الدعوات الشهرية في
+        // InviteToJobModal.tsx (مش منطقي نطبقه عليه، بيستخدم حسابه لأغراض إدارية/اختبار
+        // مش استهلاك رصيد شخصي فعلي).
+        const isAdmin = ADMIN_EMAILS.includes(user.email || "");
+        if (!isAdmin) {
+          const monthlyLimit = currentPlan === "premium" ? 10 : 5;
+          const startOfMonth = new Date();
+          startOfMonth.setDate(1);
+          startOfMonth.setHours(0, 0, 0, 0);
 
-        // getCountFromServer بدل جلب كل إعلانات صاحب العمل من أول يوم وفلترتها بعد الجلب —
-        // استعلام العدّ ده بيرجع الرقم بس من غير ما يجيب أي مستند فعليًا (نفس فكرة لوحة
-        // الإدارة). محتاج composite index جديد (employerId + createdAt) — راجع firestore.indexes.json.
-        const countSnap = await getCountFromServer(
-          query(
-            collection(db, "job_posts"),
-            where("employerId", "==", user.uid),
-            where("createdAt", ">=", Timestamp.fromDate(startOfMonth))
-          )
-        );
-        if (countSnap.data().count >= monthlyLimit) {
-          alert(
-            currentPlan === "premium"
-              ? `وصلت للحد الأقصى (${monthlyLimit} إعلانات) للباقة المدفوعة الشهر ده.`
-              : `الباقة المجانية بتسمح بحد أقصى ${monthlyLimit} إعلانات جديدة شهريًا، وإنت وصلت للحد ده الشهر ده.`
+          // getCountFromServer بدل جلب كل إعلانات صاحب العمل من أول يوم وفلترتها بعد الجلب —
+          // استعلام العدّ ده بيرجع الرقم بس من غير ما يجيب أي مستند فعليًا (نفس فكرة لوحة
+          // الإدارة). محتاج composite index جديد (employerId + createdAt) — راجع firestore.indexes.json.
+          const countSnap = await getCountFromServer(
+            query(
+              collection(db, "job_posts"),
+              where("employerId", "==", user.uid),
+              where("createdAt", ">=", Timestamp.fromDate(startOfMonth))
+            )
           );
-          return;
+          if (countSnap.data().count >= monthlyLimit) {
+            alert(
+              currentPlan === "premium"
+                ? `وصلت للحد الأقصى (${monthlyLimit} إعلانات) للباقة المدفوعة الشهر ده.`
+                : `الباقة المجانية بتسمح بحد أقصى ${monthlyLimit} إعلانات جديدة شهريًا، وإنت وصلت للحد ده الشهر ده.`
+            );
+            return;
+          }
         }
 
         // فحص نشر مكرر: لو صاحب العمل بعت نفس العنوان بالظبط خلال آخر 10 دقايق (غالبًا بسبب
