@@ -465,7 +465,11 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         contactValue: receiveMethod === "contact" ? contactValue : "",
         additionalBenefits: additionalBenefits || "",
         screeningQuestions,
-        featured: currentPlan === "premium",
+        // لو الأدمن ميّز الوظيفة دي يدويًا (featuredByAdmin على المستند الحالي وقت التعديل)،
+        // أي حفظ لاحق (حتى لو باقة صاحب العمل مجانية) لازم يحافظ على featured: true — من غيره
+        // أول تعديل عادي (حتى من صاحب العمل نفسه) كان هيمسح التمييز اليدوي بالغلط، لأن السطر
+        // ده كان بيعيد حسابها من الباقة بس في كل حفظ. featuredByAdmin نفسها متلمسش هنا خالص.
+        featured: currentPlan === "premium" || (isEditMode && editingPost?.data.featuredByAdmin === true),
         isActive: true,
       };
 

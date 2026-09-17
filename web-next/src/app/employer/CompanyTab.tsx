@@ -58,6 +58,7 @@ type JobPost = {
   description?: string;
   isActive?: boolean;
   featured?: boolean;
+  featuredByAdmin?: boolean;
   createdAt?: any;
   expiresAt?: any;
   vacancies?: number;
@@ -204,7 +205,12 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
       for (const p of list) {
         if (p.isActive !== false && p.expiresAt && p.expiresAt.toMillis() < now) {
           p.isActive = false;
-          updateDoc(doc(db, "job_posts", p.id), { isActive: false }).catch(() => {});
+          // بيمسح أي تمييز يدوي من الأدمن معاه في نفس الكتابة — التمييز مفروض يفضل شغال طول
+          // عمر الوظيفة الطبيعي بس، مش بعد ما تنتهي (نفس منطق toggleJobActive في
+          // jobPostActions.ts، بس ده مسار انتهاء تلقائي كسول مش إيقاف يدوي).
+          p.featured = false;
+          p.featuredByAdmin = false;
+          updateDoc(doc(db, "job_posts", p.id), { isActive: false, featured: false, featuredByAdmin: false }).catch(() => {});
         }
       }
 

@@ -1730,6 +1730,11 @@ exports.premiumExpiryReminders = onSchedule(
       // نفسها بيفضل true للأبد (مبيتحدّثش تلقائيًا مع تغيير باقة الشركة)، فتفضل الوظيفة
       // ظاهرة "⭐ مميزة" حتى بعد ما الاشتراك يخلص فعليًا. فشل الجلب هنا ميوقفش رجوع الباقة
       // نفسها — بيسيب الوظائف المميزة زي ما هي بس، بدل ما يمنع الإجراء الأهم.
+      //
+      // استثناء: featuredByAdmin === true معناها الأدمن ميّزها يدويًا بغض النظر عن الباقة —
+      // دي مستثناة من الشيل التلقائي هنا (فلترة على الـdocs المجلوبة بالفعل، من غير أي
+      // استعلام إضافي)، وبتفضل مميزة لحد ما الوظيفة نفسها تتقفل/تنتهي (شوف toggleJobActive
+      // في jobPostActions.ts).
       let featuredJobRefs = [];
       try {
         const featuredSnaps = await Promise.all(
@@ -1742,7 +1747,9 @@ exports.premiumExpiryReminders = onSchedule(
               .get()
           )
         );
-        featuredJobRefs = featuredSnaps.flatMap((snap) => snap.docs.map((d) => d.ref));
+        featuredJobRefs = featuredSnaps.flatMap((snap) =>
+          snap.docs.filter((d) => d.data().featuredByAdmin !== true).map((d) => d.ref)
+        );
       } catch (err) {
         logger.error("premiumExpiryReminders: فشل جلب الوظائف المميزة للشركات المنتهية", err);
       }

@@ -22,7 +22,7 @@ import { auth, db } from "@/lib/firebase";
 import ShareButton from "@/components/ShareButton";
 import PostJobTab from "../employer/PostJobTab";
 import Link from "next/link";
-import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
+import { toggleJobActive, toggleJobFeatured, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
 import { calculateMatchPercent } from "@/lib/applicantMatch";
 import { exportAllUsersExcel } from "@/lib/adminExports";
 import { EXPERIENCE_LEVELS, slugify } from "@/lib/constants";
@@ -763,6 +763,13 @@ export default function AdminPage() {
     loadStats();
   }
 
+  // تمييز/إلغاء تمييز وظيفة يدويًا، بغض النظر عن باقة صاحب العمل — شوف toggleJobFeatured
+  // في jobPostActions.ts للتفاصيل (featuredByAdmin كعلامة حماية من الشيل التلقائي).
+  async function handleToggleFeatured(postId: string, makeFeatured: boolean) {
+    await toggleJobFeatured(postId, makeFeatured);
+    loadStats();
+  }
+
   async function handleDelete(postId: string) {
     if (!confirm('متأكد إنك عايز تحذف الإعلان نهائيًا؟ ده إجراء نهائي ومش هينفع ترجع فيه.')) return;
     await deleteJobPost(postId);
@@ -1224,6 +1231,9 @@ export default function AdminPage() {
                   <button onClick={() => setEditingPost({ id: p.id, data: p })} style={toolBtnStyle}>✎ تعديل</button>
                   <button onClick={() => handleToggleActive(p.id, isPaused)} style={toolBtnStyle}>
                     {isPaused ? "▶ تفعيل" : "⏸ إيقاف"}
+                  </button>
+                  <button onClick={() => handleToggleFeatured(p.id, !p.featured)} style={toolBtnStyle}>
+                    {p.featured ? "☆ إلغاء التمييز" : "⭐ تمييز الوظيفة"}
                   </button>
                   <ShareButton jobId={p.id} title={p.title} />
                   <button onClick={() => handleDelete(p.id)} style={dangerToolBtnStyle}>✕ حذف</button>

@@ -3,8 +3,22 @@ import * as XLSX from "xlsx";
 import { db } from "@/lib/firebase";
 import type { ScreeningQuestion } from "@/components/ScreeningQuestionsModal";
 
+// إيقاف الوظيفة (يدوي من الزرار هنا، أو الإغلاق الكسول عند انتهاء expiresAt في
+// CompanyTab.tsx) بيمسح أي تمييز يدوي من الأدمن معاه في نفس الكتابة — التمييز اليدوي مفروض
+// يفضل شغال طول عمر الوظيفة الطبيعي بس، مش بعد ما تتقفل. إعادة التفعيل (makeActive: true)
+// ميلمسش featured/featuredByAdmin خالص (لو كانت مميزة قبل ما تتوقف، إيقافها هو اللي مسحها).
 export async function toggleJobActive(postId: string, makeActive: boolean): Promise<void> {
-  await updateDoc(doc(db, "job_posts", postId), { isActive: makeActive });
+  await updateDoc(
+    doc(db, "job_posts", postId),
+    makeActive ? { isActive: true } : { isActive: false, featured: false, featuredByAdmin: false }
+  );
+}
+
+// تمييز/إلغاء تمييز وظيفة يدويًا من لوحة الأدمن، بغض النظر عن باقة صاحب العمل. featuredByAdmin
+// علامة حماية بتمنع PostJobTab.tsx (وقت أي حفظ/تعديل لاحق) وpremiumExpiryReminders (لما باقة
+// صاحب العمل تنتهي) من مسح التمييز ده تلقائيًا — شوف تعليقاتهم في الملفين دول.
+export async function toggleJobFeatured(postId: string, makeFeatured: boolean): Promise<void> {
+  await updateDoc(doc(db, "job_posts", postId), { featured: makeFeatured, featuredByAdmin: makeFeatured });
 }
 
 export async function deleteJobPost(postId: string): Promise<void> {
