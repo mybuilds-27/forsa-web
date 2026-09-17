@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/firebase";
 import ApplyButton from "./ApplyButton";
 import ContactReveal from "./ContactReveal";
+import JobMatchBadge from "./JobMatchBadge";
 import ShareButton from "@/components/ShareButton";
 import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
@@ -348,6 +349,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           </div>
         </div>
       )}
+
+      <JobMatchBadge job={job} />
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
         {job.receiveMethod === "contact" && job.contactValue ? (
