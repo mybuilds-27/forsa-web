@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import OnboardingForm from "./OnboardingForm";
+import SeekerStats from "./SeekerStats";
 import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS } from "@/lib/constants";
 import { normalizeEntries, formatEntries } from "@/lib/profileFields";
 import ProfileCompletionBar from "@/components/ProfileCompletionBar";
@@ -61,6 +62,8 @@ export default function ProfileTab({ data, onUpdated }: Props) {
 
   return (
     <div dir="rtl" style={{ maxWidth: 700, margin: "0 auto", padding: "30px 20px" }}>
+      <SeekerStats />
+
       <h2 style={{ marginBottom: 16 }}>بروفايلك متسجل ✅</h2>
 
       <ProfileCompletionBar percent={completion} />
