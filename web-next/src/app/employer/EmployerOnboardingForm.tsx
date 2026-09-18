@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, writeBatch, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, db, storage } from "@/lib/firebase";
 import { GOVERNORATES, GOVERNORATE_CITIES } from "@/lib/constants";
@@ -102,19 +102,20 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
     }
 
     try {
-      // مستندين مستقلين عن بعض (بيانات الشركة العامة + بيانات التواصل الشخصية في مستند فرعي
-      // محمي) — بنكتبهم بالتوازي بدل واحد ورا التاني، ونلف العملية المجمّعة بـwithGracePeriod
-      // واحدة (نفس نمط PostJobTab.tsx، شوف lib/withGracePeriod.ts) عشان لو الحفظ اتعلّق
-      // (شبكة عابرة) الزرار مايفضلش عالق على "جاري الحفظ..." للأبد من غير أي رسالة.
-      const savePromise = Promise.all([
-        setDoc(doc(db, "employers", user.uid), data, { merge: true }),
-        setDoc(
-          doc(db, "employers", user.uid, "private", "contact"),
-          { contactPerson, phone },
-          { merge: true }
-        ),
-      ]);
-      await withGracePeriod(savePromise, () => setSlowSaveNotice(true));
+      // مستندين مستقلين (بيانات الشركة العامة + بيانات التواصل الشخصية في مستند فرعي محمي)
+      // بنكتبهم في writeBatch واحد عشان يتسجلوا الاتنين مع بعض أو محدش يتسجل خالص — بدل
+      // كتابتين متوازيتين مش ذريتين كانوا ممكن يسيبوا "شركة من غير بيانات تواصل" لو واحدة فشلت.
+      // العملية كلها ملفوفة بـwithGracePeriod واحدة (نفس نمط PostJobTab.tsx، شوف
+      // lib/withGracePeriod.ts) عشان لو الحفظ اتعلّق (شبكة عابرة) الزرار مايفضلش عالق على
+      // "جاري الحفظ..." للأبد من غير أي رسالة.
+      const batch = writeBatch(db);
+      batch.set(doc(db, "employers", user.uid), data, { merge: true });
+      batch.set(
+        doc(db, "employers", user.uid, "private", "contact"),
+        { contactPerson, phone },
+        { merge: true }
+      );
+      await withGracePeriod(batch.commit(), () => setSlowSaveNotice(true));
       setSlowSaveNotice(false);
 
       if (!isEditMode) {
