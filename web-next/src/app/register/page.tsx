@@ -6,7 +6,6 @@ import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import RegisterForm, { Role } from "@/components/RegisterForm";
-import LogoMark from "@/components/LogoMark";
 import { logFunnelEvent } from "@/lib/registrationFunnel";
 
 // نفس المفتاح المستخدم جوه RegisterForm.tsx وقت signInWithRedirect — لو موجود، معناه
@@ -21,7 +20,7 @@ const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
 // هو نفس الرقم برضو قبل ما يتشال من الصفحة الرئيسية)
 const WHATSAPP_NUMBER = "201012735333";
 
-const COLORS = { ink: "#14213D", inkSoft: "#4A5568", stamp: "#B03A14" };
+const COLORS = { ink: "#14213D", inkSoft: "#4A5568" };
 
 export default function RegisterPage() {
   return (
@@ -47,9 +46,6 @@ function RegisterPageInner() {
     searchParams.get("role") === "employer" ? "employer" : "job_seeker"
   );
   const [checkingSession, setCheckingSession] = useState(true);
-  // بيزيد كل ما المستخدم يدوس على لينك "عندك حساب بالفعل؟" فوق — RegisterForm بيراقب
-  // التغيير ده ويفتح فورم الإيميل في وضع "دخول" مباشرة (زرار "دخول" بدل "إنشاء حساب").
-  const [loginSignal, setLoginSignal] = useState(0);
 
   // بيحدّث الـURL (من غير navigation كاملة) كل ما المستخدم يدوس على التوجل، عشان اللينك
   // فوق يفضل عاكس الاختيار الفعلي دايمًا — التسجيل نفسه بيعتمد على state role مش على
@@ -105,39 +101,16 @@ function RegisterPageInner() {
 
   return (
     <div dir="rtl" style={{ maxWidth: 440, margin: "0 auto", padding: "40px 20px" }}>
-      <div style={{ textAlign: "center", marginBottom: 6 }}>
-        <button
-          type="button"
-          onClick={() => setLoginSignal((n) => n + 1)}
-          style={{
-            background: "none",
-            border: "none",
-            padding: 4,
-            fontSize: 13,
-            fontWeight: 600,
-            color: COLORS.stamp,
-            textDecoration: "underline",
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
-        >
-          عندك حساب بالفعل؟ سجل دخول من هنا
-        </button>
-      </div>
-
       <div style={{ textAlign: "center", marginBottom: 14 }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <LogoMark size={36} />
-          <span style={{ fontFamily: "var(--font-cairo)", fontSize: 21, fontWeight: 800, color: COLORS.ink }}>
-            الشغل
-          </span>
-        </div>
         <h1 style={{ fontSize: 18, color: COLORS.ink, margin: 0, fontFamily: "var(--font-cairo)" }}>
           سجّل حسابك في أقل من دقيقة
         </h1>
       </div>
 
-      <RegisterForm role={role} onRoleChange={selectRole} onSuccess={handleSuccess} openLoginSignal={loginSignal} />
+      {/* compact عشان الصفحة دي بتتفتح كصفحة هبوط من إعلانات فيسبوك غالبًا — شوف RegisterForm.tsx
+          للتفاصيل (فقرة مزايا مختصرة سطر واحد، من غير تحذير "لو سجّلت قبل كده بجوجل أو
+          الإيميل"). مفيش تأثير على المودالات التلاتة اللي بتستخدم نفس الفورم دي. */}
+      <RegisterForm role={role} onRoleChange={selectRole} onSuccess={handleSuccess} compact />
 
       <div style={{ textAlign: "center", marginTop: 20 }}>
         <a

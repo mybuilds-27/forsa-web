@@ -81,9 +81,22 @@ type Props = {
   // ما clearRecaptchaVerifier() لسه مستخدم من جوه signInWithPhoneNumber المعلّق (شوف تعليق
   // getRecaptchaVerifier تحت). undefined يعني معندناش حد محتاج يعرف (زي /register نفسها).
   onBusyChange?: (busy: boolean) => void;
+  // true بس لصفحة /register (خصوصًا لما بتتفتح كصفحة هبوط من إعلان فيسبوك) — بيقصّر فقرة
+  // المزايا لسطر واحد (بدون تفاصيل حد الوظائف/الدعوات الشهري) وبيشيل تحذير "لو سجّلت قبل
+  // كده بجوجل أو الإيميل". افتراضيًا false، فمفيش أي تأثير على المودالات التلاتة
+  // (ApplyButton.tsx، PublicJobsList.tsx، ContactReveal.tsx) اللي بتستخدم الفورم دي بردو.
+  compact?: boolean;
 };
 
-export default function RegisterForm({ role, onRoleChange, showRoleToggle = true, onSuccess, openLoginSignal, onBusyChange }: Props) {
+export default function RegisterForm({
+  role,
+  onRoleChange,
+  showRoleToggle = true,
+  onSuccess,
+  openLoginSignal,
+  onBusyChange,
+  compact = false,
+}: Props) {
   const router = useRouter();
 
   const [isWebView, setIsWebView] = useState(false);
@@ -719,9 +732,9 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
             borderRadius: 999,
           }}
         >
-          🎉 مجاني بالكامل — لباحثين الشغل وأصحاب الأعمال
+          {compact ? "🎉 مجاني بالكامل من غير أي مستندات" : "🎉 مجاني بالكامل — لباحثين الشغل وأصحاب الأعمال"}
         </span>
-        {role === "employer" && (
+        {!compact && role === "employer" && (
           <div
             style={{
               marginTop: 10,
@@ -960,7 +973,7 @@ export default function RegisterForm({ role, onRoleChange, showRoleToggle = true
           </>
         )}
 
-        {!loginMode && (
+        {!compact && !loginMode && (
           <p style={{ color: COLORS.inkSoft, fontSize: 11.5, lineHeight: 1.8, margin: "10px 0 0", textAlign: "center" }}>
             ⚠️ لو سجّلت قبل كده بجوجل أو الإيميل، استخدم نفس الطريقة دي تاني بدل رقم التليفون —
             كل طريقة دخول بتعمل حساب منفصل.
