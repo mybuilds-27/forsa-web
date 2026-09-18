@@ -10,6 +10,44 @@
 export const SAVE_TIMEOUT_MS = 25000;
 export const HARD_FAIL_TIMEOUT_MS = 60000;
 
+// علامة "المتصفح ده فشل عنده HARD_FAIL_TIMEOUT قبل كده" — بتتخزّن في localStorage كـtimestamp
+// (مش true دايمة) وبتنتهي بعد FORCE_LONG_POLLING_TTL_MS، عشان مستخدم فشل عنده فشل عابر ما
+// يفضلش على long-polling (أبطأ) للأبد. firebase.ts بيقرأها وقت تحميل الصفحة وبيشغّل
+// experimentalForceLongPolling لو سارية — الفرضية (فايروول/أنتي فايروس بيقفل اتصال Firestore
+// المستمر) لسه مش مثبتة، فالتفعيل مقصور على المتصفح اللي فشل فعلاً بدل ما نفرضه على الكل.
+// Firestore ما ينفعش يبدّل الـtransport وهو شغال، فالعلامة بتأثر من أول تحميل صفحة جديد بس.
+export const FORCE_LONG_POLLING_KEY = "elshoghl_force_long_polling";
+const FORCE_LONG_POLLING_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+export function isForceLongPollingActive(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const ts = Number(window.localStorage.getItem(FORCE_LONG_POLLING_KEY));
+    const age = Date.now() - ts;
+    return Number.isFinite(ts) && ts > 0 && age >= 0 && age < FORCE_LONG_POLLING_TTL_MS;
+  } catch {
+    // localStorage ممكن يرمي (private mode / بيانات موقع محظورة) — نتصرف كأن العلامة مش موجودة
+    return false;
+  }
+}
+
+function markForceLongPolling(): void {
+  try {
+    window.localStorage.setItem(FORCE_LONG_POLLING_KEY, String(Date.now()));
+  } catch {
+    // متجاهلينها — العلامة مجرد تحسين، ومش مبرر نكسر مسار الفشل الأصلي بسببها
+  }
+}
+
+// هل Firestore اتعمله initialize فعلاً بـexperimentalForceLongPolling في تحميل الصفحة ده؟
+// firebase.ts هو اللي بيسجّل النتيجة الفعلية (مش مجرد وجود العلامة) بعد ما initializeFirestore
+// ينجح — عشان حقل forceLongPolling في getConnectionDiagnostics يعكس الحقيقة، ومايتأثرش بالعلامة
+// اللي markForceLongPolling بتكتبها في نفس الجلسة بعد الفشل.
+let firestoreForcedLongPolling = false;
+export function recordForcedLongPolling(forced: boolean): void {
+  firestoreForcedLongPolling = forced;
+}
+
 // بتستنى promise (addDoc/setDoc/updateDoc) بمهلتين متدرّجتين بدل timeout واحد قاطع: لو معدّاش
 // SAVE_TIMEOUT_MS لسه شغال، بننادي onSlow() (لعرض تنبيه غير blocking "بياخد وقت أطول من
 // المعتاد") من غير ما نوقف الانتظار — لو العملية نجحت فعلاً بعد كده (بطء شبكة عابر، مش فشل
@@ -25,6 +63,7 @@ export function withGracePeriod<T>(promise: Promise<T>, onSlow: () => void): Pro
     const hardTimer = setTimeout(() => {
       if (settled) return;
       settled = true;
+      markForceLongPolling();
       reject(new Error("HARD_FAIL_TIMEOUT"));
     }, HARD_FAIL_TIMEOUT_MS);
 
@@ -62,5 +101,7 @@ export function getConnectionDiagnostics(): Record<string, unknown> {
     connectionEffectiveType: connection?.effectiveType ?? null,
     connectionDownlinkMbps: connection?.downlink ?? null,
     connectionRttMs: connection?.rtt ?? null,
+    // للتحقق من فرضية الفايروول/الأنتي فايروس: لو فشل تاني وهو true، الفرضية اتنفت.
+    forceLongPolling: firestoreForcedLongPolling,
   };
 }

@@ -513,7 +513,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       setSlowSaveNotice(false);
       if (isHardTimeout) {
         alert(
-          "حصلت مشكلة في الاتصال ومقدرناش نتأكد من نجاح الحفظ خلال وقت معقول — تأكد من اتصال الإنترنت وجرب تاني. لو الوظيفة اتنشرت فعلاً هتلاقيها في قائمة إعلاناتك."
+          "حصلت مشكلة في الاتصال ومقدرناش نتأكد من نجاح الحفظ خلال وقت معقول — تأكد من اتصال الإنترنت، وحدّث الصفحة (refresh) قبل ما تجرب تاني. لو الوظيفة اتنشرت فعلاً هتلاقيها في قائمة إعلاناتك."
         );
       } else {
         alert(friendlyErrorMessage(err));

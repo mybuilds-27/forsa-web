@@ -139,7 +139,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
       setSaving(false);
       if (isHardTimeout) {
         alert(
-          "حصلت مشكلة في الاتصال ومقدرناش نتأكد من نجاح الحفظ خلال وقت معقول — تأكد من اتصال الإنترنت وجرب تاني. لو البيانات اتحفظت فعلاً هتلاقيها محدثة."
+          "حصلت مشكلة في الاتصال ومقدرناش نتأكد من نجاح الحفظ خلال وقت معقول — تأكد من اتصال الإنترنت، وحدّث الصفحة (refresh) قبل ما تجرب تاني. لو البيانات اتحفظت فعلاً هتلاقيها محدثة بعد التحديث."
         );
       } else {
         alert(friendlyErrorMessage(err));
