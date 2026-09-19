@@ -928,7 +928,10 @@ export default function AdminPage() {
 
       {(signupMethodStats || signupMethodError) && (
         <div style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 16, marginBottom: 12 }}>طريقة التسجيل (كل الوقت)</h2>
+          <h2 style={{ fontSize: 16, marginBottom: 4 }}>محاولات اختيار طريقة التسجيل (كل الوقت)</h2>
+          <p style={{ fontSize: 12.5, color: "#4A5568", margin: "0 0 12px" }}>
+            بيعدّ كل ضغطة، بما فيها الإعادة وتسجيل دخول مستخدمين قدامى، مش حسابات جديدة
+          </p>
           {signupMethodError && (
             <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
               تعذر تحميل بيانات طرق التسجيل — باقي الإحصائيات تحت شغالة عادي.
