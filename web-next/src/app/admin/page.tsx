@@ -30,6 +30,7 @@ import { CONTACT_METHOD_LABELS, contactApplyText } from "@/lib/contactMethodLabe
 import { getActiveJobsSeoData, type JobCombo } from "@/lib/publicJobsQuery";
 import ApplicantCard from "@/components/ApplicantCard";
 import ContactRevealViewers from "@/components/ContactRevealViewers";
+import { fetchContactRevealViewerCount } from "@/lib/contactReveal";
 import BrowseByCombos from "@/components/BrowseByCombos";
 import {
   jobCardContainerStyle,
@@ -410,7 +411,9 @@ export default function AdminPage() {
   const [visits30d, setVisits30d] = useState<number | null>(null);
   const [visitsError, setVisitsError] = useState(false);
   const [jobViewCounts, setJobViewCounts] = useState<Record<string, number> | null>(null);
-  const [whatsappClickCounts, setWhatsappClickCounts] = useState<Record<string, number> | null>(null);
+  // عدد اللي شافوا وسيلة التواصل (job_contact_views) لوظايف التواصل المباشر بس. مفتاح ناقص =
+  // مش معروف (لسه بيتحمّل أو فشل جلبه)، مش صفر.
+  const [contactViewerCounts, setContactViewerCounts] = useState<Record<string, number>>({});
   const [posts, setPosts] = useState<any[]>([]);
   const [lastVisiblePost, setLastVisiblePost] = useState<QueryDocumentSnapshot | null>(null);
   const [hasMorePosts, setHasMorePosts] = useState(false);
@@ -687,14 +690,15 @@ export default function AdminPage() {
     }
   }
 
-  // job_views وwhatsapp_clicks وapplications للدفعة الحالية بس (مش المجموعة كاملة) — أقصى
-  // POSTS_PAGE_SIZE (10) IDs في المرة الواحدة، متوافق مع limit الصفحة نفسها. معزولين عن بعض
+  // job_views وعدد اللي شافوا وسيلة التواصل (job_contact_views) وapplications للدفعة الحالية
+  // بس (مش المجموعة كاملة) — أقصى POSTS_PAGE_SIZE (10) IDs في المرة الواحدة، متوافق مع limit
+  // الصفحة نفسها. contactPostIds هي وظايف التواصل المباشر بس من نفس الدفعة. معزولين عن بعض
   // بـtry/catch منفصل، عشان فشل واحد فيهم (زي عدد المشاهدات) ميمنعش عرض الباقي.
-  async function fetchJobViewsAndAppCounts(postIds: string[]) {
+  async function fetchJobViewsAndAppCounts(postIds: string[], contactPostIds: string[]) {
     const views: Record<string, number> = {};
-    const whatsappClicks: Record<string, number> = {};
+    const contactViewers: Record<string, number> = {};
     const appCounts: Record<string, number> = {};
-    if (postIds.length === 0) return { views, whatsappClicks, appCounts };
+    if (postIds.length === 0) return { views, contactViewers, appCounts };
 
     try {
       const viewsSnap = await getDocs(query(collection(db, "job_views"), where(documentId(), "in", postIds)));
@@ -706,12 +710,12 @@ export default function AdminPage() {
     }
 
     try {
-      const clicksSnap = await getDocs(query(collection(db, "whatsapp_clicks"), where(documentId(), "in", postIds)));
-      clicksSnap.docs.forEach((d) => {
-        whatsappClicks[d.id] = d.data().count || 0;
+      const viewerResults = await Promise.allSettled(contactPostIds.map((id) => fetchContactRevealViewerCount(id)));
+      viewerResults.forEach((result, i) => {
+        if (result.status === "fulfilled") contactViewers[contactPostIds[i]] = result.value;
       });
     } catch (err) {
-      console.error("Admin whatsapp clicks (page) failed", err);
+      console.error("Admin contact viewers (page) failed", err);
     }
 
     try {
@@ -724,7 +728,7 @@ export default function AdminPage() {
       console.error("Admin applications (page) failed", err);
     }
 
-    return { views, whatsappClicks, appCounts };
+    return { views, contactViewers, appCounts };
   }
 
   // أول صفحة من "كل الإعلانات المنشورة على الموقع" — orderBy(createdAt desc) + limit بدل
@@ -734,13 +738,14 @@ export default function AdminPage() {
       const snap = await getDocs(query(collection(db, "job_posts"), orderBy("createdAt", "desc"), limit(POSTS_PAGE_SIZE)));
       const docs = snap.docs;
       const postIds = docs.map((d) => d.id);
-      const { views, whatsappClicks, appCounts } = await fetchJobViewsAndAppCounts(postIds);
+      const contactPostIds = docs.filter((d) => d.data().receiveMethod === "contact").map((d) => d.id);
+      const { views, contactViewers, appCounts } = await fetchJobViewsAndAppCounts(postIds, contactPostIds);
 
       const postsList = docs.map((d) => ({ id: d.id, ...d.data(), applicantCount: appCounts[d.id] || 0 } as any));
 
       setPosts(postsList);
       setJobViewCounts(views);
-      setWhatsappClickCounts(whatsappClicks);
+      setContactViewerCounts(contactViewers);
       setLastVisiblePost(docs.length > 0 ? docs[docs.length - 1] : null);
       setHasMorePosts(docs.length === POSTS_PAGE_SIZE);
     } catch (err) {
@@ -748,7 +753,7 @@ export default function AdminPage() {
     }
   }
 
-  // "تحميل المزيد" — بيضيف للقايمة الموجودة بدل ما يستبديها، وبيدمج job_views/whatsappClicks/
+  // "تحميل المزيد" — بيضيف للقايمة الموجودة بدل ما يستبديها، وبيدمج job_views/contactViewers/
   // appCounts الجداد مع الموجودين بدل الاستبدال.
   async function loadMoreJobPosts() {
     if (!hasMorePosts || loadingMorePosts || !lastVisiblePost) return;
@@ -759,13 +764,14 @@ export default function AdminPage() {
       );
       const docs = snap.docs;
       const postIds = docs.map((d) => d.id);
-      const { views, whatsappClicks, appCounts } = await fetchJobViewsAndAppCounts(postIds);
+      const contactPostIds = docs.filter((d) => d.data().receiveMethod === "contact").map((d) => d.id);
+      const { views, contactViewers, appCounts } = await fetchJobViewsAndAppCounts(postIds, contactPostIds);
 
       const newPosts = docs.map((d) => ({ id: d.id, ...d.data(), applicantCount: appCounts[d.id] || 0 } as any));
 
       setPosts((prev) => [...prev, ...newPosts]);
       setJobViewCounts((prev) => ({ ...(prev || {}), ...views }));
-      setWhatsappClickCounts((prev) => ({ ...(prev || {}), ...whatsappClicks }));
+      setContactViewerCounts((prev) => ({ ...prev, ...contactViewers }));
       if (docs.length > 0) setLastVisiblePost(docs[docs.length - 1]);
       setHasMorePosts(docs.length === POSTS_PAGE_SIZE);
     } catch (err) {
@@ -1202,14 +1208,15 @@ export default function AdminPage() {
           // السطر كله زي الأول — لكن لو جبناها بنجاح وبس الوظيفة دي معندهاش مستند، الافتراض
           // 0 (مش إخفاء) عشان يبان إنها "لسه محدش شافها" مش إن الميزة نفسها مش شغالة.
           const views = jobViewCounts ? jobViewCounts[p.id] ?? 0 : null;
-          // معدل التحويل مالوش معنى لوظايف التواصل المباشر (contact) — applicantCount عندهم
-          // دايمًا 0 لأن مفيش applications متسجلة في Firestore أصلاً، مش لأن محدش قدّم فعليًا.
+          // معدل التحويل مالوش معنى لوظايف التواصل المباشر (contact) — التقديم الفعلي بيتم
+          // برّه الموقع في الغالب، فـapplicantCount مش مقياس صادق لعدد المهتمين (عدد المتقدمين
+          // الفعليين، لو فيه، بيظهر بس على الزرار تحت).
           const conversionRate =
             !isContactMethod && views && views > 0 ? Math.round((p.applicantCount / views) * 100) : null;
-          // بس لو jobViewCounts (وبالتبعية whatsappClickCounts، بيتحملوا مع بعض) فعلاً اتحمّلت
-          // بنجاح — لو null (فشل الجلب) بيفضل يعرض النص العام (contactApplyText) بدل "0" مضلل.
-          const whatsappClicks = whatsappClickCounts ? whatsappClickCounts[p.id] ?? 0 : undefined;
-          const isWhatsAppWithCount = isContactMethod && p.contactMethod === "whatsapp" && whatsappClicks !== undefined;
+          // عدد اللي شافوا وسيلة التواصل (job_contact_views) — بس لو اتحمّل بنجاح وأكبر من صفر،
+          // وإلا (لسه بيحمّل / فشل / صفر) بيفضل النص العام (contactApplyText) بدل رقم مضلل.
+          const viewerCount = contactViewerCounts[p.id];
+          const hasViewers = isContactMethod && viewerCount !== undefined && viewerCount > 0;
           return (
           <div key={p.id} style={jobCardContainerStyle}>
             <div style={{ padding: "18px 20px" }}>
@@ -1238,8 +1245,8 @@ export default function AdminPage() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
                   <span style={applicantBadgeStyle}>
-                    {isWhatsAppWithCount
-                      ? `📞 ${whatsappClicks} شخص تواصل عبر واتساب`
+                    {hasViewers
+                      ? `📞 ${viewerCount} شخص شاف وسيلة التواصل`
                       : isContactMethod
                       ? `📞 ${contactApplyText(p)}`
                       : `👥 ${p.applicantCount} متقدم`}
@@ -1283,11 +1290,11 @@ export default function AdminPage() {
               >
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button onClick={() => handleToggleApplicants(p.id, p.employerId)} style={primaryActionStyle}>
-                    {isWhatsAppWithCount
-                      ? `📞 عرض التفاصيل (${whatsappClicks})`
-                      : isContactMethod
-                      ? "👥 عرض المتقدمين"
-                      : `👥 عرض المتقدمين (${p.applicantCount})`}
+                    {p.applicantCount > 0 || !isContactMethod
+                      ? `👥 عرض المتقدمين (${p.applicantCount})`
+                      : hasViewers
+                      ? `📞 عرض التفاصيل (${viewerCount})`
+                      : "👥 عرض المتقدمين"}
                   </button>
                   {p.applicantCount > 0 && (
                     <button onClick={() => exportApplicantsExcel(p.id, p.title, p.employerId, p.screeningQuestions || [])} style={ghostActionStyle}>⬇ تحميل Excel</button>
@@ -1314,9 +1321,7 @@ export default function AdminPage() {
               <div style={{ padding: "16px 20px 18px", borderTop: "1px solid #14213D14", display: "flex", flexDirection: "column", gap: 12 }}>
                 {applicants.length === 0 ? (
                   <div style={{ padding: 12, color: "#4A5568" }}>
-                    {isWhatsAppWithCount
-                      ? `${whatsappClicks} شخص تواصل عبر واتساب مع الشركة على الوظيفة دي مباشرة، مش من خلال الموقع.`
-                      : isContactMethod
+                    {isContactMethod
                       ? `التقديم على الوظيفة دي بيتم عبر ${CONTACT_METHOD_LABELS[p.contactMethod || ""] || "التواصل المباشر"} مباشرة، مش من خلال الموقع.`
                       : "لسه محدش قدّم على الإعلان ده."}
                     {isContactMethod && <ContactRevealViewers jobPostId={p.id} />}

@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
+import { collection, doc, getCountFromServer, getDoc, getDocs, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from "./firebase";
 
 // بديل موسّع لـwhatsappClicks.ts القديمة (كانت بتتبع ضغطات زرار واتساب بس، بعداد إجمالي من
@@ -39,4 +39,12 @@ export async function fetchContactRevealViewers(jobPostId: string): Promise<Cont
   return snap.docs
     .map((d) => ({ uid: d.id, fullName: d.data().fullName || "مستخدم مسجّل", viewedAt: d.data().viewedAt ?? null }))
     .sort((a, b) => (b.viewedAt?.toMillis() || 0) - (a.viewedAt?.toMillis() || 0));
+}
+
+// عدد اللي شافوا وسيلة التواصل بس (من غير جلب الأسماء) — لعدادات قايمة الوظائف عند صاحب العمل
+// والأدمن، بديل whatsapp_clicks القديمة اللي اتوقفت عن التحديث. getCountFromServer (تجميع
+// خفيف) بدل getDocs عشان مانحملش الأسماء كلها لكل وظيفة في القايمة.
+export async function fetchContactRevealViewerCount(jobPostId: string): Promise<number> {
+  const snap = await getCountFromServer(collection(db, "job_contact_views", jobPostId, "viewers"));
+  return snap.data().count;
 }
