@@ -19,6 +19,11 @@ const LATEST_JOBS_COUNT = 6;
 const FEATURED_JOBS_COUNT = 6;
 const EXAMPLE_COMBOS_COUNT = 40;
 const HOME_COMPANIES_COUNT = 12;
+// عدد الشعارات في الصف الواحد في قسم "شركات بتوظف عندنا" — بيحدد أقصى عرض للحاوية (شوف تحت)
+// عشان الشركات تتوزع صفوف متقاربة (6+6 بدل 8+4). 92 = عرض عمود الشعار، 16 = الـgap بين الأعمدة.
+const HOME_COMPANIES_PER_ROW = 6;
+const HOME_COMPANY_ITEM_WIDTH = 92;
+const HOME_COMPANY_GAP = 16;
 
 // الصفحة دي بتجيب أحدث الوظائف والـcombos لايف من Firestore، فلازم force-dynamic زي /jobs
 // عشان منقعش في نفس مشكلة الـstatic prerender اللي كانت بتسيب الصفحة فاضلة بالبيانات القديمة
@@ -215,7 +220,18 @@ export default async function HomePage() {
             <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 16 }}>
               أحدث الشركات اللي بتوظف عندنا
             </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", alignItems: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: HOME_COMPANY_GAP,
+                justifyContent: "center",
+                alignItems: "center",
+                maxWidth:
+                  HOME_COMPANIES_PER_ROW * HOME_COMPANY_ITEM_WIDTH + (HOME_COMPANIES_PER_ROW - 1) * HOME_COMPANY_GAP,
+                margin: "0 auto",
+              }}
+            >
               {topCompanies.map((c) => (
                 <Link
                   key={c.employerId}
@@ -224,7 +240,7 @@ export default async function HomePage() {
                   style={{ display: "flex", textDecoration: "none" }}
                 >
                   {c.logoURL ? (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 92 }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: HOME_COMPANY_ITEM_WIDTH }}>
                       <CompanyLogo src={c.logoURL} alt={c.companyName} />
                       <span style={{ fontSize: 11.5, color: COLORS.inkSoft, textAlign: "center" }}>{c.companyName}</span>
                     </div>
