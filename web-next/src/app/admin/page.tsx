@@ -298,6 +298,8 @@ type Stats = {
   activeUsers24hReturning: number;
   appInstalls: number;
   pushEnabledUsers: number;
+  // تقسيم totalUsers بالطريقة المستنتجة (شوف inferSignupMethod) — مجموعهم = totalUsers بالظبط.
+  signupMethodInferred: Record<InferredSignupMethod, number>;
 };
 
 type FunnelStats = {
@@ -316,6 +318,30 @@ type SignupMethodStats = {
   google: number;
   email: number;
 };
+
+// طريقة التسجيل الفعلية بالتقريب لكل مستند users — مستند users مابيخزنش الطريقة صراحةً (شوف
+// routeAfterAuth في RegisterForm.tsx)، فبنستنتجها من الحقول المتاحة: phoneNumber (أو إيميل وهمي
+// @elshoghl.internal اللي بيتربط بحسابات التليفون) = تليفون، requiresEmailVerification (بيتحط بس
+// وقت تسجيل جديد بإيميل/باسورد) = إيميل، displayName من غير الاتنين = جوجل (تسجيل الإيميل مابيحطش
+// اسم)، وأي حاجة تانية فيها إيميل = إيميل (حسابات قديمة). "unknown" لو مفيش أي مؤشر. استنتاج
+// تقريبي مش مضمون — شوف سكريبت functions/scripts/verify-signup-method-inference.js للمقارنة بالفعلي.
+type InferredSignupMethod = "phone" | "google" | "email" | "unknown";
+type SignupMethodUserFields = {
+  phoneNumber?: unknown;
+  email?: unknown;
+  displayName?: unknown;
+  requiresEmailVerification?: unknown;
+};
+function nonEmptyString(v: unknown): v is string {
+  return typeof v === "string" && v.trim() !== "";
+}
+function inferSignupMethod(u: SignupMethodUserFields): InferredSignupMethod {
+  if (nonEmptyString(u.phoneNumber) || (nonEmptyString(u.email) && u.email.endsWith("@elshoghl.internal"))) return "phone";
+  if (u.requiresEmailVerification === true) return "email";
+  if (nonEmptyString(u.displayName)) return "google";
+  if (nonEmptyString(u.email)) return "email";
+  return "unknown";
+}
 
 // count إجمالي الأخطاء المسجّلة للـstep ده، وtopErrorCode/topErrorCodeCount أكتر code
 // (زي auth/quota-exceeded) تكرر بينهم — null لو كل المستندات معندهاش code مسجل خالص.
@@ -634,6 +660,12 @@ export default function AdminPage() {
         }
       }
 
+      // من نفس totalUsersSnap المجلوب أصلًا — بدون أي قراءة إضافية من Firestore.
+      const signupMethodInferred: Record<InferredSignupMethod, number> = { phone: 0, google: 0, email: 0, unknown: 0 };
+      for (const d of totalUsersSnap.docs) {
+        signupMethodInferred[inferSignupMethod(d.data() as SignupMethodUserFields)] += 1;
+      }
+
       setStats({
         seekers: seekersSnap.size,
         employers: employersSnap.size,
@@ -648,6 +680,7 @@ export default function AdminPage() {
         activeUsers24hReturning,
         appInstalls: appInstallsDoc.data()?.count || 0,
         pushEnabledUsers: pushEnabledCountSnap.data().count,
+        signupMethodInferred,
       });
     } catch (err) {
       console.error("Admin stats failed", err);
@@ -944,6 +977,39 @@ export default function AdminPage() {
               <FunnelStepCard label="✉️ إيميل" value={signupMethodStats.email} />
             </div>
           )}
+        </div>
+      )}
+
+      {stats && (
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 16, marginBottom: 4 }}>طريقة التسجيل الفعلية (تقريبي)</h2>
+          <p style={{ fontSize: 12.5, color: "#4A5568", margin: "0 0 12px" }}>
+            حسابات فعلية مش محاولات — مستنتجة من بيانات كل مستخدم (رقم التليفون/الاسم/تأكيد الإيميل) مش من
+            مزوّد الدخول نفسه، فنسبة صغيرة ممكن تتصنّف غلط. المجموع = إجمالي المستخدمين المسجلين.
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {(
+              [
+                ["📱 تليفون", "phone"],
+                ["🔍 جوجل", "google"],
+                ["✉️ إيميل", "email"],
+                ["❔ غير معروف", "unknown"],
+              ] as const
+            )
+              .filter(([, key]) => key !== "unknown" || stats.signupMethodInferred.unknown > 0)
+              .map(([label, key]) => (
+                <FunnelStepCard
+                  key={key}
+                  label={label}
+                  value={stats.signupMethodInferred[key]}
+                  subtitle={
+                    stats.totalUsers > 0
+                      ? `${Math.round((stats.signupMethodInferred[key] / stats.totalUsers) * 100)}% من ${stats.totalUsers}`
+                      : undefined
+                  }
+                />
+              ))}
+          </div>
         </div>
       )}
 
