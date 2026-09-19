@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getCompanyLogos, type CompanyCard } from "@/lib/companiesQuery";
+import CompanyLogo from "@/components/CompanyLogo";
 
 const COMPANIES_PAGE_SIZE = 24;
 
@@ -54,17 +55,13 @@ export default function CompaniesGrid({ companies }: { companies: CompanyCard[] 
               }}
             >
               {logoURL ? (
-                <img
-                  src={logoURL}
-                  alt={c.companyName}
-                  style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 10, margin: "0 auto 10px" }}
-                />
+                <CompanyLogo src={logoURL} alt={c.companyName} style={{ margin: "0 auto 10px" }} />
               ) : (
                 <div
                   style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 10,
+                    width: 92,
+                    height: 64,
+                    borderRadius: 12,
                     background: "#F0EDE3",
                     margin: "0 auto 10px",
                     display: "flex",

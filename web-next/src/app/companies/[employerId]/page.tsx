@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import JobListItem from "@/app/jobs/JobListItem";
+import CompanyLogo from "@/components/CompanyLogo";
 
 async function getCompany(employerId: string): Promise<any> {
   const snap = await getDoc(doc(db, "employers", employerId));
@@ -50,11 +51,11 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
     <div dir="rtl" style={{ maxWidth: 700, margin: "0 auto", padding: "40px 20px" }}>
       <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 20 }}>
         {company.logoURL ? (
-          <img src={company.logoURL} alt={company.companyName} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12 }} />
+          <CompanyLogo src={company.logoURL} alt={company.companyName} width={104} height={72} />
         ) : (
           <div
             style={{
-              width: 72,
+              width: 104,
               height: 72,
               borderRadius: 12,
               background: "#F0EDE3",

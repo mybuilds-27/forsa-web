@@ -29,6 +29,7 @@ import { CONTACT_METHOD_LABELS, contactApplyText } from "@/lib/contactMethodLabe
 import ShareButton from "@/components/ShareButton";
 import ApplicantCard from "@/components/ApplicantCard";
 import ContactRevealViewers from "@/components/ContactRevealViewers";
+import CompanyLogo from "@/components/CompanyLogo";
 import {
   jobCardContainerStyle,
   tagStyle,
@@ -370,7 +371,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
 
       <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20, marginBottom: 10 }}>
         {companyData.logoURL && (
-          <img src={companyData.logoURL} alt="لوجو الشركة" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 10, marginBottom: 10 }} />
+          <CompanyLogo src={companyData.logoURL} alt="لوجو الشركة" style={{ marginBottom: 10 }} />
         )}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
           <span style={tagStyle}>{companyData.companyName}</span>

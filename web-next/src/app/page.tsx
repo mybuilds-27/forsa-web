@@ -5,6 +5,7 @@ import { getActivePublicJobs, getActiveJobsSeoData, getFeaturedPublicJobs } from
 import { getCompanies } from "@/lib/companiesQuery";
 import { GOVERNORATES, SEO_AREAS, SPECIALIZATION_OPTIONS, slugify } from "@/lib/constants";
 import { JOB_TYPE_LABELS, tagStyle } from "@/lib/jobCardStyles";
+import CompanyLogo from "@/components/CompanyLogo";
 
 const COLORS = {
   ink: "#14213D",
@@ -224,18 +225,7 @@ export default async function HomePage() {
                 >
                   {c.logoURL ? (
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 92 }}>
-                      <img
-                        src={c.logoURL}
-                        alt={c.companyName}
-                        style={{
-                          width: 64,
-                          height: 64,
-                          objectFit: "cover",
-                          borderRadius: "50%",
-                          border: `1px solid ${COLORS.ink}22`,
-                          background: "#fff",
-                        }}
-                      />
+                      <CompanyLogo src={c.logoURL} alt={c.companyName} />
                       <span style={{ fontSize: 11.5, color: COLORS.inkSoft, textAlign: "center" }}>{c.companyName}</span>
                     </div>
                   ) : (
