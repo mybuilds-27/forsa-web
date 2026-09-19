@@ -5,7 +5,7 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
 import { normalizeEntries, SkillEntry } from "@/lib/profileFields";
-import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS } from "@/lib/constants";
+import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS, EDUCATION_LEVEL_LABELS } from "@/lib/constants";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import CVPreview from "./CVPreview";
 import {
@@ -38,11 +38,21 @@ type Props = {
   // CompanyTab.tsx (عنده بيانات الوظيفة والمتقدمين مع بعض) وبتتبعت جاهزة هنا. null يعني
   // مفيش معايير كفاية متاحة للمقارنة خالص — الشارة بتختفي تمامًا في الحالة دي.
   matchPercent?: number | null;
+  // وضع "شاف صفحة الوظيفة" (ContactRevealViewers.tsx) — باحث فتح صفحة وظيفة تواصل مباشر من
+  // غير ما يقدّم، فمفيش application ولا حالة ولا إجابات فرز ولا سيرة تلقائية (الفانكشن بتتطلب
+  // تقديم فعلي). بيتخفى كمان التليفون/الإيميل/رابط السيرة — الكشف بيتم بس عبر onRevealContact
+  // (SeekerDetailModal: الباقة المدفوعة + الحد الشهري + contact_reveals).
+  viewerMode?: boolean;
+  viewedAtLabel?: string;
+  onRevealContact?: () => void;
+  revealHint?: string;
 };
 
 // نسخة مكبّرة من tagStyle/ghostActionStyle المشتركة، خاصة بكارت المتقدم بس — عشان متأثرش على كروت الوظائف في باقي الموقع
 const bigTagStyle: React.CSSProperties = { ...tagStyle, fontSize: 14, padding: "4px 12px" };
 const bigGhostActionStyle: React.CSSProperties = { ...ghostActionStyle, fontSize: 15, padding: "10px 16px" };
+// شارة "شاف الصفحة" في وضع viewerMode — نفس شكل الشارات المحايدة التانية (pausedPillStyle).
+const viewedPillStyle: React.CSSProperties = { fontSize: 12, fontWeight: 700, background: "#F0EDE3", color: "#4A5568", padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap" };
 
 // undefined = لسه بيتحمّل، null = اتأكد إنه مش موجود (بروفايل قديم من قبل ما updatedAt يتضاف)
 // أو حصل خطأ في الجلب — الحالتين بيتعرضوا "غير معروف" في الواجهة.
@@ -52,7 +62,16 @@ function formatLastProfileUpdate(value: Date | null | undefined): string {
   return value.toLocaleDateString("ar-EG");
 }
 
-export default function ApplicantCard({ applicant: a, screeningQuestions, isAdmin, matchPercent }: Props) {
+export default function ApplicantCard({
+  applicant: a,
+  screeningQuestions,
+  isAdmin,
+  matchPercent,
+  viewerMode,
+  viewedAtLabel,
+  onRevealContact,
+  revealHint,
+}: Props) {
   const s = a.seekerSnapshot || {};
   const skills = normalizeEntries(s.skills);
   const languages = normalizeEntries(s.languages);
@@ -125,6 +144,9 @@ export default function ApplicantCard({ applicant: a, screeningQuestions, isAdmi
           </div>
         </div>
 
+        {viewerMode ? (
+          <span style={viewedPillStyle}>👁 شاف الصفحة{viewedAtLabel ? ` — ${viewedAtLabel}` : ""}</span>
+        ) : (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ ...sectionLabelStyle, fontSize: 16, marginBottom: 0 }}>حالة المتقدم:</span>
@@ -151,12 +173,14 @@ export default function ApplicantCard({ applicant: a, screeningQuestions, isAdmi
           {savingStatus && <span style={{ fontSize: 11.5, color: "#4A5568" }}>جاري الحفظ...</span>}
           {statusError && <span style={{ fontSize: 11.5, color: "#B03A14" }}>{statusError}</span>}
         </div>
+        )}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
         {s.specialization && <span style={bigTagStyle}><TagIcon size={15} /> التخصص: {s.specialization}</span>}
         <span style={bigTagStyle}><PinIcon size={15} /> المحافظة: {s.city || ""} - {s.governorate || ""}</span>
         <span style={bigTagStyle}><BriefcaseIcon size={15} /> سنوات الخبرة: {s.yearsOfExperience || 0} سنوات</span>
+        {s.educationLevel && <span style={bigTagStyle}>🎓 المؤهل: {EDUCATION_LEVEL_LABELS[s.educationLevel] || s.educationLevel}</span>}
         {s.militaryStatus && <span style={bigTagStyle}><ShieldIcon size={15} /> موقف التجنيد: {MILITARY_STATUS_LABELS[s.militaryStatus] || s.militaryStatus}</span>}
       </div>
 
@@ -188,6 +212,20 @@ export default function ApplicantCard({ applicant: a, screeningQuestions, isAdmi
         </div>
       )}
 
+      {viewerMode ? (
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #14213D14", display: "flex", flexDirection: "column", gap: 8 }}>
+          {onRevealContact && (
+            <button
+              type="button"
+              onClick={onRevealContact}
+              style={{ ...bigGhostActionStyle, background: "#14213D", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" }}
+            >
+              🔓 كشف بيانات التواصل
+            </button>
+          )}
+          {revealHint && <div style={{ fontSize: 12, color: "#4A5568" }}>{revealHint}</div>}
+        </div>
+      ) : (
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #14213D14", display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ fontSize: 16 }}>📞 <strong>{s.phone || "—"}</strong></div>
         {s.email && <div style={{ fontSize: 16 }}>✉️ {s.email}</div>}
@@ -225,6 +263,7 @@ export default function ApplicantCard({ applicant: a, screeningQuestions, isAdmi
           )
         )}
       </div>
+      )}
 
       {a.screeningAnswers && screeningQuestions && screeningQuestions.length > 0 && (
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #14213D14" }}>

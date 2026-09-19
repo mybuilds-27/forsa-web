@@ -1324,7 +1324,6 @@ export default function AdminPage() {
                     {isContactMethod
                       ? `التقديم على الوظيفة دي بيتم عبر ${CONTACT_METHOD_LABELS[p.contactMethod || ""] || "التواصل المباشر"} مباشرة، مش من خلال الموقع.`
                       : "لسه محدش قدّم على الإعلان ده."}
-                    {isContactMethod && <ContactRevealViewers jobPostId={p.id} />}
                   </div>
                 ) : (
                   applicants.map((a, i) => (
@@ -1336,6 +1335,17 @@ export default function AdminPage() {
                       matchPercent={calculateMatchPercent(p, a.seekerSnapshot || {})}
                     />
                   ))
+                )}
+                {/* قسم "مين شاف صفحة الوظيفة" بيظهر تحت المتقدمين (أو تحت رسالة "مفيش متقدمين") —
+                    قبل كده كان بيظهر بس لما مفيش متقدمين خالص. الأدمن مستثنى من حد الكشف الشهري. */}
+                {isContactMethod && (
+                  <ContactRevealViewers
+                    jobPostId={p.id}
+                    job={p}
+                    employerPlan="free"
+                    isAdmin
+                    excludeSeekerIds={applicants.map((a) => a.seekerId).filter(Boolean)}
+                  />
                 )}
               </div>
             )}

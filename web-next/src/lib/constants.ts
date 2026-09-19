@@ -81,6 +81,20 @@ export const LANGUAGE_LEVELS: Record<string, string> = {
   fluent: "إجادة تامة",
 };
 
+// نفس القيم الموجودة في select "المؤهل الدراسي" في JobPreferencesTab.tsx. لسه فيه نسخ محلية
+// مكررة منها في TalentSearchTab/SeekerDetailModal/ProfileTab/CVPreview — ApplicantCard هو أول
+// مستخدم للنسخة المشتركة دي، والباقي ممكن يتحوّل ليها بعدين من غير أي تغيير في السلوك.
+export const EDUCATION_LEVEL_LABELS: Record<string, string> = {
+  none: "بدون مؤهل دراسي",
+  literacy: "محو أمية",
+  primary: "ابتدائية",
+  preparatory: "إعدادية",
+  secondary: "ثانوية عامة / دبلوم",
+  bachelor: "بكالوريوس/ليسانس",
+  master: "ماجستير",
+  phd: "دكتوراه",
+};
+
 export const SCREENING_QUESTION_OPTIONS: { text: string; type: "text" | "number" }[] = [
   { text: "المرتب المتوقع؟", type: "number" },
   { text: "هل لديك خبرة سابقة في المجال؟ وكام سنة؟", type: "text" },

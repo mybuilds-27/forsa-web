@@ -23,6 +23,10 @@ export async function logContactReveal(jobPostId: string) {
     const seekerSnap = await getDoc(doc(db, "job_seekers", user.uid));
     const fullName = seekerSnap.exists() ? seekerSnap.data().fullName : null;
     if (!fullName) return;
+    // الباحث اللي شال "أظهر بروفايلي لأصحاب الأعمال" (consentToShare === false) مبيتسجّلش اسمه
+    // خالص في قايمة "مين شاف صفحة الوظيفة" — نفس معيار PrivacyTab (undefined = موافق، زي
+    // البروفايلات القديمة اللي معندهاش الحقل).
+    if (seekerSnap.exists() && seekerSnap.data().consentToShare === false) return;
     await setDoc(doc(db, "job_contact_views", jobPostId, "viewers", user.uid), {
       viewedAt: serverTimestamp(),
       fullName,

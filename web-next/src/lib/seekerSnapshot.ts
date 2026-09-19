@@ -20,5 +20,8 @@ export function buildSeekerSnapshot(s: any) {
     // (مش هيتحسب صفر) بدل ما نحتاج نصلّح الـsnapshots القديمة بأثر رجعي.
     jobLevel: s.jobLevel || "",
     keywords: Array.isArray(s.keywords) ? s.keywords : [],
+    // المؤهل الدراسي — بيتعرض في ApplicantCard.tsx. تقديمات قديمة قبل الإضافة دي هتفضل من غيره
+    // (الـtag بيختفي عندها، مفيش backfill).
+    educationLevel: s.educationLevel || "",
   };
 }

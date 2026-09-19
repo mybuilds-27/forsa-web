@@ -14,7 +14,7 @@ import InviteToJobModal from "./InviteToJobModal";
 // بيانات نفس الباحث أكتر من مرة في نفس الشهر عملية واحدة بس (زي الدعوات بالظبط: doc id
 // ثابت employerId_seekerId بيتحدّث بـsetDoc بدل ما يتكرر)، عشان الحد يبقى 30 باحث مختلف
 // شهريًا مش 30 دوسة.
-const MONTHLY_CONTACT_REVEAL_LIMIT = 30;
+export const MONTHLY_CONTACT_REVEAL_LIMIT = 30;
 
 // نفس القايمة المستخدمة في InviteToJobModal.tsx وgetApplicantProfileForAutoCV — الأدمن
 // مستثنى تمامًا من حد الكشف الشهري (أغراض مراجعة وإشراف)، بغض النظر عن قيمة employerPlan
