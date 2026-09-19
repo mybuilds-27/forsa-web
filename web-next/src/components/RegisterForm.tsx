@@ -125,8 +125,14 @@ export default function RegisterForm({
   // "phone"/"email" يعني المستخدم اختار الطريقة دي وحقولها ظاهرة تحتها. خطوة كود التحقق
   // (phoneStep === "enter-code") مستقلة تمامًا عن الـstate ده عمدًا — شوف التعليق فوق قسمها
   // في الـJSX تحت لسبب كده.
-  const [selectedMethod, setSelectedMethod] = useState<"phone" | "email" | null>(null);
-  const [emailPanelOpen, setEmailPanelOpen] = useState(false);
+  // في وضع compact (صفحة /register بس) فورم الإيميل بيبدأ مفتوح من غير ما المستخدم يدوس أي
+  // زرار، وباقي الطرق (تليفون/جوجل) لينكات بديلة صغيرة تحته — شوف بلوك البدائل في الـJSX.
+  // المودالات التلاتة (compact=false) بتبدأ على شاشة الاختيار زي ما كانت بالظبط.
+  const [selectedMethod, setSelectedMethod] = useState<"phone" | "email" | null>(compact ? "email" : null);
+  const [emailPanelOpen, setEmailPanelOpen] = useState(compact);
+  // في compact فورم الإيميل مفتوح من الأول فمفيش "ضغطة" على زرار نسجّل عليها method_selected —
+  // بنسجّله مرة واحدة عند أول focus على حقل الإيميل (شوف handleEmailFieldFocus).
+  const emailMethodLoggedRef = useRef(false);
   const [loginMode, setLoginMode] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -290,10 +296,24 @@ export default function RegisterForm({
     logFunnelEvent("method_selected", role, "email");
   }
 
+  // بديل openEmailAuth في compact: الفورم أصلًا مفتوح فمفيش ضغطة، فبنسجّل الاختيار (Pixel +
+  // funnel) مرة واحدة بس عند أول focus على حقل الإيميل. في غير compact مبيعملش حاجة (التسجيل
+  // بيتم في openEmailAuth عند الضغط على "التسجيل بالإيميل" زي ما كان).
+  function handleEmailFieldFocus() {
+    if (!compact || emailMethodLoggedRef.current) return;
+    emailMethodLoggedRef.current = true;
+    (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq?.("trackCustom", "SelectSignupMethod", {
+      method: "email",
+    });
+    logFunnelEvent("method_selected", role, "email");
+  }
+
   function closeEmailAuth() {
-    setEmailPanelOpen(false);
+    // في compact فورم الإيميل هو الشاشة الأساسية، فمنرجّعش لشاشة الاختيار (بتتنادى كمان بعد
+    // نجاح التسجيل/الدخول، وكنا هنعرض شاشة الاختيار لحظة قبل التوجيه) — نمسح الحقول بس.
+    setEmailPanelOpen(compact);
     setLoginMode(false);
-    setSelectedMethod(null);
+    setSelectedMethod(compact ? "email" : null);
     setEmail("");
     setPassword("");
     setError("");
@@ -313,13 +333,23 @@ export default function RegisterForm({
   // فعليًا يدوس "كمّل التسجيل"، زي ما كان بالظبط قبل التصميم الجديد.
   function selectPhoneMethod() {
     setError("");
+    // finalCta() بيقرر الزرار الأحمر من emailPanelOpen مش selectedMethod — في compact الإيميل
+    // كان مفتوح، فلازم نقفله هنا وإلا الزرار يفضل "إنشاء حساب" بالإيميل رغم عرض حقول التليفون.
+    // (في المودالات هو false أصلًا هنا، فمفيش تغيير.)
+    setEmailPanelOpen(false);
     setSelectedMethod("phone");
   }
 
   // "رجوع" من حقول التليفون لشاشة اختيار الطريقة — من غير مسح أي بيانات كتبها المستخدم
-  // (اسم/رقم/باسورد) عشان لو رجع يختار تليفون تاني يلاقيها لسه موجودة.
+  // (اسم/رقم/باسورد) عشان لو رجع يختار تليفون تاني يلاقيها لسه موجودة. في compact مفيش شاشة
+  // اختيار، فالرجوع بيفتح فورم الإيميل تاني.
   function backToMethodChooser() {
     setError("");
+    if (compact) {
+      setEmailPanelOpen(true);
+      setSelectedMethod("email");
+      return;
+    }
     setSelectedMethod(null);
   }
 
@@ -668,6 +698,18 @@ export default function RegisterForm({
   // بتستخدم كمان لإخفاء زرار الـCTA الأحمر والخطأ وقت ما تكون هي الظاهرة.
   const showingChooser = selectedMethod === null && phoneStep !== "enter-code";
 
+  // تحذير WebView (فتح الرابط في متصفح حقيقي) — مشترك بين شاشة الاختيار (المودالات) وبلوك
+  // البدائل تحت فورم الإيميل في compact، بدل ما النص يتكرر في مكانين.
+  const webViewWarning = (
+    <div style={{ textAlign: "center", fontSize: 11.5, color: "#8A570D", marginTop: -4 }}>
+      ⚠️ التليفون وجوجل ممكن ميشتغلوش من جوه التطبيق ده — لو حابب تستخدمهم، افتح
+      الرابط في متصفح حقيقي (⋮ ← "افتح في المتصفح").{" "}
+      <button type="button" onClick={handleCopyLink} style={{ ...smallLinkStyle, fontSize: 11.5, color: "#8A570D" }}>
+        {linkCopied ? "✓ اتنسخ الرابط" : "نسخ الرابط"}
+      </button>
+    </div>
+  );
+
   return (
     <div dir="rtl">
       {processingRedirect && (
@@ -824,13 +866,7 @@ export default function RegisterForm({
                     المتابعة بجوجل
                   </button>
                 </div>
-                <div style={{ textAlign: "center", fontSize: 11.5, color: "#8A570D", marginTop: -4 }}>
-                  ⚠️ التليفون وجوجل ممكن ميشتغلوش من جوه التطبيق ده — لو حابب تستخدمهم، افتح
-                  الرابط في متصفح حقيقي (⋮ ← "افتح في المتصفح").{" "}
-                  <button type="button" onClick={handleCopyLink} style={{ ...smallLinkStyle, fontSize: 11.5, color: "#8A570D" }}>
-                    {linkCopied ? "✓ اتنسخ الرابط" : "نسخ الرابط"}
-                  </button>
-                </div>
+                {webViewWarning}
               </>
             ) : (
               <>
@@ -876,15 +912,18 @@ export default function RegisterForm({
             دلوقتي جوه زرار "التسجيل بالإيميل" بدل ما يكون بديل تحت خط "أو". */}
         {selectedMethod === "email" && (
           <div style={{ border: `1px solid ${COLORS.ink}22`, borderRadius: 12, padding: 18, background: "#fff" }}>
-            <button type="button" onClick={closeEmailAuth} style={{ ...smallLinkStyle, marginBottom: 10, display: "block" }}>
-              → رجوع
-            </button>
+            {!compact && (
+              <button type="button" onClick={closeEmailAuth} style={{ ...smallLinkStyle, marginBottom: 10, display: "block" }}>
+                → رجوع
+              </button>
+            )}
             <div style={{ marginBottom: 12 }}>
               <label style={fieldLabelStyle}>{loginMode ? "رقم الموبايل أو الإيميل" : "الإيميل"}</label>
               <input
                 type={loginMode ? "text" : "email"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onFocus={handleEmailFieldFocus}
                 placeholder={loginMode ? "01012345678 أو example@email.com" : "example@email.com"}
                 style={fieldInputStyle}
               />
@@ -970,6 +1009,25 @@ export default function RegisterForm({
             >
               {cta.disabled ? "جاري التنفيذ..." : cta.label}
             </button>
+          </>
+        )}
+
+        {/* بدائل فورم الإيميل في compact بس (صفحة /register): لينكات نصية صغيرة للتليفون وجوجل
+            عشان التركيز يفضل على فورم الإيميل، + تحذير الـWebView لو لزم. مخفية أثناء خطوة كود
+            التحقق (OTP) — نفس شرط ظهور شاشة الاختيار في المودالات. */}
+        {compact && selectedMethod === "email" && phoneStep !== "enter-code" && (
+          <>
+            <div style={{ textAlign: "center", fontSize: 12.5, color: COLORS.inkSoft }}>
+              أو جرب:{" "}
+              <button type="button" onClick={selectPhoneMethod} style={smallLinkStyle}>
+                التسجيل بالتليفون
+              </button>
+              {" · "}
+              <button type="button" onClick={handleGoogleSignIn} disabled={googleLoading} style={smallLinkStyle}>
+                المتابعة بجوجل
+              </button>
+            </div>
+            {isWebView && webViewWarning}
           </>
         )}
 
