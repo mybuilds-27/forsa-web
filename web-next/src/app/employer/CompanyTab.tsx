@@ -30,6 +30,7 @@ import ShareButton from "@/components/ShareButton";
 import ApplicantCard from "@/components/ApplicantCard";
 import ContactRevealViewers from "@/components/ContactRevealViewers";
 import CompanyLogo from "@/components/CompanyLogo";
+import FacebookPostModal from "@/components/FacebookPostModal";
 import { fetchContactRevealViewerCount } from "@/lib/contactReveal";
 import {
   jobCardContainerStyle,
@@ -48,6 +49,10 @@ import {
 type JobPost = {
   id: string;
   title: string;
+  // مخزّن على مستند الوظيفة نفسه وقت النشر (PostJobTab.tsx) — نسخة وقت النشر، ممكن تختلف عن
+  // اسم الشركة الحالي لو اتغيّر بعد كده. FacebookPostModal بيفضّل companyData.companyName
+  // (الحي) عليه لما يكون متاح، شوف fbPostJob تحت.
+  companyName?: string;
   specialization: string;
   city: string;
   governorate: string;
@@ -188,6 +193,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
   const [loadingApplicants, setLoadingApplicants] = useState(false);
   const [applicantsError, setApplicantsError] = useState("");
   const [detailPost, setDetailPost] = useState<JobPost | null>(null);
+  const [fbPostJob, setFbPostJob] = useState<JobPost | null>(null);
   const [dailyApplications, setDailyApplications] = useState<DailyCount[]>([]);
   const [invitationStats, setInvitationStats] = useState<InvitationStats | null>(null);
   const [invitationStatsError, setInvitationStatsError] = useState(false);
@@ -586,6 +592,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                       {isPaused ? "▶ تفعيل" : "⏸ إيقاف"}
                     </button>
                     <ShareButton jobId={p.id} title={p.title} />
+                    <button onClick={() => setFbPostJob(p)} style={toolBtnStyle}>📋 نسخ نص فيسبوك</button>
                     <button onClick={() => handleDelete(p.id)} style={dangerToolBtnStyle}>✕ حذف</button>
                   </div>
                 </div>
@@ -629,6 +636,15 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
           );
         })}
       </div>
+
+      {fbPostJob && (
+        // companyData?.companyName (الحي) بدل fbPostJob.companyName (نسخة وقت النشر، ممكن تكون
+        // قديمة لو صاحب العمل غيّر اسم شركته بعد كده).
+        <FacebookPostModal
+          job={{ ...fbPostJob, companyName: companyData?.companyName || fbPostJob.companyName }}
+          onClose={() => setFbPostJob(null)}
+        />
+      )}
 
       {/* مودال تفاصيل الوظيفة الكاملة */}
       {detailPost && (

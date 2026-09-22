@@ -30,6 +30,8 @@ import { CONTACT_METHOD_LABELS, contactApplyText } from "@/lib/contactMethodLabe
 import { getActiveJobsSeoData, type JobCombo } from "@/lib/publicJobsQuery";
 import ApplicantCard from "@/components/ApplicantCard";
 import ContactRevealViewers from "@/components/ContactRevealViewers";
+import FacebookPostModal from "@/components/FacebookPostModal";
+import type { FacebookPostJob } from "@/lib/facebookPostText";
 import { fetchContactRevealViewerCount } from "@/lib/contactReveal";
 import BrowseByCombos from "@/components/BrowseByCombos";
 import {
@@ -421,6 +423,7 @@ export default function AdminPage() {
   const [seoData, setSeoData] = useState<{ governorates: string[]; specializations: string[]; combos: JobCombo[] } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
   const [editingPost, setEditingPost] = useState<EditingPost>(null);
+  const [fbPostJob, setFbPostJob] = useState<FacebookPostJob | null>(null);
   const [openApplicantsFor, setOpenApplicantsFor] = useState<string | null>(null);
   const [applicants, setApplicants] = useState<any[]>([]);
   const [exportingUsers, setExportingUsers] = useState(false);
@@ -1312,6 +1315,7 @@ export default function AdminPage() {
                     {p.featured ? "☆ إلغاء التمييز" : "⭐ تمييز الوظيفة"}
                   </button>
                   <ShareButton jobId={p.id} title={p.title} />
+                  <button onClick={() => setFbPostJob(p)} style={toolBtnStyle}>📋 نسخ نص فيسبوك</button>
                   <button onClick={() => handleDelete(p.id)} style={dangerToolBtnStyle}>✕ حذف</button>
                 </div>
               </div>
@@ -1372,6 +1376,8 @@ export default function AdminPage() {
           </button>
         </div>
       )}
+
+      {fbPostJob && <FacebookPostModal job={fbPostJob} onClose={() => setFbPostJob(null)} />}
 
       {editingPost && (
         <div
