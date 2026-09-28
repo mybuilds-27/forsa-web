@@ -168,7 +168,7 @@ export default function Navbar() {
           <>
             <Link href="/seeker?tab=jobs" style={linkStyle}>🏠 تصفح الوظائف</Link>
             <Link href="/seeker?tab=saved" style={linkStyle}>🔖 الوظائف المحفوظة</Link>
-            <Link href="/seeker?tab=profile" style={linkStyle}>👤 بروفايلي</Link>
+            <Link href="/seeker?tab=profile" style={linkStyle}>👤 حسابي</Link>
           </>
         )}
         {/* مش مربوطة بـshowSeekerItems (يعني مش مقتصرة على صفحات الباحث) — لازم تفضل ظاهرة
