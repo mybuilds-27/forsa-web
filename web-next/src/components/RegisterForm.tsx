@@ -11,7 +11,6 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
-  sendEmailVerification,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   ConfirmationResult,
@@ -25,6 +24,7 @@ import { normalizeEgyptianPhone } from "@/lib/phoneAuth";
 import { authErrorMessage } from "@/lib/errorMessages";
 import { logClientError } from "@/lib/errorLog";
 import { logFunnelEvent } from "@/lib/registrationFunnel";
+import { sendVerificationEmailWithContinue } from "@/lib/emailVerificationGate";
 
 export type Role = "job_seeker" | "employer";
 
@@ -382,7 +382,7 @@ export default function RegisterForm({
       // فشل إرسال لينك التأكيد (شبكة بطيئة مثلًا) ميوقفش إنشاء الحساب نفسه — المستخدم يقدر
       // يطلب لينك تاني بعدين من رسالة EmailVerificationNotice.
       try {
-        await sendEmailVerification(cred.user);
+        await sendVerificationEmailWithContinue(cred.user, role);
       } catch (err) {
         console.error("Send email verification failed", err);
         logClientError("send_email_verification", err);

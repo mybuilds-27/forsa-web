@@ -1,6 +1,29 @@
-import { sendEmailVerification } from "firebase/auth";
+import { sendEmailVerification, type User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
+
+// الدومين اللي لينك التأكيد بيرجّع عليه المستخدم (زرار "متابعة" في صفحة فايربيز بعد التأكيد).
+// لازم يكون في Authentication → Settings → Authorized domains في كونسول فايربيز.
+const SITE_ORIGIN = "https://www.elshoghl.com";
+
+// بيبعت إيميل التأكيد ومعاه actionCodeSettings.url بيرجّع المستخدم على /employer أو /seeker حسب
+// نوع الحساب (userType: "employer" أو غيره = باحث). لو الدومين مش في Authorized domains فايربيز
+// بيرفض بـauth/unauthorized-continue-uri (أو invalid-continue-uri) — ساعتها بنبعت الإيميل من غير
+// url بدل ما التأكيد كله يقف (الإيميل الافتراضي القديم بيفضل شغال).
+export async function sendVerificationEmailWithContinue(user: User, userType: string | null | undefined) {
+  const url = `${SITE_ORIGIN}${userType === "employer" ? "/employer" : "/seeker"}`;
+  try {
+    await sendEmailVerification(user, { url });
+  } catch (err: unknown) {
+    const code = err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : undefined;
+    if (code === "auth/unauthorized-continue-uri" || code === "auth/invalid-continue-uri") {
+      console.warn("[emailVerificationGate] الدومين مش مسموح كـcontinue url، بنبعت الإيميل من غيره", code);
+      await sendEmailVerification(user);
+      return;
+    }
+    throw err;
+  }
+}
 
 export type EmailVerificationGateResult = { blocked: false } | { blocked: true; email: string };
 
@@ -33,7 +56,15 @@ export async function resendVerificationEmail(): Promise<{ ok: boolean; error?: 
   const user = auth.currentUser;
   if (!user) return { ok: false, error: "لازم تكون مسجل دخول" };
   try {
-    await sendEmailVerification(user);
+    // نوع الحساب من users/{uid} عشان لينك الرجوع يوديه لصفحته (/employer أو /seeker).
+    let userType: string | null = null;
+    try {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      userType = snap.exists() ? snap.data().userType || null : null;
+    } catch (err) {
+      console.error("[emailVerificationGate] فشل قراءة نوع الحساب، هيتحط /seeker كافتراضي", err);
+    }
+    await sendVerificationEmailWithContinue(user, userType);
     return { ok: true };
   } catch (err: unknown) {
     console.error("[emailVerificationGate] فشل إعادة إرسال لينك التأكيد", err);

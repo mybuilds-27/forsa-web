@@ -10,6 +10,7 @@ import JobsTab from "./JobsTab";
 import ProfileTab from "./ProfileTab";
 import SavedJobsTab from "./SavedJobsTab";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
+import EmailVerificationBanner from "@/components/EmailVerificationBanner";
 
 type Status = "loading" | "no-profile" | "has-profile";
 type Tab = "jobs" | "saved" | "profile";
@@ -73,7 +74,14 @@ function SeekerPageInner() {
   }
 
   if (status === "no-profile") {
-    return <QuickSignupForm onSaved={loadProfile} />;
+    return (
+      <>
+        <div dir="rtl" style={{ width: "100%", maxWidth: 900, margin: "0 auto", padding: "16px 20px 0" }}>
+          <EmailVerificationBanner />
+        </div>
+        <QuickSignupForm onSaved={loadProfile} />
+      </>
+    );
   }
 
   const completionPercent = calculateProfileCompletion(profileData);
@@ -81,6 +89,7 @@ function SeekerPageInner() {
   return (
     <div dir="rtl">
       <div style={{ width: "100%", maxWidth: 900, margin: "0 auto", padding: "24px 20px 60px" }}>
+        <EmailVerificationBanner />
         {activeTab === "jobs" && (
           <JobsTab
             completionPercent={completionPercent}
