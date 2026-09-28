@@ -190,7 +190,9 @@ export default function Navbar() {
             <Link href="/employer?tab=talent" style={linkStyle}>🔍 البحث عن كوادر</Link>
           </>
         )}
-        <Link href="/jobs" style={linkStyle}>💼 الوظائف</Link>
+        {/* مخفي عن الباحث المسجّل دخول بس (عنده "تصفح الوظائف" جوه لوحته، نفس القايمة + تقديم وحفظ) —
+            الأدمن مستثنى حتى لو حسابه من نوع job_seeker، والزوار وأصحاب الأعمال بيشوفوه عادي. */}
+        {!(userType === "job_seeker" && !isAdmin) && <Link href="/jobs" style={linkStyle}>💼 الوظائف</Link>}
         <Link href="/companies" style={linkStyle}>🏛️ الشركات</Link>
         {showAdminLink && <Link href="/admin" style={linkStyle}>📊 لوحة الإدارة</Link>}
         {signedIn && <NotificationBell />}
