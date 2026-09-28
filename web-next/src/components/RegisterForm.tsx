@@ -62,6 +62,10 @@ function phoneToSyntheticEmail(e164Phone: string): string {
   return `phone+${e164Phone.replace(/^\+/, "")}@elshoghl.internal`;
 }
 
+// رسالة auth/email-already-in-use في compact (صفحة /register) — نفس النص بيتقارن بيه في صندوق
+// الخطأ عشان يظهر لينك "سجّل دخول" جنبها بس في الحالة دي (من غير state زيادة).
+const EMAIL_EXISTS_MESSAGE = "الإيميل ده عنده حساب بالفعل —";
+
 type Props = {
   role: Role;
   onRoleChange?: (role: Role) => void;
@@ -308,6 +312,21 @@ export default function RegisterForm({
     logFunnelEvent("method_selected", role, "email");
   }
 
+  // مفيش صفحة دخول منفصلة — "الدخول" وضع (loginMode) جوه نفس فورم الإيميل (إيميل أو رقم موبايل +
+  // باسورد، زرار "دخول"). دول بيبدّلوا بين الوضعين من غير ما يمسحوا اللي المستخدم كتبه، وبيشتغلوا
+  // من أي مكان في compact (حتى لو المستخدم كان على حقول التليفون).
+  function switchToLogin() {
+    setError("");
+    setEmailPanelOpen(true);
+    setSelectedMethod("email");
+    setLoginMode(true);
+  }
+
+  function switchToSignup() {
+    setError("");
+    setLoginMode(false);
+  }
+
   function closeEmailAuth() {
     // في compact فورم الإيميل هو الشاشة الأساسية، فمنرجّعش لشاشة الاختيار (بتتنادى كمان بعد
     // نجاح التسجيل/الدخول، وكنا هنعرض شاشة الاختيار لحظة قبل التوجيه) — نمسح الحقول بس.
@@ -373,7 +392,9 @@ export default function RegisterForm({
     } catch (err: any) {
       console.error("Email sign up failed", err);
       logClientError("email_signup", err);
-      setError(authErrorMessage(err));
+      // في compact بس (صفحة /register): رسالة ودّية + لينك "سجّل دخول" بيظهر جنبها في صندوق الخطأ
+      // (شوف EMAIL_EXISTS_MESSAGE تحت). المودالات لسه على رسالة authErrorMessage العادية.
+      setError(compact && err?.code === "auth/email-already-in-use" ? EMAIL_EXISTS_MESSAGE : authErrorMessage(err));
     } finally {
       authInProgressRef.current = false;
       setEmailSaving(false);
@@ -986,6 +1007,27 @@ export default function RegisterForm({
                 }}
               >
                 {error}
+                {compact && error === EMAIL_EXISTS_MESSAGE && (
+                  <>
+                    {" "}
+                    <button
+                      type="button"
+                      onClick={switchToLogin}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        font: "inherit",
+                        fontWeight: 800,
+                        color: "inherit",
+                        textDecoration: "underline",
+                        cursor: "pointer",
+                      }}
+                    >
+                      سجّل دخول
+                    </button>
+                  </>
+                )}
               </div>
             )}
             <button
@@ -1029,6 +1071,21 @@ export default function RegisterForm({
             </div>
             {isWebView && webViewWarning}
           </>
+        )}
+
+        {/* سطر التبديل بين التسجيل والدخول في compact بس، أصغر من لينكات التليفون/جوجل (12 مقابل
+            12.5). مخفي أثناء خطوة كود التحقق (OTP) عشان مانقطعش الخطوة دي. */}
+        {compact && phoneStep !== "enter-code" && (
+          <div style={{ textAlign: "center", fontSize: 12, color: COLORS.inkSoft }}>
+            {loginMode && selectedMethod === "email" ? "مالكش حساب؟" : "عندك حساب؟"}{" "}
+            <button
+              type="button"
+              onClick={loginMode && selectedMethod === "email" ? switchToSignup : switchToLogin}
+              style={{ ...smallLinkStyle, fontSize: 12 }}
+            >
+              {loginMode && selectedMethod === "email" ? "سجّل حساب جديد" : "سجّل دخول"}
+            </button>
+          </div>
         )}
 
         {!compact && !loginMode && (
