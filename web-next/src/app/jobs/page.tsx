@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { getFilteredPublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
-import BrowseByCombos from "@/components/BrowseByCombos";
+import BrowseBySpecialization from "@/components/BrowseBySpecialization";
 import { getAreasForGovernorate, slugify } from "@/lib/constants";
 import JobsFilterBar from "./JobsFilterBar";
 import PaginatedJobsList from "./PaginatedJobsList";
@@ -17,8 +17,6 @@ export const metadata = {
 // force-dynamic بيضمن قراءة فريش من Firestore في كل طلب.
 export const dynamic = "force-dynamic";
 
-const POPULAR_COMBOS_COUNT = 40;
-
 type Props = {
   searchParams: Promise<{ q?: string; governorate?: string; jobType?: string; specialization?: string; city?: string }>;
 };
@@ -31,7 +29,6 @@ export default async function JobsListPage({ searchParams }: Props) {
     getFilteredPublicJobs({ q, governorate, jobType, specialization, city }),
     getActiveJobsSeoData(),
   ]);
-  const popularCombos = seoData.combos.slice(0, POPULAR_COMBOS_COUNT);
   // بنعرض شيبس المناطق بس لو فيه محافظة متفلترة فعليًا (السيرش بارام)، ومعندهاش مناطق
   // معرّفة في SEO_AREAS بيرجع array فاضية فالقسم بيختفي تلقائيًا — نفس منطق jobs/[id]/page.tsx.
   const areasForGovernorate = governorate ? getAreasForGovernorate(governorate) : [];
@@ -52,10 +49,13 @@ export default async function JobsListPage({ searchParams }: Props) {
 
       <PaginatedJobsList jobs={jobs} />
 
-      {popularCombos.length > 0 && (
+      {seoData.combos.length > 0 && (
         <div style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid #DED2B5" }}>
           <h2 style={{ fontSize: 18, marginBottom: 16 }}>تصفح حسب المحافظة والتخصص</h2>
-          <BrowseByCombos combos={popularCombos} variant="inline" />
+          {/* كل التركيبات اللي فيها وظايف نشطة (مش أشهر 40 بس) — مجمّعة بالتخصص في <details> مقفولة،
+              واللينكات موجودة في الـHTML لجوجل حتى وهي مقفولة. نفس seoData المجلوبة فوق، مفيش
+              قراءة Firestore زيادة. */}
+          <BrowseBySpecialization combos={seoData.combos} />
         </div>
       )}
 

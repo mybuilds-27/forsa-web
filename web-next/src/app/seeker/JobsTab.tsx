@@ -35,7 +35,6 @@ import JobListItem from "@/app/jobs/JobListItem";
 import PostApplyProfileNudge from "@/components/PostApplyProfileNudge";
 
 const PAGE_SIZE = 12;
-const POPULAR_COMBOS_COUNT = 40;
 const RECOMMENDED_COUNT = 6;
 
 // كل الحقول اللي JobListItem.tsx محتاجها لعرض الكارت — نفس فكرة RelatedJobs.tsx بالظبط.
@@ -306,7 +305,9 @@ export default function JobsTab({ completionPercent, specialization, keywords, j
 
   useEffect(() => {
     getActiveJobsSeoData()
-      .then((data) => setPopularCombos(data.combos.slice(0, POPULAR_COMBOS_COUNT)))
+      // كل التركيبات اللي فيها وظايف نشطة (مش أشهر 40 بس) — السايدبار بيجمّعها بالتخصص (grouped)،
+      // ونفس استعلام getActiveJobsSeoData الموجود أصلًا، مفيش قراءة زيادة.
+      .then((data) => setPopularCombos(data.combos))
       .catch((err) => console.error("Popular combos fetch failed", err));
   }, []);
 
@@ -563,7 +564,7 @@ export default function JobsTab({ completionPercent, specialization, keywords, j
       )}
         </div>
 
-        <BrowseSidebar combos={popularCombos} />
+        <BrowseSidebar combos={popularCombos} grouped />
       </div>
 
       {/* مودال تفاصيل الوظيفة */}
