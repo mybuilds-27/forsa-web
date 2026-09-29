@@ -77,7 +77,7 @@ export default function JobMatchBadge({ job }: Props) {
       >
         <span>🎯 أكمل بروفايلك عشان تشوف نسبة تطابقك مع الوظيفة دي</span>
         <Link
-          href="/seeker?tab=profile"
+          href="/seeker?tab=profile&openEdit=1"
           style={{
             padding: "6px 14px",
             background: "#14213D",

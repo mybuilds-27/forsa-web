@@ -172,11 +172,19 @@ export default function Navbar() {
           </>
         )}
         {/* مش مربوطة بـshowSeekerItems (يعني مش مقتصرة على صفحات الباحث) — لازم تفضل ظاهرة
-            في كل صفحات الموقع طول ما الباحث لسه بروفايله ناقص، وتختفي تلقائيًا لو وصل 100%. */}
+            في كل صفحات الموقع طول ما الباحث لسه بروفايله ناقص، وتختفي تلقائيًا لو وصل 100%.
+            زرار مش لينك عادي: لازم يفتح فورم التعديل حتى لو المستخدم واقف على /seeker?tab=profile
+            بالفعل (Link عادي بنفس الـhref مبيعملش أي navigation جديدة). openEdit=Date.now()
+            بيتغيّر مع كل ضغطة، فـOnboardingForm.tsx بيقدر يفرّق "دوسة جديدة" عن مجرد إعادة
+            render — شوف useEffect بتاعتها على autoFocusNonce. */}
         {userType === "job_seeker" && profileCompletion !== null && profileCompletion < 100 && (
-          <Link href="/seeker?tab=profile" style={profileNudgeStyle}>
+          <button
+            type="button"
+            onClick={() => router.push(`/seeker?tab=profile&openEdit=${Date.now()}`)}
+            style={{ ...profileNudgeStyle, fontFamily: "inherit", cursor: "pointer" }}
+          >
             ⚠️ بياناتك {profileCompletion}% مكتملة — كمّل دلوقتي
-          </Link>
+          </button>
         )}
         {showEmployerItems && (
           <span style={isPremium ? premiumBadgeStyle : freeBadgeStyle}>

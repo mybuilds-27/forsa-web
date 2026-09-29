@@ -6,14 +6,17 @@ import { auth, db } from "@/lib/firebase";
 import { SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SPECIALIZATION_KEYWORD_MAP } from "@/lib/constants";
 import KeywordsPicker, { MAX_KEYWORDS } from "@/components/KeywordsPicker";
 import { h3Style, descStyle, gridStyle, labelStyle, inputStyle, saveBtnStyle, savedMsgStyle } from "./sharedStyles";
+import { MISSING_BORDER_COLOR, MissingTag, useScrollToField, type ScrollTarget } from "./missingFieldUI";
 
 type Props = {
   initialData: any;
   onSaved: (partial: any) => void;
   isNewProfile?: boolean;
+  missingKeys?: Set<string>;
+  scrollTarget?: ScrollTarget;
 };
 
-export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }: Props) {
+export default function JobPreferencesTab({ initialData, onSaved, isNewProfile, missingKeys, scrollTarget }: Props) {
   const [jobTitle, setJobTitle] = useState("");
   const [specSelect, setSpecSelect] = useState("");
   const [specOther, setSpecOther] = useState("");
@@ -54,6 +57,12 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
     const fromSpec = SPECIALIZATION_KEYWORD_MAP[specSelect] || [];
     return fromSpec.filter((k) => !keywords.includes(k));
   }, [specSelect, keywords]);
+
+  useScrollToField(scrollTarget, "jobTitle");
+  useScrollToField(scrollTarget, "specialization");
+  useScrollToField(scrollTarget, "yearsOfExperience");
+  useScrollToField(scrollTarget, "educationLevel");
+  useScrollToField(scrollTarget, "jobType");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -102,13 +111,24 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
       <p style={descStyle}>نوع الوظيفة اللي بتدوّر عليها ومتطلباتها.</p>
 
       <div style={gridStyle}>
-        <div>
-          <label style={labelStyle}>المسمى الوظيفي المطلوب</label>
-          <input type="text" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} required placeholder="مثال: محاسب، مندوب مبيعات" style={inputStyle} />
+        <div id="field-jobTitle">
+          <label style={labelStyle}>المسمى الوظيفي المطلوب{missingKeys?.has("jobTitle") && <MissingTag />}</label>
+          <input
+            type="text"
+            value={jobTitle}
+            onChange={(e) => setJobTitle(e.target.value)}
+            required
+            placeholder="مثال: محاسب، مندوب مبيعات"
+            style={{ ...inputStyle, ...(missingKeys?.has("jobTitle") && { border: `1.5px solid ${MISSING_BORDER_COLOR}` }) }}
+          />
         </div>
-        <div>
-          <label style={labelStyle}>التخصص</label>
-          <select value={specSelect} onChange={(e) => setSpecSelect(e.target.value)} style={inputStyle}>
+        <div id="field-specialization">
+          <label style={labelStyle}>التخصص{missingKeys?.has("specialization") && <MissingTag />}</label>
+          <select
+            value={specSelect}
+            onChange={(e) => setSpecSelect(e.target.value)}
+            style={{ ...inputStyle, ...(missingKeys?.has("specialization") && { border: `1.5px solid ${MISSING_BORDER_COLOR}` }) }}
+          >
             <option value="">اختر التخصص</option>
             {SPECIALIZATION_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
             <option value="other">أخرى</option>
@@ -150,13 +170,23 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
           <label style={labelStyle}>الكلمات المفتاحية (اختياري) — بتساعدنا نرشّحلك وظايف مناسبة أكتر</label>
           <KeywordsPicker value={keywords} onChange={setKeywords} />
         </div>
-        <div>
-          <label style={labelStyle}>سنوات الخبرة (اختياري)</label>
-          <input type="number" min="0" value={yearsOfExperience} onChange={(e) => setYearsOfExperience(e.target.value)} style={inputStyle} />
+        <div id="field-yearsOfExperience">
+          <label style={labelStyle}>سنوات الخبرة (اختياري){missingKeys?.has("yearsOfExperience") && <MissingTag />}</label>
+          <input
+            type="number"
+            min="0"
+            value={yearsOfExperience}
+            onChange={(e) => setYearsOfExperience(e.target.value)}
+            style={{ ...inputStyle, ...(missingKeys?.has("yearsOfExperience") && { border: `1.5px solid ${MISSING_BORDER_COLOR}` }) }}
+          />
         </div>
-        <div>
-          <label style={labelStyle}>المؤهل الدراسي (اختياري)</label>
-          <select value={educationLevel} onChange={(e) => setEducationLevel(e.target.value)} style={inputStyle}>
+        <div id="field-educationLevel">
+          <label style={labelStyle}>المؤهل الدراسي (اختياري){missingKeys?.has("educationLevel") && <MissingTag />}</label>
+          <select
+            value={educationLevel}
+            onChange={(e) => setEducationLevel(e.target.value)}
+            style={{ ...inputStyle, ...(missingKeys?.has("educationLevel") && { border: `1.5px solid ${MISSING_BORDER_COLOR}` }) }}
+          >
             <option value="">تفضّل عدم التحديد</option>
             <option value="none">بدون مؤهل دراسي</option>
             <option value="literacy">محو أمية</option>
@@ -168,9 +198,13 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile }
             <option value="phd">دكتوراه</option>
           </select>
         </div>
-        <div>
-          <label style={labelStyle}>نوع الدوام المطلوب (اختياري)</label>
-          <select value={jobType} onChange={(e) => setJobType(e.target.value)} style={inputStyle}>
+        <div id="field-jobType">
+          <label style={labelStyle}>نوع الدوام المطلوب (اختياري){missingKeys?.has("jobType") && <MissingTag />}</label>
+          <select
+            value={jobType}
+            onChange={(e) => setJobType(e.target.value)}
+            style={{ ...inputStyle, ...(missingKeys?.has("jobType") && { border: `1.5px solid ${MISSING_BORDER_COLOR}` }) }}
+          >
             <option value="">تفضّل عدم التحديد</option>
             <option value="full_time">دوام كامل</option>
             <option value="part_time">دوام جزئي</option>

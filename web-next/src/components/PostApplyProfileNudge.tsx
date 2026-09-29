@@ -66,7 +66,7 @@ export default function PostApplyProfileNudge({ percent, onClose }: Props) {
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link
-            href="/seeker?tab=profile"
+            href="/seeker?tab=profile&openEdit=1"
             onClick={handleDismiss}
             style={{
               padding: "10px 20px",

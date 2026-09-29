@@ -7,14 +7,19 @@ import { auth, db, storage } from "@/lib/firebase";
 import { GOVERNORATES, GOVERNORATE_CITIES, MILITARY_STATUS_LABELS } from "@/lib/constants";
 import FileUploadButton from "@/components/FileUploadButton";
 import { h3Style, descStyle, gridStyle, labelStyle, inputStyle, saveBtnStyle, savedMsgStyle } from "./sharedStyles";
+import { MISSING_BORDER_COLOR, MissingTag, useScrollToField, type ScrollTarget } from "./missingFieldUI";
 
 type Props = {
   initialData: any;
   onSaved: (partial: any) => void;
   isNewProfile?: boolean;
+  // من OnboardingForm.tsx — الحقول الناقصة حسب getMissingProfileFields (نفس شروط
+  // calculateProfileCompletion) وطلب scroll لحقل بعينه (شوف missingFieldUI.tsx).
+  missingKeys?: Set<string>;
+  scrollTarget?: ScrollTarget;
 };
 
-export default function PersonalInfoTab({ initialData, onSaved, isNewProfile }: Props) {
+export default function PersonalInfoTab({ initialData, onSaved, isNewProfile, missingKeys, scrollTarget }: Props) {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState(() => auth.currentUser?.email || "");
@@ -50,6 +55,13 @@ export default function PersonalInfoTab({ initialData, onSaved, isNewProfile }: 
   }, [initialData]);
 
   const cities = governorate ? GOVERNORATE_CITIES[governorate] || [] : [];
+
+  useScrollToField(scrollTarget, "fullName");
+  useScrollToField(scrollTarget, "phone");
+  useScrollToField(scrollTarget, "email");
+  useScrollToField(scrollTarget, "photoURL");
+  useScrollToField(scrollTarget, "governorate");
+  useScrollToField(scrollTarget, "city");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -105,17 +117,35 @@ export default function PersonalInfoTab({ initialData, onSaved, isNewProfile }: 
       <p style={descStyle}>اسمك وبياناتك الأساسية اللي هتظهر لأصحاب الأعمال.</p>
 
       <div style={gridStyle}>
-        <div>
-          <label style={labelStyle}>الاسم بالكامل</label>
-          <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required style={inputStyle} />
+        <div id="field-fullName">
+          <label style={labelStyle}>الاسم بالكامل{missingKeys?.has("fullName") && <MissingTag />}</label>
+          <input
+            type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+            style={{ ...inputStyle, ...(missingKeys?.has("fullName") && { border: `1.5px solid ${MISSING_BORDER_COLOR}` }) }}
+          />
         </div>
-        <div>
-          <label style={labelStyle}>رقم الموبايل</label>
-          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required style={inputStyle} />
+        <div id="field-phone">
+          <label style={labelStyle}>رقم الموبايل{missingKeys?.has("phone") && <MissingTag />}</label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+            style={{ ...inputStyle, ...(missingKeys?.has("phone") && { border: `1.5px solid ${MISSING_BORDER_COLOR}` }) }}
+          />
         </div>
-        <div>
-          <label style={labelStyle}>البريد الإلكتروني (اختياري)</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@email.com" style={inputStyle} />
+        <div id="field-email">
+          <label style={labelStyle}>البريد الإلكتروني (اختياري){missingKeys?.has("email") && <MissingTag />}</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="example@email.com"
+            style={{ ...inputStyle, ...(missingKeys?.has("email") && { border: `1.5px solid ${MISSING_BORDER_COLOR}` }) }}
+          />
         </div>
         <div>
           <label style={labelStyle}>النوع (اختياري)</label>
@@ -136,8 +166,18 @@ export default function PersonalInfoTab({ initialData, onSaved, isNewProfile }: 
             </select>
           </div>
         )}
-        <div style={{ gridColumn: "1 / -1" }}>
-          <label style={labelStyle}>صورة شخصية (اختياري)</label>
+        <div
+          id="field-photoURL"
+          style={{
+            gridColumn: "1 / -1",
+            ...(missingKeys?.has("photoURL") && {
+              border: `1.5px solid ${MISSING_BORDER_COLOR}`,
+              borderRadius: 8,
+              padding: 10,
+            }),
+          }}
+        >
+          <label style={labelStyle}>صورة شخصية (اختياري){missingKeys?.has("photoURL") && <MissingTag />}</label>
           {photoURL && !photoFile && (
             <img src={photoURL} alt="صورتك الحالية" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "50%", marginBottom: 8, display: "block" }} />
           )}
@@ -151,21 +191,25 @@ export default function PersonalInfoTab({ initialData, onSaved, isNewProfile }: 
             {photoStatus || "صورة PNG أو JPG، حد أقصى 2 ميجا"}
           </div>
         </div>
-        <div>
-          <label style={labelStyle}>المحافظة</label>
+        <div id="field-governorate">
+          <label style={labelStyle}>المحافظة{missingKeys?.has("governorate") && <MissingTag />}</label>
           <select
             value={governorate}
             onChange={(e) => { setGovernorate(e.target.value); setCitySelect(""); }}
             required
-            style={inputStyle}
+            style={{ ...inputStyle, ...(missingKeys?.has("governorate") && { border: `1.5px solid ${MISSING_BORDER_COLOR}` }) }}
           >
             <option value="">اختر المحافظة</option>
             {GOVERNORATES.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </div>
-        <div>
-          <label style={labelStyle}>المدينة/المنطقة (اختياري)</label>
-          <select value={citySelect} onChange={(e) => setCitySelect(e.target.value)} style={inputStyle}>
+        <div id="field-city">
+          <label style={labelStyle}>المدينة/المنطقة (اختياري){missingKeys?.has("city") && <MissingTag />}</label>
+          <select
+            value={citySelect}
+            onChange={(e) => setCitySelect(e.target.value)}
+            style={{ ...inputStyle, ...(missingKeys?.has("city") && { border: `1.5px solid ${MISSING_BORDER_COLOR}` }) }}
+          >
             <option value="">غير محدد</option>
             {cities.map((c) => <option key={c} value={c}>{c}</option>)}
             <option value="other">أخرى (اكتب بنفسك)</option>

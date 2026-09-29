@@ -32,11 +32,23 @@ const JOB_TYPE_LABELS: Record<string, string> = {
 type Props = {
   data: any;
   onUpdated: (newData: any) => void;
+  // من seeker/page.tsx (زرار "كمّل دلوقتي" في Navbar.tsx) — قيمة جديدة (Date.now()) مع كل
+  // دوسة، فبتفتح فورم التعديل حتى لو editing كانت false، أو لو المستخدم كان أصلًا واقف على
+  // التاب ده وعامل الفورم مقفول.
+  openEditNonce?: string | null;
 };
 
-export default function ProfileTab({ data, onUpdated }: Props) {
+export default function ProfileTab({ data, onUpdated, openEditNonce }: Props) {
   const [editing, setEditing] = useState(false);
   const [printing, setPrinting] = useState(false);
+  // تعديل state أثناء الـrender بدل useEffect ("Adjusting state when a prop changes" — نفس
+  // نمط React الموصى بيه) — seenOpenEditNonce بيتابع آخر nonce اتعامل معاه، فلو openEditNonce
+  // اتغيّر (دوسة جديدة على "كمّل دلوقتي") بنفتح فورم التعديل فورًا من غير re-render إضافي زيادة.
+  const [seenOpenEditNonce, setSeenOpenEditNonce] = useState<string | null>(null);
+  if (openEditNonce && openEditNonce !== seenOpenEditNonce) {
+    setSeenOpenEditNonce(openEditNonce);
+    setEditing(true);
+  }
 
   useEffect(() => {
     if (!printing) return;
@@ -52,6 +64,7 @@ export default function ProfileTab({ data, onUpdated }: Props) {
         initialData={data}
         onSaved={(newData) => onUpdated(newData)}
         onDone={() => setEditing(false)}
+        autoFocusNonce={openEditNonce}
       />
     );
   }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { h3Style, descStyle, gridStyle, labelStyle, inputStyle, ghostBtnStyle, saveBtnStyle, savedMsgStyle } from "./sharedStyles";
+import { MISSING_BORDER_COLOR, MissingTag, useScrollToField, type ScrollTarget } from "./missingFieldUI";
 
 type ExperienceRow = {
   company: string;
@@ -18,9 +19,11 @@ type Props = {
   initialData: any;
   onSaved: (partial: any) => void;
   isNewProfile?: boolean;
+  missingKeys?: Set<string>;
+  scrollTarget?: ScrollTarget;
 };
 
-export default function ExperienceTab({ initialData, onSaved, isNewProfile }: Props) {
+export default function ExperienceTab({ initialData, onSaved, isNewProfile, missingKeys, scrollTarget }: Props) {
   const [experience, setExperience] = useState<ExperienceRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -28,6 +31,8 @@ export default function ExperienceTab({ initialData, onSaved, isNewProfile }: Pr
   useEffect(() => {
     setExperience(initialData.workExperience || []);
   }, [initialData]);
+
+  useScrollToField(scrollTarget, "workExperience");
 
   function addExperienceRow() {
     setExperience([
@@ -113,7 +118,22 @@ export default function ExperienceTab({ initialData, onSaved, isNewProfile }: Pr
           </div>
         </div>
       ))}
-      <button type="button" onClick={addExperienceRow} style={ghostBtnStyle}>+ إضافة خبرة سابقة</button>
+      <div
+        id="field-workExperience"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          ...(missingKeys?.has("workExperience") && {
+            border: `1.5px solid ${MISSING_BORDER_COLOR}`,
+            borderRadius: 8,
+            padding: 6,
+          }),
+        }}
+      >
+        <button type="button" onClick={addExperienceRow} style={ghostBtnStyle}>+ إضافة خبرة سابقة</button>
+        {missingKeys?.has("workExperience") && <MissingTag />}
+      </div>
 
       <div>
         <button type="submit" disabled={saving} style={saveBtnStyle}>
