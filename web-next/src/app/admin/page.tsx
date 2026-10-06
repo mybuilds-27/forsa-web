@@ -29,6 +29,8 @@ import { EXPERIENCE_LEVELS, slugify } from "@/lib/constants";
 import { CONTACT_METHOD_LABELS, contactApplyText } from "@/lib/contactMethodLabels";
 import { getActiveJobsSeoData, type JobCombo } from "@/lib/publicJobsQuery";
 import ApplicantCard from "@/components/ApplicantCard";
+import AdminTabBar, { type AdminTab } from "./AdminTabBar";
+import EmployersAdminTab from "./EmployersAdminTab";
 import ContactRevealViewers from "@/components/ContactRevealViewers";
 import FacebookPostModal from "@/components/FacebookPostModal";
 import type { FacebookPostJob } from "@/lib/facebookPostText";
@@ -397,6 +399,7 @@ type ApplicationStatusStats = Record<ApplicationStatus, number>;
 
 export default function AdminPage() {
   const [status, setStatus] = useState<"loading" | "denied" | "allowed">("loading");
+  const [adminTab, setAdminTab] = useState<AdminTab>("stats");
   const [stats, setStats] = useState<Stats | null>(null);
   const [funnelStats, setFunnelStats] = useState<FunnelStats | null>(null);
   const [funnelError, setFunnelError] = useState(false);
@@ -859,9 +862,22 @@ export default function AdminPage() {
   const pendingReports = jobReports?.filter((r) => !r.reviewed) || [];
   const reviewedReports = jobReports?.filter((r) => r.reviewed) || [];
 
+  // تاب أصحاب الأعمال بيحل محل باقي الصفحة كلها (مش جنبها) — حالة الإحصائيات فوق متحفوظة في
+  // AdminPage نفسها فالرجوع لتاب "الإحصائيات" فوري من غير إعادة جلب.
+  if (adminTab === "employers") {
+    return (
+      <div dir="rtl" style={{ maxWidth: 900, margin: "0 auto", padding: "30px 20px" }}>
+        <h1 style={{ fontSize: 22, marginBottom: 14 }}>لوحة الإدارة</h1>
+        <AdminTabBar tab={adminTab} onChange={setAdminTab} />
+        <EmployersAdminTab />
+      </div>
+    );
+  }
+
   return (
     <div dir="rtl" style={{ maxWidth: 900, margin: "0 auto", padding: "30px 20px" }}>
-      <h1 style={{ fontSize: 22, marginBottom: 6 }}>لوحة الإدارة</h1>
+      <h1 style={{ fontSize: 22, marginBottom: 14 }}>لوحة الإدارة</h1>
+      <AdminTabBar tab={adminTab} onChange={setAdminTab} />
       <p style={{ color: "#4A5568", marginBottom: 20 }}>إحصائيات عامة عن الموقع</p>
 
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>

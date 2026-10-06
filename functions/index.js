@@ -5,8 +5,9 @@ const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https")
 const { defineSecret } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
+const { getStorage } = require("firebase-admin/storage");
 const { getMessaging } = require("firebase-admin/messaging");
 
 // نفس القايمة المستخدمة في web-next (Navbar.tsx وadmin/page.tsx وpage.tsx) لتحديد حسابات
@@ -2019,4 +2020,285 @@ exports.checkPhoneAlreadyRegistered = onCall(async (request) => {
     logger.error("checkPhoneAlreadyRegistered: فشل فحص تضارب رقم التليفون", err);
     throw new HttpsError("internal", "حصلت مشكلة في التحقق، حاول تاني");
   }
+});
+
+// ═══ إدارة أصحاب الأعمال (تاب "أصحاب الأعمال" في لوحة الأدمن، web-next/src/app/admin) ═══
+// أربع دوال callable بتتنفذ بصلاحيات Admin SDK، ومحمية للأدمن بس (ADMIN_EMAILS). التعطيل
+// في Auth والحذف النهائي لازم يتعملوا من هنا (الكلاينت مالوش صلاحية عليهم)، وإيقاف/تفعيل
+// الوظايف وتغيير الباقة هنا برضه عشان يتنفذوا ذريًا وبنفس الآثار الجانبية مرة واحدة من غير
+// ما قواعد Firestore تحتاج تسمح للأدمن بكتابة حقول employers مباشرة. كل دالة آمنة للإعادة
+// (idempotent): لو فشلت في النص، إعادة الضغط بتكمّل من حيث وقفت.
+
+const ADMIN_BATCH_SIZE = 400;
+
+function assertAdminCaller(request) {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "لازم تسجل دخول الأول");
+  }
+  const email = request.auth.token.email || "";
+  // email_verified مطلوب كمان (مش بس تطابق الإيميل): الدوال دي بتعطّل وتحذف حسابات، فمينفعش
+  // حد يسجّل بإيميل الأدمن من غير ما يأكده ويستخدمها.
+  if (!ADMIN_EMAILS.includes(email) || request.auth.token.email_verified !== true) {
+    throw new HttpsError("permission-denied", "الإجراء ده للأدمن بس (بإيميل متأكد)");
+  }
+}
+
+async function loadEmployerForAdminAction(db, rawEmployerId) {
+  const employerId = typeof rawEmployerId === "string" ? rawEmployerId.trim() : "";
+  if (!employerId) {
+    throw new HttpsError("invalid-argument", "employerId ناقص");
+  }
+  const snap = await db.collection("employers").doc(employerId).get();
+  if (!snap.exists) {
+    throw new HttpsError("not-found", "صاحب العمل مش موجود");
+  }
+  let authUserExists = true;
+  let authEmail = "";
+  try {
+    const authUser = await getAuth().getUser(employerId);
+    authEmail = authUser.email || "";
+  } catch (err) {
+    if (err.code !== "auth/user-not-found") throw err;
+    authUserExists = false;
+  }
+  // حماية من الغلط: مفيش إجراء من دول بيتنفذ على حساب أدمن (حتى لو عنده حساب صاحب عمل للاختبار).
+  if (ADMIN_EMAILS.includes(authEmail)) {
+    throw new HttpsError("permission-denied", "مينفعش تنفّذ الإجراء ده على حساب أدمن");
+  }
+  return { employerId, ref: snap.ref, data: snap.data(), authUserExists };
+}
+
+async function guardedAdminAction(name, fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    logger.error(`${name}: فشل التنفيذ`, err);
+    throw new HttpsError("internal", "حصلت مشكلة أثناء التنفيذ — جرّب تاني (الإعادة آمنة)");
+  }
+}
+
+async function updateInChunks(db, updates) {
+  for (let i = 0; i < updates.length; i += ADMIN_BATCH_SIZE) {
+    const batch = db.batch();
+    updates.slice(i, i + ADMIN_BATCH_SIZE).forEach(([ref, data]) => batch.update(ref, data));
+    await batch.commit();
+  }
+}
+
+async function deleteQueryDocs(db, query) {
+  const snap = await query.get();
+  if (snap.empty) return 0;
+  const writer = db.bulkWriter();
+  snap.docs.forEach((d) => writer.delete(d.ref));
+  await writer.close();
+  return snap.size;
+}
+
+function isJobExpired(job, nowMs) {
+  return !!job.expiresAt && job.expiresAt.toMillis() <= nowMs;
+}
+
+// حظر/فك حظر: banned على employers/{uid} (قواعد Firestore بتمنع المحظور من نشر/تعديل
+// الوظايف بناءً عليه)، + إيقاف كل وظايفه النشطة، + تعطيل حسابه في Auth وإبطال جلساته. الوظايف
+// اللي اتقفلت بسبب الحظر بتتعلّم deactivatedByBan:true، عشان فك الحظر يرجّع دي بالظبط (مش
+// وظايف كان صاحب العمل واقفها بنفسه قبل الحظر، ولا اللي انتهت صلاحيتها).
+exports.adminSetEmployerBanned = onCall({ timeoutSeconds: 300 }, async (request) => {
+  assertAdminCaller(request);
+  const banned = request.data?.banned;
+  if (typeof banned !== "boolean") {
+    throw new HttpsError("invalid-argument", "banned لازم يكون true أو false");
+  }
+
+  return guardedAdminAction("adminSetEmployerBanned", async () => {
+    const db = getFirestore();
+    const { employerId, ref, authUserExists } = await loadEmployerForAdminAction(db, request.data?.employerId);
+    const jobsSnap = await db.collection("job_posts").where("employerId", "==", employerId).get();
+
+    if (banned) {
+      // الترتيب مقصود: العلامة الأول (قواعد Firestore تقفل النشر/التعديل فورًا)، وبعدين
+      // إيقاف الوظايف، وآخر حاجة تعطيل Auth.
+      await ref.update({ banned: true, bannedAt: FieldValue.serverTimestamp() });
+      const updates = jobsSnap.docs
+        .filter((d) => d.data().isActive === true)
+        .map((d) => [d.ref, { isActive: false, featured: false, featuredByAdmin: false, deactivatedByBan: true }]);
+      await updateInChunks(db, updates);
+      if (authUserExists) {
+        await getAuth().updateUser(employerId, { disabled: true });
+        await getAuth().revokeRefreshTokens(employerId);
+      }
+      return { banned: true, jobsDeactivated: updates.length };
+    }
+
+    if (authUserExists) {
+      await getAuth().updateUser(employerId, { disabled: false });
+    }
+    await ref.update({ banned: false, bannedAt: FieldValue.delete() });
+    const nowMs = Date.now();
+    const updates = [];
+    let jobsSkippedExpired = 0;
+    for (const d of jobsSnap.docs) {
+      const job = d.data();
+      if (job.deactivatedByBan !== true) continue;
+      if (isJobExpired(job, nowMs)) {
+        jobsSkippedExpired += 1;
+        updates.push([d.ref, { deactivatedByBan: FieldValue.delete() }]);
+      } else {
+        updates.push([d.ref, { isActive: true, deactivatedByBan: FieldValue.delete() }]);
+      }
+    }
+    await updateInChunks(db, updates);
+    return { banned: false, jobsReactivated: updates.length - jobsSkippedExpired, jobsSkippedExpired };
+  });
+});
+
+// إيقاف/تفعيل كل وظايف صاحب العمل. الإيقاف بيمسح التمييز زي toggleJobActive(false) في
+// jobPostActions.ts بالظبط؛ التفعيل بيتخطى الوظايف المنتهية (expiresAt عدّى) ومبيشتغلش على
+// حساب محظور (لازم يتفك الحظر الأول).
+exports.adminSetEmployerJobsActive = onCall({ timeoutSeconds: 120 }, async (request) => {
+  assertAdminCaller(request);
+  const active = request.data?.active;
+  if (typeof active !== "boolean") {
+    throw new HttpsError("invalid-argument", "active لازم يكون true أو false");
+  }
+
+  return guardedAdminAction("adminSetEmployerJobsActive", async () => {
+    const db = getFirestore();
+    const { employerId, data } = await loadEmployerForAdminAction(db, request.data?.employerId);
+    if (active && data.banned === true) {
+      throw new HttpsError("failed-precondition", "الحساب محظور — فك الحظر الأول قبل تفعيل الوظايف");
+    }
+    const jobsSnap = await db.collection("job_posts").where("employerId", "==", employerId).get();
+
+    if (!active) {
+      const updates = jobsSnap.docs
+        .filter((d) => d.data().isActive === true)
+        .map((d) => [d.ref, { isActive: false, featured: false, featuredByAdmin: false }]);
+      await updateInChunks(db, updates);
+      return { active: false, changed: updates.length, skippedExpired: 0 };
+    }
+
+    const nowMs = Date.now();
+    let skippedExpired = 0;
+    const updates = [];
+    for (const d of jobsSnap.docs) {
+      const job = d.data();
+      if (job.isActive === true) continue;
+      if (isJobExpired(job, nowMs)) {
+        skippedExpired += 1;
+        continue;
+      }
+      updates.push([d.ref, { isActive: true }]);
+    }
+    await updateInChunks(db, updates);
+    return { active: true, changed: updates.length, skippedExpired };
+  });
+});
+
+// ترقية/إلغاء الباقة. الترقية بتحط plan:"premium" + planExpiresAt (لو كان مدفوع وصلاحيته لسه
+// سارية بنزوّد المدة على تاريخ الانتهاء الحالي مش من النهاردة) + بتصفّر expiryReminderSent عشان
+// premiumExpiryReminders تتابع الباقة الجديدة. الإلغاء بيرجّع plan:"free" ويشيل planExpiresAt
+// وبيلغي تمييز وظايفه النشطة (إلا اللي featuredByAdmin) — نفس تأثير الانتهاء التلقائي في
+// premiumExpiryReminders.
+exports.adminSetEmployerPlan = onCall({ timeoutSeconds: 120 }, async (request) => {
+  assertAdminCaller(request);
+  const plan = request.data?.plan;
+  if (plan !== "premium" && plan !== "free") {
+    throw new HttpsError("invalid-argument", "plan لازم يكون premium أو free");
+  }
+
+  return guardedAdminAction("adminSetEmployerPlan", async () => {
+    const db = getFirestore();
+    const { employerId, ref, data } = await loadEmployerForAdminAction(db, request.data?.employerId);
+
+    if (plan === "premium") {
+      const months = request.data?.months === undefined ? 3 : request.data.months;
+      if (!Number.isInteger(months) || months < 1 || months > 36) {
+        throw new HttpsError("invalid-argument", "المدة لازم تكون من 1 لـ36 شهر");
+      }
+      const nowMs = Date.now();
+      let base = new Date(nowMs);
+      if (data.plan === "premium" && data.planExpiresAt && data.planExpiresAt.toMillis() > nowMs) {
+        base = data.planExpiresAt.toDate();
+      }
+      const expiresAt = new Date(base.getTime());
+      expiresAt.setMonth(expiresAt.getMonth() + months);
+      await ref.update({ plan: "premium", planExpiresAt: Timestamp.fromDate(expiresAt), expiryReminderSent: false });
+      return { plan: "premium", planExpiresAtMillis: expiresAt.getTime() };
+    }
+
+    await ref.update({ plan: "free", planExpiresAt: FieldValue.delete(), expiryReminderSent: FieldValue.delete() });
+    const featuredSnap = await db
+      .collection("job_posts")
+      .where("employerId", "==", employerId)
+      .where("isActive", "==", true)
+      .where("featured", "==", true)
+      .get();
+    const updates = featuredSnap.docs
+      .filter((d) => d.data().featuredByAdmin !== true)
+      .map((d) => [d.ref, { featured: false }]);
+    await updateInChunks(db, updates);
+    return { plan: "free", planExpiresAtMillis: null };
+  });
+});
+
+// حذف نهائي (غير قابل للتراجع) — لازم confirmCompanyName يطابق اسم الشركة بالظبط (نفس شرط
+// الواجهة، بيتأكد منه هنا كمان). بيمسح: حساب Auth، employers/{uid} (ومعاه private/contact)،
+// users/{uid} (ومعاه fcmTokens)، وظايفه (ومعاها job_views وjob_contact_views)، وكل
+// applications/invitations/contact_reveals/job_reports بـemployerId بتاعه، وإشعاراته، ولوجو
+// الشركة في Storage. مش بيمسح saved_jobs اللي حافظاها باحثين لوظايفه (الكود الحالي بيتعامل
+// مع وظيفة محذوفة وبينضّفها لوحده). ترتيب مقصود: قطع الجلسات الأول، وemployers/{uid} آخر
+// حاجة عشان لو أي خطوة فشلت يفضل المستند موجود وإعادة المحاولة تكمّل.
+exports.adminDeleteEmployer = onCall({ timeoutSeconds: 540 }, async (request) => {
+  assertAdminCaller(request);
+
+  return guardedAdminAction("adminDeleteEmployer", async () => {
+    const db = getFirestore();
+    const { employerId, ref, data, authUserExists } = await loadEmployerForAdminAction(db, request.data?.employerId);
+
+    const expectedName = (data.companyName || "").trim() || employerId;
+    const typedName = typeof request.data?.confirmCompanyName === "string" ? request.data.confirmCompanyName.trim() : "";
+    if (typedName !== expectedName) {
+      throw new HttpsError("failed-precondition", "اسم الشركة المكتوب مش مطابق");
+    }
+
+    if (authUserExists) {
+      await getAuth().updateUser(employerId, { disabled: true });
+      await getAuth().revokeRefreshTokens(employerId);
+    }
+
+    const counts = {};
+    const jobsSnap = await db.collection("job_posts").where("employerId", "==", employerId).get();
+    counts.jobs = jobsSnap.size;
+    for (const d of jobsSnap.docs) {
+      await db.recursiveDelete(db.collection("job_contact_views").doc(d.id));
+      await db.collection("job_views").doc(d.id).delete();
+      await d.ref.delete();
+    }
+    counts.applications = await deleteQueryDocs(db, db.collection("applications").where("employerId", "==", employerId));
+    counts.invitations = await deleteQueryDocs(db, db.collection("invitations").where("employerId", "==", employerId));
+    counts.contactReveals = await deleteQueryDocs(db, db.collection("contact_reveals").where("employerId", "==", employerId));
+    counts.jobReports = await deleteQueryDocs(db, db.collection("job_reports").where("employerId", "==", employerId));
+    counts.notifications = await deleteQueryDocs(db, db.collection("notifications").where("userId", "==", employerId));
+
+    await db.recursiveDelete(db.collection("users").doc(employerId));
+
+    try {
+      await getStorage().bucket().deleteFiles({ prefix: `logos/${employerId}/` });
+    } catch (err) {
+      logger.warn(`adminDeleteEmployer: فشل مسح لوجو ${employerId} من Storage (غير حرج)`, err);
+    }
+
+    if (authUserExists) {
+      try {
+        await getAuth().deleteUser(employerId);
+      } catch (err) {
+        if (err.code !== "auth/user-not-found") throw err;
+      }
+    }
+
+    await db.recursiveDelete(ref);
+    logger.info(`adminDeleteEmployer: اتمسح صاحب العمل ${employerId} (${expectedName})`, counts);
+    return { deleted: true, counts };
+  });
 });
