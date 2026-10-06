@@ -31,6 +31,7 @@ import { getActiveJobsSeoData, type JobCombo } from "@/lib/publicJobsQuery";
 import ApplicantCard from "@/components/ApplicantCard";
 import AdminTabBar, { type AdminTab } from "./AdminTabBar";
 import EmployersAdminTab from "./EmployersAdminTab";
+import ReporterInfo from "./ReporterInfo";
 import ContactRevealViewers from "@/components/ContactRevealViewers";
 import FacebookPostModal from "@/components/FacebookPostModal";
 import type { FacebookPostJob } from "@/lib/facebookPostText";
@@ -1485,6 +1486,7 @@ function JobReportRow({
           <div style={{ fontSize: 13, color: "#B03A14", marginTop: 4 }}>السبب: {report.reason}</div>
           {report.details && <div style={{ fontSize: 13, color: "#4A5568", marginTop: 4 }}>{report.details}</div>}
           <div style={{ fontSize: 11.5, color: "#4A5568", marginTop: 4 }}>{formatDate(report.createdAt)}</div>
+          <ReporterInfo reporterId={report.reporterId} />
         </div>
         {onMarkReviewed && (
           <button
