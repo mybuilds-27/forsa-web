@@ -202,6 +202,7 @@ export default function Navbar() {
             الأدمن مستثنى حتى لو حسابه من نوع job_seeker، والزوار وأصحاب الأعمال بيشوفوه عادي. */}
         {!(userType === "job_seeker" && !isAdmin) && <Link href="/jobs" style={linkStyle}>💼 الوظائف</Link>}
         <Link href="/companies" style={linkStyle}>🏛️ الشركات</Link>
+        <Link href="/articles" style={linkStyle}>📰 مقالات</Link>
         {showAdminLink && <Link href="/admin" style={linkStyle}>📊 لوحة الإدارة</Link>}
         {signedIn && <NotificationBell />}
         {signedIn && <EnableNotificationsButton />}

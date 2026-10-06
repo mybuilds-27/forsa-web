@@ -1,5 +1,6 @@
 import { slugify } from "@/lib/constants";
 import { getActiveJobsSeoData } from "@/lib/publicJobsQuery";
+import { articles } from "@/content/articles";
 
 // ملف الـsitemap ده مالهوش أي dynamic segment، فـNext.js كان بيعمله static prerender
 // وقت الـbuild ويسيبه في كاش (زي ما لقينا في companies/page.tsx وjobs/page.tsx) — يعني
@@ -17,7 +18,13 @@ export default async function sitemap() {
     { url: `${baseUrl}/privacy`, lastModified: new Date() },
     { url: `${baseUrl}/terms`, lastModified: new Date() },
     { url: `${baseUrl}/contact`, lastModified: new Date() },
+    { url: `${baseUrl}/articles`, lastModified: new Date() },
   ];
+
+  const articlePages = articles.map((a) => ({
+    url: `${baseUrl}/articles/${a.slug}`,
+    lastModified: new Date(a.date),
+  }));
 
   let jobPages: { url: string; lastModified: Date }[] = [];
   let governoratePages: { url: string; lastModified: Date }[] = [];
@@ -49,5 +56,5 @@ export default async function sitemap() {
     console.error("Sitemap job fetch failed", err);
   }
 
-  return [...staticPages, ...jobPages, ...governoratePages, ...specializationPages, ...comboPages];
+  return [...staticPages, ...articlePages, ...jobPages, ...governoratePages, ...specializationPages, ...comboPages];
 }
