@@ -3,10 +3,11 @@ import { article as cvArticle } from "./cv-article";
 import { article as interviewArticle } from "./interview-questions";
 import { article as fakeJobsArticle } from "./avoid-fake-jobs";
 import { article as jobSearchArticle } from "./how-to-search-for-a-job";
+import { article as salaryArticle } from "./salary-negotiation";
 
 // إضافة مقال جديد: اعمل ملف جديد في المجلد ده (انسخ cv-article.ts)، وضيف سطر import فوق
 // وسطر في المصفوفة تحت. الترتيب هنا مش مهم، المقالات بتتعرض الأحدث الأول حسب date.
-const allArticles: Article[] = [cvArticle, interviewArticle, fakeJobsArticle, jobSearchArticle];
+const allArticles: Article[] = [cvArticle, interviewArticle, fakeJobsArticle, jobSearchArticle, salaryArticle];
 
 const slugs = new Set<string>();
 for (const a of allArticles) {
