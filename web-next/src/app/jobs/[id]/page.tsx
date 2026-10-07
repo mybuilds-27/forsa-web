@@ -21,8 +21,6 @@ import PublicJobsList from "@/components/PublicJobsList";
 // القديمة لحد أول deploy جديد. force-dynamic بيضمن قراءة فريش من Firestore في كل طلب.
 export const dynamic = "force-dynamic";
 
-const POPULAR_COMBOS_COUNT = 40;
-
 async function getJob(id: string): Promise<any> {
   try {
     const snap = await getDoc(doc(db, "job_posts", id));
@@ -184,7 +182,6 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       getActivePublicJobs({ governorate }),
       getActiveJobsSeoData(),
     ]);
-    const popularCombos = seoData.combos.slice(0, POPULAR_COMBOS_COUNT);
     const specialtiesForGovernorate = seoData.combos
       .filter((c) => c.governorate === governorate)
       .sort((a, b) => b.count - a.count);
@@ -258,7 +255,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             )}
           </div>
 
-          <BrowseSidebar combos={popularCombos} />
+          <BrowseSidebar combos={seoData.combos} />
         </div>
       </div>
     );
@@ -271,7 +268,6 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   }
 
   const seoData = await getActiveJobsSeoData();
-  const popularCombos = seoData.combos.slice(0, POPULAR_COMBOS_COUNT);
   const jobPostingJsonLd = buildJobPostingJsonLd(job);
   // تنضيف رموز Markdown اللي بعض أصحاب العمل بيسيبوها زي ما هي لما بيلصقوا وصف من
   // ChatGPT (##, **نص**, سطور بـ*/-) — النص الأصلي في Firestore زي ما هو، ده بس للعرض.
@@ -471,7 +467,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       <RelatedJobs jobId={job.id} specialization={job.specialization} governorate={job.governorate} />
         </div>
 
-        <BrowseSidebar combos={popularCombos} />
+        <BrowseSidebar combos={seoData.combos} />
       </div>
     </div>
   );

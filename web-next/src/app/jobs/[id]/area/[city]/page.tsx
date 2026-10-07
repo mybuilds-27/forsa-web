@@ -10,8 +10,6 @@ import PublicJobsList from "@/components/PublicJobsList";
 // force-dynamic بيضمن قراءة فريش من Firestore في كل طلب.
 export const dynamic = "force-dynamic";
 
-const POPULAR_COMBOS_COUNT = 40;
-
 // "area" segment ثابت بالإنجليزي بين [id] (المحافظة) و[city] — عشان نتجنب أي تعارض مع
 // مسار /jobs/[id]/[specialty] الموجود بالفعل للتخصصات (Next.js مش بيسمح بأكتر من dynamic
 // segment واحد بنفس المستوى تحت نفس الأب من غير تمييز زي ده).
@@ -54,7 +52,6 @@ export default async function AreaJobsPage({ params }: { params: Promise<{ id: s
     getActivePublicJobs({ governorate, city }),
     getActiveJobsSeoData(),
   ]);
-  const popularCombos = seoData.combos.slice(0, POPULAR_COMBOS_COUNT);
 
   return (
     <div dir="rtl" style={{ width: "100%", maxWidth: 1120, margin: "0 auto", padding: "40px 20px" }}>
@@ -81,7 +78,7 @@ export default async function AreaJobsPage({ params }: { params: Promise<{ id: s
           <PublicJobsList jobs={jobs} />
         </div>
 
-        <BrowseSidebar combos={popularCombos} />
+        <BrowseSidebar combos={seoData.combos} />
       </div>
     </div>
   );

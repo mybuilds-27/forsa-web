@@ -305,7 +305,7 @@ export default function JobsTab({ completionPercent, specialization, keywords, j
 
   useEffect(() => {
     getActiveJobsSeoData()
-      // كل التركيبات اللي فيها وظايف نشطة (مش أشهر 40 بس) — السايدبار بيجمّعها بالتخصص (grouped)،
+      // كل التركيبات اللي فيها وظايف نشطة (مش أشهر 40 بس) — السايدبار بيجمّعها بالتخصص،
       // ونفس استعلام getActiveJobsSeoData الموجود أصلًا، مفيش قراءة زيادة.
       .then((data) => setPopularCombos(data.combos))
       .catch((err) => console.error("Popular combos fetch failed", err));
@@ -564,7 +564,7 @@ export default function JobsTab({ completionPercent, specialization, keywords, j
       )}
         </div>
 
-        <BrowseSidebar combos={popularCombos} grouped />
+        <BrowseSidebar combos={popularCombos} />
       </div>
 
       {/* مودال تفاصيل الوظيفة */}

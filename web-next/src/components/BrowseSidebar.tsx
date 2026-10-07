@@ -1,11 +1,10 @@
-import BrowseByCombos from "./BrowseByCombos";
 import BrowseBySpecialization from "./BrowseBySpecialization";
 import type { JobCombo } from "@/lib/publicJobsQuery";
 
-// grouped بيبدّل قايمة "وظائف X في Y" المسطّحة بقايمة منسدلة على مستويين (تخصص ← محافظاته) —
-// بس تاب الوظائف عند الباحث (JobsTab.tsx) بيستخدمه؛ باقي الصفحات العامة اللي بتستخدم السايدبار
-// ده فاضلة على القايمة المسطّحة (الافتراضي false).
-export default function BrowseSidebar({ combos, grouped = false }: { combos: JobCombo[]; grouped?: boolean }) {
+// السايدبار الموحّد "تصفح حسب المحافظة والتخصص" في كل صفحات التصفح العامة وتاب الوظائف عند
+// الباحث: قايمة منسدلة على مستويين (تخصص ← محافظاته) من BrowseBySpecialization — نفس الشكل
+// بالظبط اللي في /jobs والصفحة الرئيسية ولوحة الأدمن.
+export default function BrowseSidebar({ combos }: { combos: JobCombo[] }) {
   if (combos.length === 0) return null;
 
   return (
@@ -13,7 +12,7 @@ export default function BrowseSidebar({ combos, grouped = false }: { combos: Job
       <summary style={{ cursor: "pointer", fontSize: 15, fontWeight: 700, color: "#14213D", marginBottom: 10 }}>
         تصفح حسب المحافظة والتخصص
       </summary>
-      {grouped ? <BrowseBySpecialization combos={combos} /> : <BrowseByCombos combos={combos} variant="list" />}
+      <BrowseBySpecialization combos={combos} />
     </details>
   );
 }

@@ -10,8 +10,6 @@ import PublicJobsList from "@/components/PublicJobsList";
 // force-dynamic بيضمن قراءة فريش من Firestore في كل طلب.
 export const dynamic = "force-dynamic";
 
-const POPULAR_COMBOS_COUNT = 40;
-
 export async function generateMetadata({ params }: { params: Promise<{ specialty: string }> }) {
   const { specialty: specSlug } = await params;
   const specialization = findSpecialtyBySlug(decodeURIComponent(specSlug));
@@ -44,7 +42,6 @@ export default async function SpecializationJobsPage({
     getActivePublicJobs({ specialization }),
     getActiveJobsSeoData(),
   ]);
-  const popularCombos = seoData.combos.slice(0, POPULAR_COMBOS_COUNT);
   const governoratesForSpecialty = seoData.combos
     .filter((c) => c.specialization === specialization)
     .sort((a, b) => b.count - a.count);
@@ -96,7 +93,7 @@ export default async function SpecializationJobsPage({
           )}
         </div>
 
-        <BrowseSidebar combos={popularCombos} />
+        <BrowseSidebar combos={seoData.combos} />
       </div>
     </div>
   );

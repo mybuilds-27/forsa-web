@@ -36,7 +36,7 @@ import ContactRevealViewers from "@/components/ContactRevealViewers";
 import FacebookPostModal from "@/components/FacebookPostModal";
 import type { FacebookPostJob } from "@/lib/facebookPostText";
 import { fetchContactRevealViewerCount } from "@/lib/contactReveal";
-import BrowseByCombos from "@/components/BrowseByCombos";
+import BrowseBySpecialization from "@/components/BrowseBySpecialization";
 import {
   jobCardContainerStyle,
   tagStyle,
@@ -1182,9 +1182,9 @@ export default function AdminPage() {
           {seoData.combos.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#4A5568", marginBottom: 8 }}>
-                أشهر التركيبات (محافظة + تخصص)
+                التركيبات (محافظة + تخصص)
               </div>
-              <BrowseByCombos combos={seoData.combos.slice(0, 12)} variant="inline" />
+              <BrowseBySpecialization combos={seoData.combos} />
             </div>
           )}
 

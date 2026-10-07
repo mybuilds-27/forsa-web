@@ -10,8 +10,6 @@ import PublicJobsList from "@/components/PublicJobsList";
 // force-dynamic بيضمن قراءة فريش من Firestore في كل طلب.
 export const dynamic = "force-dynamic";
 
-const POPULAR_COMBOS_COUNT = 40;
-
 // [id] هنا هو slug المحافظة (زي القاهرة) — نفس تسمية segment الأب في jobs/[id]/page.tsx.
 // ملحوظة: Next.js بيسيب قيمة الـsegment الأب (id) لسه مشفّرة (percent-encoded) لما توصل
 // لـparams بتاع الصفحة المتداخلة دي (بعكس generateMetadata اللي بيوصلها فك تشفيرها)،
@@ -54,7 +52,6 @@ export default async function GovernorateSpecialtyJobsPage({
     getActivePublicJobs({ governorate, specialization }),
     getActiveJobsSeoData(),
   ]);
-  const popularCombos = seoData.combos.slice(0, POPULAR_COMBOS_COUNT);
 
   return (
     <div dir="rtl" style={{ width: "100%", maxWidth: 1120, margin: "0 auto", padding: "40px 20px" }}>
@@ -81,7 +78,7 @@ export default async function GovernorateSpecialtyJobsPage({
           <PublicJobsList jobs={jobs} />
         </div>
 
-        <BrowseSidebar combos={popularCombos} />
+        <BrowseSidebar combos={seoData.combos} />
       </div>
     </div>
   );

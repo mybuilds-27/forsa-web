@@ -1,5 +1,5 @@
 import Link from "next/link";
-import BrowseByCombos from "@/components/BrowseByCombos";
+import BrowseBySpecialization from "@/components/BrowseBySpecialization";
 import PublicJobsList from "@/components/PublicJobsList";
 import { getActivePublicJobs, getActiveJobsSeoData, getFeaturedPublicJobs } from "@/lib/publicJobsQuery";
 import { getCompanies } from "@/lib/companiesQuery";
@@ -17,7 +17,6 @@ const COLORS = {
 
 const LATEST_JOBS_COUNT = 6;
 const FEATURED_JOBS_COUNT = 6;
-const EXAMPLE_COMBOS_COUNT = 40;
 const HOME_COMPANIES_COUNT = 12;
 // عدد الشعارات في الصف الواحد في قسم "شركات بتوظف عندنا" — بيحدد أقصى عرض للحاوية (شوف تحت)
 // عشان الشركات تتوزع صفوف متقاربة (6+6 بدل 8+4). 92 = عرض عمود الشعار، 16 = الـgap بين الأعمدة.
@@ -47,7 +46,6 @@ export default async function HomePage() {
     .filter((j) => !j.featured)
     .sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0))
     .slice(0, LATEST_JOBS_COUNT);
-  const exampleCombos = seoData.combos.slice(0, EXAMPLE_COMBOS_COUNT);
   // getCompanies() بترجع الشركات مرتبة: بلوجو حقيقي مرفوع الأول، وبعدين تعادل بالأحدث
   // (آخر وظيفة نشطة نشرتها الشركة) — الشرط الأساسي (وظيفة نشطة واحدة على الأقل) زي ما هو.
   const topCompanies = companies.slice(0, HOME_COMPANIES_COUNT);
@@ -340,7 +338,7 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {exampleCombos.length > 0 && (
+        {seoData.combos.length > 0 && (
           <div style={{ marginBottom: 40 }}>
             <h3 style={{ fontSize: 15, color: COLORS.ink, marginBottom: 4 }}>
               تصفح حسب المحافظة والتخصص:
@@ -348,7 +346,7 @@ export default async function HomePage() {
             <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 12 }}>
               كل الوظائف المتاحة حاليًا مقسّمة حسب المحافظة والتخصص.
             </p>
-            <BrowseByCombos combos={exampleCombos} variant="inline" />
+            <BrowseBySpecialization combos={seoData.combos} />
           </div>
         )}
 
