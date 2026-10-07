@@ -1,5 +1,5 @@
 import { slugify } from "@/lib/constants";
-import { getActiveJobsSeoData } from "@/lib/publicJobsQuery";
+import { getActiveJobsSeoData, MIN_JOBS_FOR_INDEX } from "@/lib/publicJobsQuery";
 import { articles } from "@/content/articles";
 
 // ملف الـsitemap ده مالهوش أي dynamic segment، فـNext.js كان بيعمله static prerender
@@ -48,10 +48,12 @@ export default async function sitemap() {
       lastModified: new Date(),
     }));
 
-    comboPages = combos.map((c) => ({
-      url: `${baseUrl}/jobs/${slugify(c.governorate)}/${slugify(c.specialization)}`,
-      lastModified: new Date(),
-    }));
+    comboPages = combos
+      .filter((c) => c.count >= MIN_JOBS_FOR_INDEX)
+      .map((c) => ({
+        url: `${baseUrl}/jobs/${slugify(c.governorate)}/${slugify(c.specialization)}`,
+        lastModified: new Date(),
+      }));
   } catch (err) {
     console.error("Sitemap job fetch failed", err);
   }

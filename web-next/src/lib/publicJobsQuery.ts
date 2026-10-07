@@ -90,6 +90,10 @@ export async function getFilteredPublicJobs(
 
 export type JobCombo = { governorate: string; specialization: string; count: number };
 
+// الحد الأدنى لعدد الوظايف النشطة عشان صفحة محافظة+تخصص تتفهرس: أقل منه الصفحة بتفضل ظاهرة للزوار
+// بس بـnoindex (jobs/[id]/[specialty]/page.tsx) ومبتتحطش في الـsitemap (sitemap.ts).
+export const MIN_JOBS_FOR_INDEX = 2;
+
 export async function getActiveJobsSeoData(): Promise<{
   jobIds: string[];
   governorates: string[];
