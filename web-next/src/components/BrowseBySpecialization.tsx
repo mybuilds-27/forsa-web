@@ -35,14 +35,25 @@ function groupBySpecialization(combos: JobCombo[]): SpecializationGroup[] {
 // مقفول افتراضيًا بيفتح محافظاته، وكل محافظة لينك لنفس صفحة التركيبة (jobs/[محافظة]/[تخصص]).
 // <details> عمدًا (مش state/JS): المحتوى بيفضل موجود في الـHTML حتى وهو مقفول، فجوجل بتشوف
 // اللينكات من غير ما حد يدوس. كومبوننت سيرفر (من غير hooks) فبيشتغل من صفحة سيرفر وكلاينت.
-export default function BrowseBySpecialization({ combos }: { combos: JobCombo[] }) {
+export default function BrowseBySpecialization({
+  combos,
+  currentSpecialization,
+}: {
+  combos: JobCombo[];
+  // اسم التخصص الحالي بنفس قيمة combos بالظبط (مش slug) — مجموعته بس بتتفتح، والباقي مقفول. لو مفيش
+  // تخصص بالاسم ده في القايمة مفيش حاجة بتتفتح ومفيش خطأ.
+  currentSpecialization?: string;
+}) {
   const groups = groupBySpecialization(combos);
   if (groups.length === 0) return null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {groups.map((g) => (
-        <details key={g.specialization} style={{ border: "1px solid #14213D22", borderRadius: 10, background: "#fff" }}>
+        <details
+          key={g.specialization}
+          open={g.specialization === currentSpecialization ? true : undefined}
+          style={{ border: "1px solid #14213D22", borderRadius: 10, background: "#fff" }}>
           <summary style={{ cursor: "pointer", padding: "10px 14px", fontSize: 14, fontWeight: 700, color: "#14213D" }}>
             {g.specialization} ({g.total})
           </summary>

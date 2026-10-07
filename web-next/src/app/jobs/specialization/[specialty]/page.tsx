@@ -93,7 +93,7 @@ export default async function SpecializationJobsPage({
           )}
         </div>
 
-        <BrowseSidebar combos={seoData.combos} />
+        <BrowseSidebar combos={seoData.combos} currentSpecialization={specialization} />
       </div>
     </div>
   );
