@@ -153,7 +153,7 @@ function EmployerPageInner() {
           />
         )}
         {activeTab === "talent" && (
-          <TalentSearchTab employerPlan={companyData?.plan || "free"} />
+          <TalentSearchTab employerPlan={companyData?.plan || "free"} companyName={companyData?.companyName || ""} />
         )}
       </div>
 

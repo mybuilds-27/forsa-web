@@ -7,6 +7,7 @@ import { db, functions } from "@/lib/firebase";
 import { normalizeEntries, SkillEntry } from "@/lib/profileFields";
 import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS, EDUCATION_LEVEL_LABELS } from "@/lib/constants";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
+import { applicantWhatsAppMessage, buildWhatsAppLink, whatsappButtonStyle } from "@/lib/whatsappLink";
 import CVPreview from "./CVPreview";
 import {
   jobCardContainerStyle,
@@ -46,6 +47,10 @@ type Props = {
   viewedAtLabel?: string;
   onRevealContact?: () => void;
   revealHint?: string;
+  // زرار واتساب بيظهر بس في الوضع العادي (مش viewerMode) ولما الاتنين دول يتبعتوا — بيتبعتوا بس من
+  // لوحة صاحب العمل (CompanyTab.tsx)، فلوحة الأدمن مبتظهرلهاش الزرار.
+  whatsappCompanyName?: string;
+  whatsappJobTitle?: string;
 };
 
 // نسخة مكبّرة من tagStyle/ghostActionStyle المشتركة، خاصة بكارت المتقدم بس — عشان متأثرش على كروت الوظائف في باقي الموقع
@@ -71,8 +76,14 @@ export default function ApplicantCard({
   viewedAtLabel,
   onRevealContact,
   revealHint,
+  whatsappCompanyName,
+  whatsappJobTitle,
 }: Props) {
   const s = a.seekerSnapshot || {};
+  const whatsappLink =
+    !viewerMode && whatsappCompanyName && whatsappJobTitle
+      ? buildWhatsAppLink(s.phone, applicantWhatsAppMessage(whatsappCompanyName, whatsappJobTitle))
+      : null;
   const skills = normalizeEntries(s.skills);
   const languages = normalizeEntries(s.languages);
 
@@ -228,6 +239,11 @@ export default function ApplicantCard({
       ) : (
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #14213D14", display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ fontSize: 16 }}>📞 <strong>{s.phone || "—"}</strong></div>
+        {whatsappLink && (
+          <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={whatsappButtonStyle}>
+            💬 واتساب
+          </a>
+        )}
         {s.email && <div style={{ fontSize: 16 }}>✉️ {s.email}</div>}
         {s.cvFileURL ? (
           <a

@@ -48,9 +48,11 @@ function getActivityLabel(updatedAt: Timestamp | undefined): "recent" | "inactiv
 
 type Props = {
   employerPlan: string;
+  // اسم الشركة لرسالة زرار واتساب في SeekerDetailModal (بيتبعت من employer/page.tsx).
+  companyName?: string;
 };
 
-export default function TalentSearchTab({ employerPlan }: Props) {
+export default function TalentSearchTab({ employerPlan, companyName }: Props) {
   const searchParams = useSearchParams();
   // موجود بس لما صاحب العمل يجي على طول من نشر وظيفة جديدة (شوف employer/page.tsx) —
   // مش state دائم، فلو رجع للتبويب من غير ما يمر بنشر وظيفة تاني، مش هيلاقي البانر تاني.
@@ -326,6 +328,7 @@ export default function TalentSearchTab({ employerPlan }: Props) {
           seeker={selectedSeeker}
           employerPlan={employerPlan}
           defaultInviteJobId={justPostedJobId || undefined}
+          whatsappCompanyName={companyName || undefined}
           onClose={() => setSelectedSeeker(null)}
         />
       )}

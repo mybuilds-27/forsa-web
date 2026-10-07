@@ -9,6 +9,7 @@ import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import UpgradeModal from "./UpgradeModal";
 import InviteToJobModal from "./InviteToJobModal";
+import { buildWhatsAppLink, talentWhatsAppMessage, whatsappButtonStyle } from "@/lib/whatsappLink";
 
 // نفس حد الدعوات الشهري (30 للباقة المدفوعة) لكن على كشف بيانات التواصل — بنعتبر كشف
 // بيانات نفس الباحث أكتر من مرة في نفس الشهر عملية واحدة بس (زي الدعوات بالظبط: doc id
@@ -54,10 +55,12 @@ type Props = {
   seeker: any;
   employerPlan: string;
   defaultInviteJobId?: string;
+  // زرار واتساب بيظهر بس لو اتبعت (من TalentSearchTab.tsx) وبعد الكشف، يعني لما التليفون ظاهر فعلًا.
+  whatsappCompanyName?: string;
   onClose: () => void;
 };
 
-export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInviteJobId, onClose }: Props) {
+export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInviteJobId, whatsappCompanyName, onClose }: Props) {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const isPremium = employerPlan === "premium";
@@ -254,6 +257,16 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
             <div>
               <h3 style={{ fontSize: 15, marginBottom: 10 }}>بيانات التواصل</h3>
               <div style={{ fontSize: 14.5, marginBottom: 6 }}>📞 <strong>{s.phone || "—"}</strong></div>
+              {(() => {
+                const whatsappLink = whatsappCompanyName
+                  ? buildWhatsAppLink(s.phone, talentWhatsAppMessage(whatsappCompanyName))
+                  : null;
+                return whatsappLink ? (
+                  <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{ ...whatsappButtonStyle, marginBottom: 6 }}>
+                    💬 واتساب
+                  </a>
+                ) : null;
+              })()}
               {s.email && <div style={{ fontSize: 14.5, marginBottom: 6 }}>✉️ {s.email}</div>}
               {s.cvFileURL && (
                 <a href={s.cvFileURL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 6, color: "#14213D" }}>

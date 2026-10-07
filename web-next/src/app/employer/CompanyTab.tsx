@@ -617,6 +617,8 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                         applicant={a}
                         screeningQuestions={p.screeningQuestions}
                         matchPercent={calculateMatchPercent(p, a.seekerSnapshot || {})}
+                        whatsappCompanyName={companyData?.companyName}
+                        whatsappJobTitle={p.title}
                       />
                     ))
                   )}
