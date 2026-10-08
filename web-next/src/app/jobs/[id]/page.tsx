@@ -26,9 +26,12 @@ async function getJob(id: string): Promise<any> {
     const snap = await getDoc(doc(db, "job_posts", id));
     if (!snap.exists()) return null;
     const data = snap.data();
-    if (data.isActive !== true) return null;
-    if (data.expiresAt && data.expiresAt.toMillis() < Date.now()) return null;
-    return { id: snap.id, ...data };
+    const isExpired = !!data.expiresAt && data.expiresAt.toMillis() < Date.now();
+    // الوظيفة المنتهية (expiresAt عدّى) بتفضل ظاهرة بشريط "منتهية" بدل 404. الموقوفة قبل الانتهاء
+    // (isActive=false وexpiresAt لسه جاي) والمقفولة بسبب الحظر (deactivatedByBan) بتفضل "مش موجودة".
+    // قاعدة Firestore للـget لازم تسمح بالحالة دي كمان، وإلا القراءة بترجع permission-denied وتتعامل كـnull.
+    if (data.isActive !== true && (!isExpired || data.deactivatedByBan === true)) return null;
+    return { id: snap.id, ...data, isExpired };
   } catch {
     // قواعد Firestore بترجع permission-denied مش "غير موجود" لما الدوكيومنت مش موجود أصلاً،
     // فأي id غلط (زي محاولة زيارة /jobs/{slug} بمحافظة مش موجودة) لازم يتعامل معاه كـ"مش موجود".
@@ -59,6 +62,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const job = await getJob(id);
   if (!job) {
     return { title: "وظيفة غير متاحة - الشغل" };
+  }
+  if (job.isExpired) {
+    return {
+      title: `${job.title} (منتهية) - الشغل`,
+      description: `الوظيفة دي انتهت — شوف وظايف مشابهة في ${job.specialization || "نفس المجال"} على موقع الشغل.`,
+      robots: { index: false, follow: true },
+    };
   }
   const title = `${job.title} - وظيفة على موقع الشغل`;
   const description = `${job.title} في ${job.city} - ${job.governorate}. ${sanitizeJobDescription(job.description || "").slice(0, 120)}`;
@@ -267,6 +277,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     notFound();
   }
 
+  if (job.isExpired) {
+    return <ExpiredJobView job={job} />;
+  }
+
   const seoData = await getActiveJobsSeoData();
   const jobPostingJsonLd = buildJobPostingJsonLd(job);
   // تنضيف رموز Markdown اللي بعض أصحاب العمل بيسيبوها زي ما هي لما بيلصقوا وصف من
@@ -468,6 +482,100 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         </div>
 
         <BrowseSidebar combos={seoData.combos} />
+      </div>
+    </div>
+  );
+}
+
+// صفحة الوظيفة المنتهية: شريط واضح + البيانات الأساسية + وظايف مشابهة نشطة. عن قصد من غير: زرار
+// تقديم، بيانات تواصل/واتساب، تتبّع مشاهدات، JobPosting JSON-LD، ولا سايدبار "تصفح حسب" (عشان
+// مانزودش قراءات) — والـmetadata بتحط noindex,follow.
+type ExpiredJob = {
+  id: string;
+  title: string;
+  governorate: string;
+  specialization: string;
+  companyName?: string;
+  showCompanyName?: boolean;
+  description?: string;
+};
+
+function ExpiredJobView({ job }: { job: ExpiredJob }) {
+  const description = sanitizeJobDescription(job.description || "");
+  const descriptionIsArabic = isArabicText(description);
+  const descriptionBulletItems = splitBulletItems(description);
+
+  return (
+    <div dir="rtl" style={{ width: "100%", maxWidth: 820, margin: "0 auto", padding: "40px 20px" }}>
+      <div
+        role="status"
+        style={{
+          background: "#FBEAE3",
+          border: "1px solid #B03A1433",
+          color: "#B03A14",
+          borderRadius: 10,
+          padding: "14px 18px",
+          marginBottom: 24,
+        }}
+      >
+        <div style={{ fontSize: 17, fontWeight: 800 }}>الوظيفة دي انتهت</div>
+        <div style={{ fontSize: 13.5, marginTop: 4 }}>
+          التقديم عليها اتقفل. تقدر تشوف وظايف مشابهة متاحة دلوقتي تحت، أو{" "}
+          <Link href="/jobs" style={{ color: "#B03A14", fontWeight: 700 }}>تصفح كل الوظائف</Link>.
+        </div>
+      </div>
+
+      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>{job.title}</h1>
+      <div style={{ fontSize: 14.5, color: "#14213D", fontWeight: 600, marginBottom: 16 }}>
+        <span style={{ fontFamily: '"Segoe UI Emoji","Noto Color Emoji","Apple Color Emoji",sans-serif' }}>🏢</span>{" "}
+        {job.showCompanyName && job.companyName ? job.companyName : "شركة غير معلنة"}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+        <InfoChip icon="📍" label="المحافظة" value={job.governorate} />
+        {job.specialization && <InfoChip icon="🏷️" label="التخصص" value={job.specialization} />}
+      </div>
+
+      {description && (
+        <>
+          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>وصف الوظيفة</h2>
+          {descriptionBulletItems ? (
+            <ul
+              dir={descriptionIsArabic ? "rtl" : "ltr"}
+              style={{
+                lineHeight: 1.8,
+                marginBottom: 20,
+                textAlign: descriptionIsArabic ? "right" : "left",
+                paddingInlineStart: 20,
+                listStyleType: "disc",
+              }}
+            >
+              {descriptionBulletItems.map((item, i) => (
+                <li key={i} style={{ whiteSpace: "pre-wrap", marginBottom: 4 }}>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p
+              dir={descriptionIsArabic ? "rtl" : "ltr"}
+              style={{
+                lineHeight: 1.8,
+                marginBottom: 20,
+                whiteSpace: "pre-wrap",
+                textAlign: descriptionIsArabic ? "right" : "left",
+              }}
+            >
+              {description}
+            </p>
+          )}
+        </>
+      )}
+
+      <RelatedJobs jobId={job.id} specialization={job.specialization} governorate={job.governorate} />
+
+      <div style={{ marginTop: 24 }}>
+        <Link href="/jobs" style={{ color: "#14213D", fontWeight: 700 }}>← تصفح كل الوظائف</Link>
       </div>
     </div>
   );
