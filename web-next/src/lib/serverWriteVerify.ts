@@ -1,4 +1,6 @@
 import { auth } from "./firebase";
+import { logClientError } from "./errorLog";
+import { getConnectionDiagnostics } from "./withGracePeriod";
 
 // تحقق من حالة السيرور الفعلية بعد HARD_FAIL_TIMEOUT (شوف withGracePeriod.ts) — بيتنادى بس في حالة
 // الفشل، مفيش قراءة في المسار العادي. بيستخدم REST API بتاع Firestore (مش getDocFromServer/getDocs)
@@ -9,6 +11,23 @@ import { auth } from "./firebase";
 // المهلة الكلية لأي تحقق VERIFY_TIMEOUT_MS (التوكن + الطلب مع بعض)، وأي خطأ (شبكة، CORS، 403،
 // timeout) بيرجّع false/null = "مش متأكدين" فالمسار الأصلي (رسالة الفشل) هو اللي بيكمّل.
 export const VERIFY_TIMEOUT_MS = 8000;
+
+// كل محاولة تحقق ناجحة مبتسجّلش حاجة (hard_timeout_recovered بيسجّلها المستدعي)، لكن أي محاولة رجعت
+// "مش مؤكد" بتسجّل سطر واحد hard_timeout_verify_failed بـreason واحدة من:
+//   NO_USER | VERIFY_TIMEOUT | REST_<status> | NETWORK  → التحقق نفسه فشل
+//   NOT_FOUND | MISMATCH                                  → التحقق اشتغل وقال لأ (طبيعي، مش خطأ)
+// عشان نفرّق "التحقق شغال وقال لأ" من "التحقق نفسه مفيش فايدة منه".
+function reasonOf(err: unknown): string {
+  if (err instanceof Error) {
+    if (err.message === "NO_USER" || err.message === "VERIFY_TIMEOUT" || err.message.startsWith("REST_")) return err.message;
+    if (err.name === "AbortError") return "VERIFY_TIMEOUT";
+  }
+  return "NETWORK";
+}
+
+function logVerifyOutcome(originalStep: string, reason: string): void {
+  void logClientError("hard_timeout_verify_failed", undefined, { originalStep, reason, ...getConnectionDiagnostics() });
+}
 
 type RestValue = { stringValue?: string; booleanValue?: boolean; timestampValue?: string };
 type RestDocument = { name: string; fields?: Record<string, RestValue> };
@@ -60,18 +79,25 @@ function timestampMs(doc: RestDocument, field: string): number | null {
 // مختلفة متتحسبش نجاح للمحاولة دي.
 export async function verifyEmployerProfileSaved(
   uid: string,
-  expected: Record<string, string | boolean | undefined>
+  expected: Record<string, string | boolean | undefined>,
+  originalStep: string
 ): Promise<boolean> {
   try {
     const doc = await restGetDocument(`employers/${uid}`);
-    if (!doc) return false;
-    return Object.entries(expected).every(([key, value]) => {
+    if (!doc) {
+      logVerifyOutcome(originalStep, "NOT_FOUND");
+      return false;
+    }
+    const matches = Object.entries(expected).every(([key, value]) => {
       if (value === undefined) return true;
       const field = doc.fields?.[key];
       if (typeof value === "boolean") return field?.booleanValue === value;
       return field?.stringValue === value;
     });
-  } catch {
+    if (!matches) logVerifyOutcome(originalStep, "MISMATCH");
+    return matches;
+  } catch (err) {
+    logVerifyOutcome(originalStep, reasonOf(err));
     return false;
   }
 }
@@ -81,7 +107,7 @@ export async function verifyEmployerProfileSaved(
 // في PostJobTab.tsx، فنفس الـcomposite index (employerId + title + createdAt). بيرجّع id الوظيفة.
 export async function findRecentlyCreatedJobPost(uid: string, title: string, startedAtMs: number): Promise<string | null> {
   try {
-    return await withDeadline(async (signal, deadline) => {
+    const found = await withDeadline(async (signal, deadline) => {
       const since = new Date(startedAtMs - 60_000).toISOString();
       const res = await fetch(`${documentsBase()}:runQuery`, {
         method: "POST",
@@ -109,7 +135,10 @@ export async function findRecentlyCreatedJobPost(uid: string, title: string, sta
       const name = rows.find((r) => r.document)?.document?.name;
       return name ? name.split("/").pop() ?? null : null;
     });
-  } catch {
+    if (!found) logVerifyOutcome("job_post_create", "NOT_FOUND");
+    return found;
+  } catch (err) {
+    logVerifyOutcome("job_post_create", reasonOf(err));
     return null;
   }
 }
@@ -118,10 +147,16 @@ export async function findRecentlyCreatedJobPost(uid: string, title: string, sta
 export async function verifyJobPostUpdated(postId: string, startedAtMs: number): Promise<boolean> {
   try {
     const doc = await restGetDocument(`job_posts/${postId}`);
-    if (!doc) return false;
+    if (!doc) {
+      logVerifyOutcome("job_post_update", "NOT_FOUND");
+      return false;
+    }
     const updatedMs = timestampMs(doc, "updatedAt");
-    return updatedMs !== null && updatedMs >= startedAtMs - 60_000;
-  } catch {
+    const fresh = updatedMs !== null && updatedMs >= startedAtMs - 60_000;
+    if (!fresh) logVerifyOutcome("job_post_update", "MISMATCH");
+    return fresh;
+  } catch (err) {
+    logVerifyOutcome("job_post_update", reasonOf(err));
     return false;
   }
 }

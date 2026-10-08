@@ -128,7 +128,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
           companySize: data.companySize,
           showCompanyNameDefault: data.showCompanyNameDefault,
           logoURL: data.logoURL,
-        });
+        }, isEditMode ? "employer_profile_update" : "employer_profile_create");
         if (!saved) return null;
         logClientError("hard_timeout_recovered", undefined, {
           originalStep: isEditMode ? "employer_profile_update" : "employer_profile_create",
