@@ -812,6 +812,8 @@ function unsubscribePageHtml({ success, message }) {
 </html>`;
 }
 
+// بترجّع true لو Resend قبل الإيميل، وfalse لو رد بخطأ HTTP (بيتسجّل زي الأول). باقي الدوال بتتجاهل
+// القيمة المرجّعة فسلوكها ما اتغيرش. لو الطلب نفسه فشل (شبكة) الخطأ بيتعدّى للمستدعي زي الأول.
 async function sendViaResend({ to, subject, html, text, logPrefix }) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -825,7 +827,18 @@ async function sendViaResend({ to, subject, html, text, logPrefix }) {
   if (!res.ok) {
     const errBody = await res.text();
     logger.error(`${logPrefix}: فشل إرسال الإيميل عبر Resend (HTTP ${res.status})`, errBody);
+    return false;
   }
+  return true;
+}
+
+// إيميل يستاهل نحاول نبعتله: مش الإيميل الداخلي الوهمي لحسابات التليفون (phone+...@elshoghl.internal،
+// نفس تعريف RegisterForm.tsx) وبشكل إيميل بسيط صالح (@ ونقطة بعدها).
+function isDeliverableEmail(email) {
+  if (typeof email !== "string") return false;
+  const value = email.trim().toLowerCase();
+  if (value.endsWith("@elshoghl.internal") || value.includes("phone+")) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 async function createNotification({ userId, type, message, link }) {
@@ -1169,11 +1182,12 @@ exports.dailyApplicationsSummary = onSchedule(
 // تخصص الباحث الأسبوع ده، مفيش إيميل خالص — القسم بتاع المحفوظات إضافة على إيميل قايم
 // بالفعل، مش سبب مستقل لإرسال إيميل.
 exports.weeklySeekerDigest = onSchedule(
-  { schedule: "0 9 * * 0", timeZone: "Africa/Cairo", secrets: [RESEND_API_KEY] },
+  { schedule: "0 9 * * 0", timeZone: "Africa/Cairo", secrets: [RESEND_API_KEY], timeoutSeconds: 540 },
   async () => {
     const db = getFirestore();
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const now = Date.now();
+    const startedAt = now;
 
     let newJobsSnap;
     try {
@@ -1264,23 +1278,60 @@ exports.weeklySeekerDigest = onSchedule(
       return;
     }
 
-    let sentCount = 0;
-    for (const seekerDoc of seekersSnap.docs) {
-      const seekerId = seekerDoc.id;
-      const seeker = seekerDoc.data();
-
+    // تصنيف الباحث حسب شروط الإرسال (من غير أي قراءة) — بيتستخدم في الحلقة وفي عدّ اللي اتوقفنا قبل ما
+    // نوصله لو الوقت قرّب يخلص.
+    function classifySeeker(seeker) {
       // زي نفس منطق الافتراضي true المستخدم في الواجهة (PrivacyTab): غياب الحقل معناه
       // مفعّل، بس false الصريحة (بعد إلغاء الاشتراك) هي اللي بتوقف الإيميل
-      if (seeker.emailNotificationsEnabled === false) continue;
-      if (!seeker.specialization) continue;
+      if (seeker.emailNotificationsEnabled === false) return { reason: "unsubscribed" };
+      if (!seeker.specialization) return { reason: "noSpecialization" };
 
       let candidates = newJobsBySpecialization.get(seeker.specialization) || [];
       if (seeker.governorate) {
         candidates = candidates.filter((j) => j.governorate === seeker.governorate);
       }
-      if (candidates.length === 0) continue; // الشرط الأساسي لتقليل التكلفة
+      if (candidates.length === 0) return { reason: "noMatchingJobs" }; // الشرط الأساسي لتقليل التكلفة
+      return { reason: "eligible", candidates };
+    }
 
-      const newJobsForEmail = candidates.slice(0, 8);
+    // بنوقف الحلقة بعد 480 ثانية من البداية (المهلة 540) بدل ما الدالة تتقطع في نص باحث.
+    const LOOP_DEADLINE_MS = 480 * 1000;
+    const counts = {
+      sent: 0,
+      failed: 0,
+      skippedFakeEmail: 0,
+      skippedNoEmail: 0,
+      noMatchingJobs: 0,
+      unsubscribed: 0,
+      noSpecialization: 0,
+    };
+    let unreachedEligible = 0;
+    let unreachedTotal = 0;
+    const seekerDocs = seekersSnap.docs;
+
+    for (let i = 0; i < seekerDocs.length; i++) {
+      if (Date.now() - startedAt > LOOP_DEADLINE_MS) {
+        for (let j = i; j < seekerDocs.length; j++) {
+          unreachedTotal++;
+          if (classifySeeker(seekerDocs[j].data()).reason === "eligible") unreachedEligible++;
+        }
+        logger.warn(
+          `weeklySeekerDigest: عدّى ${LOOP_DEADLINE_MS / 1000} ثانية — وقفنا الحلقة. باحثين لسه ما اتعالجوش: ${unreachedTotal} (منهم ${unreachedEligible} مؤهلين للإرسال ومش هيتبعتلهم الأسبوع ده)`
+        );
+        break;
+      }
+
+      const seekerDoc = seekerDocs[i];
+      const seekerId = seekerDoc.id;
+      const seeker = seekerDoc.data();
+
+      const classified = classifySeeker(seeker);
+      if (classified.reason !== "eligible") {
+        counts[classified.reason]++;
+        continue;
+      }
+
+      const newJobsForEmail = classified.candidates.slice(0, 8);
       const savedJobIds = savedJobIdsBySeeker.get(seekerId) || [];
       const savedJobsForEmail = (await Promise.all(savedJobIds.map(getSavedJobDetails))).filter(Boolean);
 
@@ -1290,26 +1341,50 @@ exports.weeklySeekerDigest = onSchedule(
 
         if (!seekerEmail) {
           logger.error(`weeklySeekerDigest: مفيش بريد إلكتروني مسجّل للباحث ${seekerId} — تم تجاهله`);
+          counts.skippedNoEmail++;
+          continue;
+        }
+
+        // حسابات التليفون إيميلها داخلي وهمي (@elshoghl.internal / phone+) — مفيش فايدة نحاول نبعتله
+        if (!isDeliverableEmail(seekerEmail)) {
+          counts.skippedFakeEmail++;
           continue;
         }
 
         const unsubscribeUrl = `https://us-central1-recruitment-ccbea.cloudfunctions.net/unsubscribeSeekerEmails?uid=${seekerId}`;
 
-        await sendViaResend({
+        const delivered = await sendViaResend({
           to: seekerEmail,
           subject: "وظايف جديدة تناسبك الأسبوع ده على الشغل",
           html: buildWeeklyDigestEmailHtml({ newJobs: newJobsForEmail, savedJobs: savedJobsForEmail, unsubscribeUrl }),
           text: buildWeeklyDigestEmailText({ newJobs: newJobsForEmail, savedJobs: savedJobsForEmail, unsubscribeUrl }),
           logPrefix: "weeklySeekerDigest",
         });
-        sentCount++;
+        if (delivered) counts.sent++;
+        else counts.failed++;
       } catch (err) {
         // خطأ مع باحث واحد ميوقفش معالجة الباقيين
+        counts.failed++;
         logger.error(`weeklySeekerDigest: حصلت مشكلة مع الباحث ${seekerId}`, err);
       }
     }
 
-    logger.info(`weeklySeekerDigest: اتبعت ${sentCount} إيميل من إجمالي ${seekersSnap.size} باحث`);
+    const summary = {
+      totalSeekers: seekersSnap.size,
+      sent: counts.sent,
+      failed: counts.failed,
+      skippedFakeEmail: counts.skippedFakeEmail,
+      skippedNoEmail: counts.skippedNoEmail,
+      noMatchingJobs: counts.noMatchingJobs,
+      unsubscribed: counts.unsubscribed,
+      noSpecialization: counts.noSpecialization,
+      unreachedTotal,
+      unreachedEligible,
+    };
+    logger.info(
+      `weeklySeekerDigest: اتبعت فعلًا ${summary.sent}، فشل ${summary.failed}، اتجاهل (إيميل وهمي) ${summary.skippedFakeEmail}، من غير إيميل ${summary.skippedNoEmail}، من غير وظايف مناسبة ${summary.noMatchingJobs}، ملغي الاشتراك ${summary.unsubscribed}، من غير تخصص ${summary.noSpecialization}، لسه ما اتعالجوش ${summary.unreachedTotal} (مؤهلين ${summary.unreachedEligible})، إجمالي الباحثين ${summary.totalSeekers}`,
+      summary
+    );
   }
 );
 
