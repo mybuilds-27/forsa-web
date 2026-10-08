@@ -318,8 +318,27 @@ type UsersBreakdown = {
 
 // الأقسام اللي بتتحمّل عند الطلب بس (زرار "عرض")، مرة واحدة ومخزّنة، وبتتعاد في "تحديث" لو
 // اتفتحت قبل كده.
-type OnDemandKey = "applicationStatus" | "signupAttempts" | "visits" | "companies" | "usersBreakdown";
-const ON_DEMAND_KEYS: OnDemandKey[] = ["applicationStatus", "signupAttempts", "visits", "companies", "usersBreakdown"];
+type OnDemandKey =
+  | "applicationStatus"
+  | "signupAttempts"
+  | "visits"
+  | "companies"
+  | "usersBreakdown"
+  | "funnel"
+  | "authErrors"
+  | "seo"
+  | "staleApplications";
+const ON_DEMAND_KEYS: OnDemandKey[] = [
+  "applicationStatus",
+  "signupAttempts",
+  "visits",
+  "companies",
+  "usersBreakdown",
+  "funnel",
+  "authErrors",
+  "seo",
+  "staleApplications",
+];
 
 // بيانات المبلّغ بتتحمّل تلقائي لأول N بلاغ غير مراجَع بس؛ الباقي بزرار "عرض بيانات المبلّغ" (ReporterInfo).
 const AUTO_LOAD_REPORTER_COUNT = 5;
@@ -434,7 +453,9 @@ export default function AdminPage() {
   const [reviewingReportId, setReviewingReportId] = useState<string | null>(null);
   const [applicationStatusStats, setApplicationStatusStats] = useState<ApplicationStatusStats | null>(null);
   const [applicationStatusStatsError, setApplicationStatusStatsError] = useState(false);
-  const [staleSubmittedCount, setStaleSubmittedCount] = useState(0);
+  // تنبيه "تقديم متأخر": null = لسه ما اتحمّلش (بيتحمّل بزرار في قسمه المستقل جنب البلاغات).
+  const [staleApplications, setStaleApplications] = useState<number | null>(null);
+  const [staleApplicationsError, setStaleApplicationsError] = useState(false);
   const [visits30d, setVisits30d] = useState<number | null>(null);
   const [visitsError, setVisitsError] = useState(false);
   const [jobViewCounts, setJobViewCounts] = useState<Record<string, number> | null>(null);
@@ -446,6 +467,7 @@ export default function AdminPage() {
   const [hasMorePosts, setHasMorePosts] = useState(false);
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [seoData, setSeoData] = useState<{ governorates: string[]; specializations: string[]; combos: JobCombo[] } | null>(null);
+  const [seoDataError, setSeoDataError] = useState(false);
   const [loadingStats, setLoadingStats] = useState(false);
   const [editingPost, setEditingPost] = useState<EditingPost>(null);
   const [fbPostJob, setFbPostJob] = useState<FacebookPostJob | null>(null);
@@ -576,26 +598,35 @@ export default function AdminPage() {
     try {
       const snap = await getDocs(collection(db, "applications"));
       const counts = Object.fromEntries(APPLICATION_STATUS_ORDER.map((s) => [s, 0])) as ApplicationStatusStats;
-      const fiveDaysAgo = Date.now() - 5 * 24 * 60 * 60 * 1000;
-      let staleSubmitted = 0;
 
       snap.docs.forEach((d) => {
-        const data = d.data();
-        const status = applicationStatusOf(data);
-        counts[status] += 1;
-        if (status === "submitted" && data.appliedAt?.toMillis && data.appliedAt.toMillis() < fiveDaysAgo) {
-          staleSubmitted += 1;
-        }
+        counts[applicationStatusOf(d.data())] += 1;
       });
 
       setApplicationStatusStats(counts);
-      setStaleSubmittedCount(staleSubmitted);
       setApplicationStatusStatsError(false);
     } catch (err) {
       console.error("Admin application status stats failed", err);
       setApplicationStatusStats(null);
-      setStaleSubmittedCount(0);
       setApplicationStatusStatsError(true);
+    }
+  }
+
+  // عند الطلب، مستقل عن توزيع الحالات: عدد التقديمات اللي لسه "submitted" بقالها أكتر من 5 أيام.
+  // مينفعش فلتر status == "submitted" على السيرفر: التقديمات الجديدة بتتكتب من غير حقل status
+  // أصلًا (applicationStatusOf بيعتبر الغايب submitted)، فالفلتر ده كان هيفوّت أغلبها. بدل كده بنجيب
+  // بس اللي appliedAt بتاعها أقدم من 5 أيام (بدون composite index) ونفلتر الحالة هنا — نفس نتيجة
+  // الشرط القديم بالظبط (تقديم من غير appliedAt كان مستبعد قبل كده وبرضه بيستبعده الاستعلام).
+  async function loadStaleApplications() {
+    try {
+      const fiveDaysAgo = Timestamp.fromMillis(new Date().getTime() - 5 * 24 * 60 * 60 * 1000);
+      const snap = await getDocs(query(collection(db, "applications"), where("appliedAt", "<", fiveDaysAgo)));
+      setStaleApplications(snap.docs.filter((d) => applicationStatusOf(d.data()) === "submitted").length);
+      setStaleApplicationsError(false);
+    } catch (err) {
+      console.error("Admin stale applications failed", err);
+      setStaleApplications(null);
+      setStaleApplicationsError(true);
     }
   }
 
@@ -648,8 +679,7 @@ export default function AdminPage() {
     setStats({ seekers, employers, premium, allPosts, activePosts, applications, totalUsers, activeUsers24h, appInstalls, pushEnabledUsers });
   }
 
-  // قسم "تصفح حسب" (الروابط اللي الزوار بيشوفوها) — كان جزء من loadCoreStats، دلوقتي مستقل عشان
-  // كروت الإحصائيات ماتستناهوش.
+  // قسم "تصفح حسب" (الروابط اللي الزوار بيشوفوها) — عند الطلب: بيتحمّل أول ما الـdetails تتفتح.
   async function loadSeoData() {
     try {
       const jobsSeoData = await getActiveJobsSeoData();
@@ -658,8 +688,11 @@ export default function AdminPage() {
         specializations: jobsSeoData.specializations,
         combos: jobsSeoData.combos,
       });
+      setSeoDataError(false);
     } catch (err) {
       console.error("Admin seo data failed", err);
+      setSeoData(null);
+      setSeoDataError(true);
     }
   }
 
@@ -737,6 +770,14 @@ export default function AdminPage() {
         return loadVisibleCompanies();
       case "usersBreakdown":
         return loadUsersBreakdown();
+      case "funnel":
+        return loadFunnelStats();
+      case "authErrors":
+        return loadAuthErrorStats();
+      case "seo":
+        return loadSeoData();
+      case "staleApplications":
+        return loadStaleApplications();
     }
   }
 
@@ -850,14 +891,12 @@ export default function AdminPage() {
 
   async function loadStats() {
     setLoadingStats(true);
-    // كل دالة بتحدّث state بتاعها لوحدها أول ما تخلص، فكروت الإحصائيات (loadFastStats) مابتستناش
-    // أي قسم تاني. الأقسام اللي بتتحمّل عند الطلب (ON_DEMAND_KEYS) بتتعاد هنا بس لو اتفتحت قبل كده.
+    // اللي بيتحمّل عند الفتح: الكروت، وقايمة "كل الإعلانات"، وبلاغات الوظايف. كل دالة بتحدّث state
+    // بتاعها لوحدها أول ما تخلص، فكروت الإحصائيات مابتستناش أي قسم تاني. الأقسام اللي بتتحمّل عند
+    // الطلب (ON_DEMAND_KEYS) بتتعاد هنا بس لو اتفتحت قبل كده.
     await Promise.all([
       loadFastStats(),
-      loadSeoData(),
       loadJobsList(),
-      loadFunnelStats(),
-      loadAuthErrorStats(),
       loadJobReports(),
       ...ON_DEMAND_KEYS.filter((key) => onDemandStarted[key]).map(onDemandLoader),
     ]);
@@ -1077,19 +1116,21 @@ export default function AdminPage() {
                   <FunnelStepCard key={status} label={APPLICATION_STATUS_LABELS[status]} value={applicationStatusStats[status]} />
                 ))}
               </div>
-              {staleSubmittedCount > 0 && (
-                <div style={{ fontSize: 13, color: "#8A570D", background: "rgba(232,163,61,0.15)", borderRadius: 8, padding: "10px 14px", marginTop: 10 }}>
-                  ⚠️ {staleSubmittedCount} تقديم لسه في انتظار مراجعة من أكتر من 5 أيام
-                </div>
-              )}
             </>
           )}
         </div>
       )}
 
-      {(funnelStats || funnelError) && (
+      {(
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 16, marginBottom: 12 }}>قمع التسجيل (آخر 7 أيام)</h2>
+          {!funnelStats && (
+            <OnDemandButton
+              label="عرض"
+              state={onDemandState("funnel", false, funnelError)}
+              onClick={() => requestOnDemand("funnel")}
+            />
+          )}
           {funnelError && (
             <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
               تعذر تحميل بيانات القمع — باقي الإحصائيات تحت شغالة عادي.
@@ -1177,14 +1218,28 @@ export default function AdminPage() {
         </div>
       )}
 
-      {(authErrorStats || authErrorStatsError) && (
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ fontSize: 16, marginBottom: 4 }}>مراقبة الأخطاء (آخر 7 أيام)</h2>
+        <p style={{ fontSize: 12.5, color: "#4A5568", margin: "0 0 12px" }}>
+          أخطاء التسجيل، ونشر الوظائف، وحفظ بيانات الشركة
+        </p>
+        {!authErrorStats && (
+          <OnDemandButton
+            label="عرض"
+            state={onDemandState("authErrors", false, authErrorStatsError)}
+            onClick={() => requestOnDemand("authErrors")}
+          />
+        )}
+        {authErrorStatsError && (
+          <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
+            تعذر تحميل بيانات الأخطاء — باقي الإحصائيات تحت شغالة عادي.
+          </div>
+        )}
+      </div>
+
+      {authErrorStats && (
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 16, marginBottom: 12 }}>أخطاء التسجيل (آخر 7 أيام)</h2>
-          {authErrorStatsError && (
-            <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
-              تعذر تحميل بيانات الأخطاء — باقي الإحصائيات تحت شغالة عادي.
-            </div>
-          )}
           {authErrorStats && (
             (authErrorStats.phone_send_code.count +
               authErrorStats.phone_verify_code.count +
@@ -1209,14 +1264,9 @@ export default function AdminPage() {
         </div>
       )}
 
-      {(authErrorStats || authErrorStatsError) && (
+      {authErrorStats && (
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 16, marginBottom: 12 }}>أخطاء نشر الوظائف (آخر 7 أيام)</h2>
-          {authErrorStatsError && (
-            <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
-              تعذر تحميل بيانات الأخطاء — باقي الإحصائيات تحت شغالة عادي.
-            </div>
-          )}
           {authErrorStats && (
             (authErrorStats.job_post_create.count + authErrorStats.job_post_update.count) === 0 ? (
               <div style={{ fontSize: 13.5, color: "#2F6F4E", background: "rgba(47,111,78,0.1)", borderRadius: 8, padding: "10px 14px" }}>
@@ -1232,14 +1282,9 @@ export default function AdminPage() {
         </div>
       )}
 
-      {(authErrorStats || authErrorStatsError) && (
+      {authErrorStats && (
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 16, marginBottom: 12 }}>أخطاء حفظ بيانات الشركة (آخر 7 أيام)</h2>
-          {authErrorStatsError && (
-            <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
-              تعذر تحميل بيانات الأخطاء — باقي الإحصائيات تحت شغالة عادي.
-            </div>
-          )}
           {authErrorStats && (
             (authErrorStats.employer_profile_create.count + authErrorStats.employer_profile_update.count) === 0 ? (
               <div style={{ fontSize: 13.5, color: "#2F6F4E", background: "rgba(47,111,78,0.1)", borderRadius: 8, padding: "10px 14px" }}>
@@ -1254,6 +1299,27 @@ export default function AdminPage() {
           )}
         </div>
       )}
+
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ fontSize: 16, marginBottom: 12 }}>تقديمات متأخرة</h2>
+        {staleApplications === null && (
+          <OnDemandButton
+            label="فحص التقديمات المتأخرة"
+            state={onDemandState("staleApplications", false, staleApplicationsError)}
+            onClick={() => requestOnDemand("staleApplications")}
+          />
+        )}
+        {staleApplications !== null &&
+          (staleApplications > 0 ? (
+            <div style={{ fontSize: 13, color: "#8A570D", background: "rgba(232,163,61,0.15)", borderRadius: 8, padding: "10px 14px" }}>
+              ⚠️ {staleApplications} تقديم لسه في انتظار مراجعة من أكتر من 5 أيام
+            </div>
+          ) : (
+            <div style={{ fontSize: 13.5, color: "#2F6F4E", background: "rgba(47,111,78,0.1)", borderRadius: 8, padding: "10px 14px" }}>
+              مفيش تقديمات متأخرة أكتر من 5 أيام 👍
+            </div>
+          ))}
+      </div>
 
       {(jobReports || jobReportsError) && (
         <div style={{ marginBottom: 20 }}>
@@ -1317,13 +1383,26 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {seoData && (seoData.combos.length > 0 || seoData.governorates.length > 0 || seoData.specializations.length > 0) && (
-        <details style={{ marginBottom: 30, border: "1px solid #14213D22", borderRadius: 8, padding: 14 }}>
+      {(
+        <details
+          onToggle={(e) => {
+            if (e.currentTarget.open && !onDemandStarted.seo) requestOnDemand("seo");
+          }}
+          style={{ marginBottom: 30, border: "1px solid #14213D22", borderRadius: 8, padding: 14 }}
+        >
           <summary style={{ cursor: "pointer", fontSize: 15, fontWeight: 700, color: "#14213D" }}>
             🔍 تصفح حسب (نفس الروابط اللي الزوار بيشوفوها)
           </summary>
 
-          {seoData.combos.length > 0 && (
+          {!seoData && (
+            <OnDemandButton label="تحميل" state={onDemandState("seo", false, seoDataError)} onClick={() => requestOnDemand("seo")} />
+          )}
+
+          {seoData && seoData.combos.length === 0 && seoData.governorates.length === 0 && seoData.specializations.length === 0 && (
+            <div style={{ marginTop: 16, fontSize: 13, color: "#4A5568" }}>مفيش روابط متاحة دلوقتي.</div>
+          )}
+
+          {seoData && seoData.combos.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#4A5568", marginBottom: 8 }}>
                 التركيبات (محافظة + تخصص)
@@ -1332,7 +1411,7 @@ export default function AdminPage() {
             </div>
           )}
 
-          {seoData.governorates.length > 0 && (
+          {seoData && seoData.governorates.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#4A5568", marginBottom: 8 }}>المحافظات</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -1345,7 +1424,7 @@ export default function AdminPage() {
             </div>
           )}
 
-          {seoData.specializations.length > 0 && (
+          {seoData && seoData.specializations.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#4A5568", marginBottom: 8 }}>التخصصات</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
