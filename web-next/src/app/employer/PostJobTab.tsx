@@ -8,6 +8,7 @@ import { friendlyErrorMessage } from "@/lib/errorMessages";
 import { logClientError } from "@/lib/errorLog";
 import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
 import { withGracePeriod, getConnectionDiagnostics } from "@/lib/withGracePeriod";
+import { findRecentlyCreatedJobPost, verifyJobPostUpdated } from "@/lib/serverWriteVerify";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import KeywordsPicker, { MAX_KEYWORDS } from "@/components/KeywordsPicker";
 
@@ -476,8 +477,19 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       if (isEditMode && editingPost) {
         // updatedAt بتتحدث بس هنا (مسار التعديل) — postData نفسها مشتركة مع مسار النشر
         // الجديد تحت، فمينفعش نضيفها هناك عشان مبقاش لها معنى وقت الإنشاء الأول.
+        const saveStartedAt = new Date().getTime();
         const updatePromise = updateDoc(doc(db, "job_posts", editingPost.id), { ...postData, updatedAt: serverTimestamp() });
-        await withGracePeriod(updatePromise, () => setSlowSaveNotice(true));
+        // التحقق من السيرفر بعد الـ60 ثانية بس (شوف withGracePeriod وserverWriteVerify.ts).
+        await withGracePeriod(updatePromise, () => setSlowSaveNotice(true), async () => {
+          const saved = await verifyJobPostUpdated(editingPost.id, saveStartedAt);
+          if (!saved) return null;
+          logClientError("hard_timeout_recovered", undefined, {
+            originalStep: "job_post_update",
+            elapsedMs: Date.now() - saveStartedAt,
+            ...getConnectionDiagnostics(),
+          });
+          return { value: undefined };
+        });
         setSlowSaveNotice(false);
         alert("تم حفظ التعديلات ✓");
         resetForm();
@@ -486,11 +498,23 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         const expiry = new Date();
         expiry.setDate(expiry.getDate() + (currentPlan === "premium" ? 60 : 30));
         postData.expiresAt = Timestamp.fromDate(expiry);
+        const saveStartedAt = new Date().getTime();
         const addPromise = addDoc(collection(db, "job_posts"), {
           ...postData,
           createdAt: serverTimestamp(),
         });
-        const docRef = await withGracePeriod(addPromise, () => setSlowSaveNotice(true));
+        // addDoc مبيدّيش id قبل ما يخلص، فالتحقق بعد الـ60 ثانية بيدوّر على وظيفة بنفس employerId والعنوان
+        // وcreatedAt حديث (شوف findRecentlyCreatedJobPost) ويرجّع ref بنفس الـid لو لقاها.
+        const docRef = await withGracePeriod(addPromise, () => setSlowSaveNotice(true), async () => {
+          const createdId = await findRecentlyCreatedJobPost(postData.employerId, postData.title, saveStartedAt);
+          if (!createdId) return null;
+          logClientError("hard_timeout_recovered", undefined, {
+            originalStep: "job_post_create",
+            elapsedMs: Date.now() - saveStartedAt,
+            ...getConnectionDiagnostics(),
+          });
+          return { value: doc(db, "job_posts", createdId) };
+        });
         setSlowSaveNotice(false);
         setSuccessMessage("تم نشر الإعلان بنجاح ✓");
         resetForm();

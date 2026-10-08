@@ -8,6 +8,7 @@ import { GOVERNORATES, GOVERNORATE_CITIES } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 import { logClientError } from "@/lib/errorLog";
 import { withGracePeriod, getConnectionDiagnostics } from "@/lib/withGracePeriod";
+import { verifyEmployerProfileSaved } from "@/lib/serverWriteVerify";
 import FileUploadButton from "@/components/FileUploadButton";
 
 type Props = {
@@ -115,7 +116,27 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
         { contactPerson, phone },
         { merge: true }
       );
-      await withGracePeriod(batch.commit(), () => setSlowSaveNotice(true));
+      // لو عدّت مهلة الـ60 ثانية، قبل ما نرفض بنتأكد من السيرفر هل الـbatch اتطبق فعلًا (الـack بس هو
+      // اللي ضاع) — لو أيوه بنعتبرها نجاح عادي ونسجّل hard_timeout_recovered (شوف serverWriteVerify.ts).
+      const saveStartedAt = Date.now();
+      await withGracePeriod(batch.commit(), () => setSlowSaveNotice(true), async () => {
+        const saved = await verifyEmployerProfileSaved(user.uid, {
+          companyName: data.companyName,
+          industry: data.industry,
+          governorate: data.governorate,
+          city: data.city,
+          companySize: data.companySize,
+          showCompanyNameDefault: data.showCompanyNameDefault,
+          logoURL: data.logoURL,
+        });
+        if (!saved) return null;
+        logClientError("hard_timeout_recovered", undefined, {
+          originalStep: isEditMode ? "employer_profile_update" : "employer_profile_create",
+          elapsedMs: Date.now() - saveStartedAt,
+          ...getConnectionDiagnostics(),
+        });
+        return { value: undefined };
+      });
       setSlowSaveNotice(false);
 
       if (!isEditMode) {

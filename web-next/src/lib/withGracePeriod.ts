@@ -54,17 +54,37 @@ export function recordForcedLongPolling(forced: boolean): void {
 // حقيقي)، بترجع نتيجتها عادي وكأن حاجة محصلتش. لو وصلنا HARD_FAIL_TIMEOUT_MS من غير ما تخلص،
 // ساعتها بس بنعتبرها فشلت فعلاً ونرفض بـ"HARD_FAIL_TIMEOUT". أي خطأ حقيقي من العملية نفسها
 // (مش مجرد بطء) بيتنشر فورًا من غير أي انتظار إضافي.
-export function withGracePeriod<T>(promise: Promise<T>, onSlow: () => void): Promise<T> {
+//
+// recover (اختياري، بيتنفذ بس بعد الـ60 ثانية وقبل الرفض): تحقق من حالة السيرفر الفعلية (شوف
+// lib/serverWriteVerify.ts) — لو الكتابة اتطبقت فعلًا والـack بس هو اللي ضاع، بيرجّع { value } وبنعتبرها
+// نجاح عادي؛ null (أو أي خطأ فيه) معناها "مش متأكدين" فنكمّل رفض HARD_FAIL_TIMEOUT زي الأول. لو العملية
+// الأصلية خلصت أثناء التحقق، نتيجتها هي اللي بتكسب.
+export function withGracePeriod<T>(
+  promise: Promise<T>,
+  onSlow: () => void,
+  recover?: () => Promise<{ value: T } | null>
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     let settled = false;
     const slowTimer = setTimeout(() => {
       if (!settled) onSlow();
     }, SAVE_TIMEOUT_MS);
-    const hardTimer = setTimeout(() => {
+    const hardTimer = setTimeout(async () => {
+      if (settled) return;
+      let recovered: { value: T } | null = null;
+      if (recover) {
+        try {
+          recovered = await recover();
+        } catch {
+          recovered = null;
+        }
+      }
       if (settled) return;
       settled = true;
+      clearTimeout(slowTimer);
       markForceLongPolling();
-      reject(new Error("HARD_FAIL_TIMEOUT"));
+      if (recovered) resolve(recovered.value);
+      else reject(new Error("HARD_FAIL_TIMEOUT"));
     }, HARD_FAIL_TIMEOUT_MS);
 
     promise.then(
