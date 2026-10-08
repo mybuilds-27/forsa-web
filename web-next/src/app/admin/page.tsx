@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   collection,
@@ -12,6 +12,7 @@ import {
   orderBy,
   query,
   startAfter,
+  type Query,
   updateDoc,
   where,
   limit,
@@ -288,25 +289,40 @@ function authErrorSubtitle(detail: AuthErrorDetail): string | undefined {
   return "(كود الخطأ مش متسجل)";
 }
 
+// أرقام الدفعة السريعة (كلها getCountFromServer عدا appInstalls مستند واحد) — null يعني القراءة دي
+// فشلت (بتتعرض "—") من غير ما تمنع باقي الكروت. شوف loadFastStats.
 type Stats = {
-  seekers: number;
-  employers: number;
-  premium: number;
-  visibleCompanies: number;
-  allPosts: number;
-  activePosts: number;
-  applications: number;
-  totalUsers: number;
-  activeUsers24h: number;
-  // تفصيل لنفس الرقم أعلاه: "جديد" يعني اتسجل وقعّل نشط في نفس الجلسة تقريبًا (مش عائد
-  // فعليًا)، و"عائد" يعني حساب قديم رجع يستخدم الموقع. شوف الحساب في loadCoreStats.
+  seekers: number | null;
+  employers: number | null;
+  premium: number | null;
+  allPosts: number | null;
+  activePosts: number | null;
+  applications: number | null;
+  totalUsers: number | null;
+  activeUsers24h: number | null;
+  appInstalls: number | null;
+  pushEnabledUsers: number | null;
+};
+
+// أرقام مبنية على جلب مستندات users كاملة — بتتحمّل عند الطلب بس (زرار "عرض"، شوف requestOnDemand).
+type UsersBreakdown = {
+  // عدد مستندات users وقت الجلب ده — هو المقام الصح لنسب طريقة التسجيل (مجموعهم = total بالظبط).
+  total: number;
+  // تفصيل لرقم "نشطين 24 ساعة": "جديد" يعني اتسجل وقعّل نشط في نفس الجلسة تقريبًا (مش عائد
+  // فعليًا)، و"عائد" يعني حساب قديم رجع يستخدم الموقع. شوف loadUsersBreakdown.
   activeUsers24hNew: number;
   activeUsers24hReturning: number;
-  appInstalls: number;
-  pushEnabledUsers: number;
-  // تقسيم totalUsers بالطريقة المستنتجة (شوف inferSignupMethod) — مجموعهم = totalUsers بالظبط.
+  // تقسيم total بالطريقة المستنتجة (شوف inferSignupMethod).
   signupMethodInferred: Record<InferredSignupMethod, number>;
 };
+
+// الأقسام اللي بتتحمّل عند الطلب بس (زرار "عرض")، مرة واحدة ومخزّنة، وبتتعاد في "تحديث" لو
+// اتفتحت قبل كده.
+type OnDemandKey = "applicationStatus" | "signupAttempts" | "visits" | "companies" | "usersBreakdown";
+const ON_DEMAND_KEYS: OnDemandKey[] = ["applicationStatus", "signupAttempts", "visits", "companies", "usersBreakdown"];
+
+// بيانات المبلّغ بتتحمّل تلقائي لأول N بلاغ غير مراجَع بس؛ الباقي بزرار "عرض بيانات المبلّغ" (ReporterInfo).
+const AUTO_LOAD_REPORTER_COUNT = 5;
 
 type FunnelStats = {
   roleSelected: number;
@@ -402,6 +418,11 @@ export default function AdminPage() {
   const [status, setStatus] = useState<"loading" | "denied" | "allowed">("loading");
   const [adminTab, setAdminTab] = useState<AdminTab>("stats");
   const [stats, setStats] = useState<Stats | null>(null);
+  const [visibleCompanies, setVisibleCompanies] = useState<number | null>(null);
+  const [visibleCompaniesError, setVisibleCompaniesError] = useState(false);
+  const [usersBreakdown, setUsersBreakdown] = useState<UsersBreakdown | null>(null);
+  const [usersBreakdownError, setUsersBreakdownError] = useState(false);
+  const [onDemandStarted, setOnDemandStarted] = useState<Record<string, boolean>>({});
   const [funnelStats, setFunnelStats] = useState<FunnelStats | null>(null);
   const [funnelError, setFunnelError] = useState(false);
   const [signupMethodStats, setSignupMethodStats] = useState<SignupMethodStats | null>(null);
@@ -596,71 +617,91 @@ export default function AdminPage() {
     }
   }
 
-  async function loadCoreStats() {
+  async function countOf(q: Query): Promise<number> {
+    return (await getCountFromServer(q)).data().count;
+  }
+
+  // الدفعة السريعة: كل الأرقام اللي ممكن تتحسب بعدّ (getCountFromServer) من غير جلب المستندات —
+  // نفس القيم بالظبط اللي كانت بتتحسب قبل كده من .size / فلترة المستندات المجلوبة (باقة مدفوعة =
+  // where plan == "premium" هو نفس plan === "premium"، ومعدل إتمام التسجيل حساب على
+  // seekers/employers/totalUsers نفسهم). allSettled: فشل عدّاد واحد بيظهر "—" في كارته بس.
+  async function loadFastStats() {
+    const oneDayAgo = Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const settled = await Promise.allSettled([
+      countOf(collection(db, "job_seekers")),
+      countOf(collection(db, "employers")),
+      countOf(query(collection(db, "employers"), where("plan", "==", "premium"))),
+      countOf(collection(db, "job_posts")),
+      countOf(query(collection(db, "job_posts"), where("isActive", "==", true))),
+      countOf(collection(db, "applications")),
+      countOf(collection(db, "users")),
+      countOf(query(collection(db, "users"), where("lastActiveAt", ">=", oneDayAgo))),
+      countOf(query(collection(db, "users"), where("pushEnabled", "==", true))),
+      // عداد تراكمي بسيط (مستند واحد) — شوف lib/appInstalls.ts.
+      getDoc(doc(db, "app_installs", "total")).then((snap) => snap.data()?.count || 0),
+    ]);
+    settled.forEach((r, i) => {
+      if (r.status === "rejected") console.error(`Admin fast stat #${i} failed`, r.reason);
+    });
+    const [seekers, employers, premium, allPosts, activePosts, applications, totalUsers, activeUsers24h, pushEnabledUsers, appInstalls] =
+      settled.map((r) => (r.status === "fulfilled" ? r.value : null));
+    setStats({ seekers, employers, premium, allPosts, activePosts, applications, totalUsers, activeUsers24h, appInstalls, pushEnabledUsers });
+  }
+
+  // قسم "تصفح حسب" (الروابط اللي الزوار بيشوفوها) — كان جزء من loadCoreStats، دلوقتي مستقل عشان
+  // كروت الإحصائيات ماتستناهوش.
+  async function loadSeoData() {
     try {
-      const oneDayAgo = Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
-
-      // allPosts/activePosts/applications بقوا عدّ بس (getCountFromServer) — استعلام رخيص
-      // جدًا مبيجيبش بيانات المستندات خالص، بدل ما نجيب كل المستندات فعليًا بس عشان نعدهم.
-      const [
-        seekersSnap,
-        employersSnap,
-        allPostsCountSnap,
-        activePostsCountSnap,
-        applicationsCountSnap,
-        visibleCompanyPostsSnap,
-        totalUsersSnap,
-        activeUsersSnap,
-        jobsSeoData,
-        appInstallsDoc,
-        pushEnabledCountSnap,
-      ] = await Promise.all([
-        getDocs(collection(db, "job_seekers")),
-        getDocs(collection(db, "employers")),
-        getCountFromServer(collection(db, "job_posts")),
-        getCountFromServer(query(collection(db, "job_posts"), where("isActive", "==", true))),
-        getCountFromServer(collection(db, "applications")),
-        // "شركة ظاهرة للعامة" محتاجة بيانات فعلية (employerId، expiresAt) مش عدّ بس — استعلام
-        // مصغّر (isActive + showCompanyName) بدل جلب كل job_posts زي الأول عشان نوفر قراءات.
-        getDocs(query(collection(db, "job_posts"), where("isActive", "==", true), where("showCompanyName", "==", true))),
-        getDocs(collection(db, "users")),
-        getDocs(query(collection(db, "users"), where("lastActiveAt", ">=", oneDayAgo))),
-        getActiveJobsSeoData(),
-        // عداد تراكمي بسيط (مستند واحد) — شوف lib/appInstalls.ts.
-        getDoc(doc(db, "app_installs", "total")),
-        // getCountFromServer برضه هنا (زي allPosts/activePosts) — استعلام عدّ رخيص من غير
-        // قراءة مستندات فعليًا، بدل collectionGroup على fcmTokens اللي كانت هتحتاج قراءة كل
-        // توكن لكل جهاز لكل مستخدم بس عشان نعدّ المستخدمين الفريدين.
-        getCountFromServer(query(collection(db, "users"), where("pushEnabled", "==", true))),
-      ]);
-
+      const jobsSeoData = await getActiveJobsSeoData();
       setSeoData({
         governorates: jobsSeoData.governorates,
         specializations: jobsSeoData.specializations,
         combos: jobsSeoData.combos,
       });
+    } catch (err) {
+      console.error("Admin seo data failed", err);
+    }
+  }
 
-      const premiumCount = employersSnap.docs.filter((d) => d.data().plan === "premium").length;
-
-      // نفس تعريف getCompanies في companies/page.tsx بالظبط: صاحب عمل عنده على الأقل إعلان
-      // نشط، اسمه ظاهر، ومش منتهي الصلاحية. isActive/showCompanyName اتفلتروا في الاستعلام
-      // نفسه فوق، وهنا بس بنفلتر expiresAt (مش قابل لفلترة Firestore بسهولة في نفس الاستعلام).
+  // عند الطلب: "الشركات الظاهرة للعامة" — نفس تعريف getCompanies في companies/page.tsx بالظبط:
+  // صاحب عمل عنده على الأقل إعلان نشط، اسمه ظاهر، ومش منتهي الصلاحية. isActive/showCompanyName
+  // اتفلتروا في الاستعلام نفسه، وهنا بس بنفلتر expiresAt (مش قابل لفلترة Firestore بسهولة معاهم).
+  async function loadVisibleCompanies() {
+    try {
+      const snap = await getDocs(query(collection(db, "job_posts"), where("isActive", "==", true), where("showCompanyName", "==", true)));
       const now = Date.now();
       const visibleCompanyIds = new Set(
-        visibleCompanyPostsSnap.docs
-          .map((d) => d.data() as any)
+        snap.docs
+          .map((d) => d.data() as { expiresAt?: Timestamp; employerId?: string })
           .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now)
           .map((p) => p.employerId)
       );
+      setVisibleCompanies(visibleCompanyIds.size);
+      setVisibleCompaniesError(false);
+    } catch (err) {
+      console.error("Admin visible companies failed", err);
+      setVisibleCompanies(null);
+      setVisibleCompaniesError(true);
+    }
+  }
 
-      // تفصيل "نشطين آخر 24 ساعة": مستخدم "جديد" لو سجّل حسابه وبقى نشط في نفس الجلسة
-      // تقريبًا (فرق أقل من ساعة بين createdAt وlastActiveAt) — من غير كده بيتحسب "عائد".
-      // مستخدم من غير createdAt أصلًا (سجلات قديمة جدًا) بيتحسب عائد افتراضيًا، مش جديد.
+  // عند الطلب: تفصيل "نشطين 24 ساعة" (جدد/عائدين) + "طريقة التسجيل الفعلية (تقريبي)" — الاتنين
+  // محتاجين مستندات users نفسها. تفصيل "جديد": مستخدم سجّل حسابه وبقى نشط في نفس الجلسة تقريبًا
+  // (فرق أقل من ساعة بين createdAt وlastActiveAt) — من غير كده بيتحسب "عائد". مستخدم من غير
+  // createdAt أصلًا (سجلات قديمة جدًا) بيتحسب عائد افتراضيًا، مش جديد.
+  async function loadUsersBreakdown() {
+    try {
+      const oneDayAgo = Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+      const [totalUsersSnap, activeUsersSnap] = await Promise.all([
+        getDocs(collection(db, "users")),
+        getDocs(query(collection(db, "users"), where("lastActiveAt", ">=", oneDayAgo))),
+      ]);
+
       const NEW_USER_WINDOW_MS = 60 * 60 * 1000;
       let activeUsers24hNew = 0;
       let activeUsers24hReturning = 0;
       for (const d of activeUsersSnap.docs) {
-        const data = d.data() as any;
+        const data = d.data() as { lastActiveAt?: Timestamp; createdAt?: Timestamp };
         const lastActiveMs = data.lastActiveAt?.toMillis?.();
         const createdMs = data.createdAt?.toMillis?.();
         if (createdMs != null && lastActiveMs != null && lastActiveMs - createdMs < NEW_USER_WINDOW_MS) {
@@ -670,31 +711,44 @@ export default function AdminPage() {
         }
       }
 
-      // من نفس totalUsersSnap المجلوب أصلًا — بدون أي قراءة إضافية من Firestore.
       const signupMethodInferred: Record<InferredSignupMethod, number> = { phone: 0, google: 0, email: 0, unknown: 0 };
       for (const d of totalUsersSnap.docs) {
         signupMethodInferred[inferSignupMethod(d.data() as SignupMethodUserFields)] += 1;
       }
 
-      setStats({
-        seekers: seekersSnap.size,
-        employers: employersSnap.size,
-        premium: premiumCount,
-        visibleCompanies: visibleCompanyIds.size,
-        allPosts: allPostsCountSnap.data().count,
-        activePosts: activePostsCountSnap.data().count,
-        applications: applicationsCountSnap.data().count,
-        totalUsers: totalUsersSnap.size,
-        activeUsers24h: activeUsersSnap.size,
-        activeUsers24hNew,
-        activeUsers24hReturning,
-        appInstalls: appInstallsDoc.data()?.count || 0,
-        pushEnabledUsers: pushEnabledCountSnap.data().count,
-        signupMethodInferred,
-      });
+      setUsersBreakdown({ total: totalUsersSnap.size, activeUsers24hNew, activeUsers24hReturning, signupMethodInferred });
+      setUsersBreakdownError(false);
     } catch (err) {
-      console.error("Admin stats failed", err);
+      console.error("Admin users breakdown failed", err);
+      setUsersBreakdown(null);
+      setUsersBreakdownError(true);
     }
+  }
+
+  function onDemandLoader(key: OnDemandKey): Promise<void> {
+    switch (key) {
+      case "applicationStatus":
+        return loadApplicationStatusStats();
+      case "signupAttempts":
+        return loadSignupMethodStats();
+      case "visits":
+        return loadVisitStats();
+      case "companies":
+        return loadVisibleCompanies();
+      case "usersBreakdown":
+        return loadUsersBreakdown();
+    }
+  }
+
+  function requestOnDemand(key: OnDemandKey) {
+    setOnDemandStarted((prev) => ({ ...prev, [key]: true }));
+    void onDemandLoader(key);
+  }
+
+  function onDemandState(key: OnDemandKey, hasData: boolean, hasError: boolean): "idle" | "loading" | "error" | "done" {
+    if (hasData) return "done";
+    if (hasError) return "error";
+    return onDemandStarted[key] ? "loading" : "idle";
   }
 
   // job_views وعدد اللي شافوا وسيلة التواصل (job_contact_views) وapplications للدفعة الحالية
@@ -707,33 +761,40 @@ export default function AdminPage() {
     const appCounts: Record<string, number> = {};
     if (postIds.length === 0) return { views, contactViewers, appCounts };
 
-    try {
-      const viewsSnap = await getDocs(query(collection(db, "job_views"), where(documentId(), "in", postIds)));
-      viewsSnap.docs.forEach((d) => {
-        views[d.id] = d.data().count || 0;
-      });
-    } catch (err) {
-      console.error("Admin job views (page) failed", err);
-    }
-
-    try {
-      const viewerResults = await Promise.allSettled(contactPostIds.map((id) => fetchContactRevealViewerCount(id)));
-      viewerResults.forEach((result, i) => {
-        if (result.status === "fulfilled") contactViewers[contactPostIds[i]] = result.value;
-      });
-    } catch (err) {
-      console.error("Admin contact viewers (page) failed", err);
-    }
-
-    try {
-      const appsSnap = await getDocs(query(collection(db, "applications"), where("jobPostId", "in", postIds)));
-      appsSnap.docs.forEach((d) => {
-        const jid = d.data().jobPostId;
-        appCounts[jid] = (appCounts[jid] || 0) + 1;
-      });
-    } catch (err) {
-      console.error("Admin applications (page) failed", err);
-    }
+    // التلات استعلامات مستقلين عن بعض (كل واحد بـtry/catch لوحده) فبيتنفذوا مع بعض بدل ورا بعض.
+    await Promise.all([
+      (async () => {
+        try {
+          const viewsSnap = await getDocs(query(collection(db, "job_views"), where(documentId(), "in", postIds)));
+          viewsSnap.docs.forEach((d) => {
+            views[d.id] = d.data().count || 0;
+          });
+        } catch (err) {
+          console.error("Admin job views (page) failed", err);
+        }
+      })(),
+      (async () => {
+        try {
+          const viewerResults = await Promise.allSettled(contactPostIds.map((id) => fetchContactRevealViewerCount(id)));
+          viewerResults.forEach((result, i) => {
+            if (result.status === "fulfilled") contactViewers[contactPostIds[i]] = result.value;
+          });
+        } catch (err) {
+          console.error("Admin contact viewers (page) failed", err);
+        }
+      })(),
+      (async () => {
+        try {
+          const appsSnap = await getDocs(query(collection(db, "applications"), where("jobPostId", "in", postIds)));
+          appsSnap.docs.forEach((d) => {
+            const jid = d.data().jobPostId;
+            appCounts[jid] = (appCounts[jid] || 0) + 1;
+          });
+        } catch (err) {
+          console.error("Admin applications (page) failed", err);
+        }
+      })(),
+    ]);
 
     return { views, contactViewers, appCounts };
   }
@@ -789,7 +850,17 @@ export default function AdminPage() {
 
   async function loadStats() {
     setLoadingStats(true);
-    await Promise.all([loadCoreStats(), loadJobsList(), loadFunnelStats(), loadSignupMethodStats(), loadAuthErrorStats(), loadJobReports(), loadApplicationStatusStats(), loadVisitStats()]);
+    // كل دالة بتحدّث state بتاعها لوحدها أول ما تخلص، فكروت الإحصائيات (loadFastStats) مابتستناش
+    // أي قسم تاني. الأقسام اللي بتتحمّل عند الطلب (ON_DEMAND_KEYS) بتتعاد هنا بس لو اتفتحت قبل كده.
+    await Promise.all([
+      loadFastStats(),
+      loadSeoData(),
+      loadJobsList(),
+      loadFunnelStats(),
+      loadAuthErrorStats(),
+      loadJobReports(),
+      ...ON_DEMAND_KEYS.filter((key) => onDemandStarted[key]).map(onDemandLoader),
+    ]);
     setLoadingStats(false);
   }
 
@@ -860,6 +931,9 @@ export default function AdminPage() {
 
   // reviewed غير موجود بيتعامل معاه زي false — البلاغات الجديدة (لسه محدش راجعها) هي البارزة،
   // والمتراجعة بتتطوي في قسم صغير منفصل تحت.
+  // معدل إتمام التسجيل حساب على أرقام الدفعة السريعة نفسها (seekers + employers من totalUsers).
+  const completedAccounts =
+    stats && stats.seekers !== null && stats.employers !== null ? stats.seekers + stats.employers : null;
   const pendingReports = jobReports?.filter((r) => !r.reviewed) || [];
   const reviewedReports = jobReports?.filter((r) => r.reviewed) || [];
 
@@ -908,29 +982,70 @@ export default function AdminPage() {
         >
           <StatCard
             label="نشطين آخر 24 ساعة"
-            value={stats.activeUsers24h}
-            subtitle={`منهم ${stats.activeUsers24hNew} جدد، ${stats.activeUsers24hReturning} عائدين`}
+            value={stats.activeUsers24h ?? "—"}
+            subtitle={
+              usersBreakdown
+                ? `منهم ${usersBreakdown.activeUsers24hNew} جدد، ${usersBreakdown.activeUsers24hReturning} عائدين`
+                : undefined
+            }
+            action={
+              usersBreakdown ? undefined : (
+                <OnDemandButton
+                  label="عرض التفصيل (جدد/عائدين)"
+                  state={onDemandState("usersBreakdown", false, usersBreakdownError)}
+                  onClick={() => requestOnDemand("usersBreakdown")}
+                />
+              )
+            }
           />
-          <StatCard label="إجمالي المستخدمين المسجلين" value={stats.totalUsers} />
+          <StatCard label="إجمالي المستخدمين المسجلين" value={stats.totalUsers ?? "—"} />
           <StatCard
             label="معدل إتمام التسجيل"
             value={
-              stats.totalUsers > 0
-                ? `${Math.round(((stats.seekers + stats.employers) / stats.totalUsers) * 100)}%`
+              completedAccounts !== null && stats.totalUsers !== null && stats.totalUsers > 0
+                ? `${Math.round((completedAccounts / stats.totalUsers) * 100)}%`
                 : "—"
             }
-            subtitle={`${stats.seekers + stats.employers} من ${stats.totalUsers} أكملوا التسجيل`}
+            subtitle={
+              completedAccounts !== null && stats.totalUsers !== null
+                ? `${completedAccounts} من ${stats.totalUsers} أكملوا التسجيل`
+                : undefined
+            }
           />
-          <StatCard label="الباحثين عن عمل" value={stats.seekers} />
-          <StatCard label="أصحاب الأعمال" value={stats.employers} />
-          <StatCard label="الشركات الظاهرة للعامة" value={stats.visibleCompanies} />
-          <StatCard label="منهم باقة مدفوعة" value={stats.premium} />
-          <StatCard label="كل الإعلانات" value={stats.allPosts} />
-          <StatCard label="الإعلانات النشطة" value={stats.activePosts} />
-          <StatCard label="كل التقديمات" value={stats.applications} />
-          {visits30d !== null && <StatCard label="الزيارات آخر 30 يوم" value={visits30d} />}
-          <StatCard label="تثبيتات التطبيق" value={stats.appInstalls} />
-          <StatCard label="مفعّلين التنبيهات" value={stats.pushEnabledUsers} />
+          <StatCard label="الباحثين عن عمل" value={stats.seekers ?? "—"} />
+          <StatCard label="أصحاب الأعمال" value={stats.employers ?? "—"} />
+          <StatCard
+            label="الشركات الظاهرة للعامة"
+            value={visibleCompanies ?? "—"}
+            action={
+              visibleCompanies !== null ? undefined : (
+                <OnDemandButton
+                  label="عرض"
+                  state={onDemandState("companies", false, visibleCompaniesError)}
+                  onClick={() => requestOnDemand("companies")}
+                />
+              )
+            }
+          />
+          <StatCard label="منهم باقة مدفوعة" value={stats.premium ?? "—"} />
+          <StatCard label="كل الإعلانات" value={stats.allPosts ?? "—"} />
+          <StatCard label="الإعلانات النشطة" value={stats.activePosts ?? "—"} />
+          <StatCard label="كل التقديمات" value={stats.applications ?? "—"} />
+          <StatCard
+            label="الزيارات آخر 30 يوم"
+            value={visits30d ?? "—"}
+            action={
+              visits30d !== null ? undefined : (
+                <OnDemandButton
+                  label="عرض"
+                  state={onDemandState("visits", false, visitsError)}
+                  onClick={() => requestOnDemand("visits")}
+                />
+              )
+            }
+          />
+          <StatCard label="تثبيتات التطبيق" value={stats.appInstalls ?? "—"} />
+          <StatCard label="مفعّلين التنبيهات" value={stats.pushEnabledUsers ?? "—"} />
         </div>
       )}
 
@@ -940,9 +1055,16 @@ export default function AdminPage() {
         </div>
       )}
 
-      {(applicationStatusStats || applicationStatusStatsError) && (
+      {(
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 16, marginBottom: 12 }}>توزيع حالة التقديمات</h2>
+          {!applicationStatusStats && (
+            <OnDemandButton
+              label="عرض"
+              state={onDemandState("applicationStatus", false, applicationStatusStatsError)}
+              onClick={() => requestOnDemand("applicationStatus")}
+            />
+          )}
           {applicationStatusStatsError && (
             <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
               تعذر تحميل توزيع حالة التقديمات — باقي الإحصائيات تحت شغالة عادي.
@@ -985,12 +1107,19 @@ export default function AdminPage() {
         </div>
       )}
 
-      {(signupMethodStats || signupMethodError) && (
+      {(
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 16, marginBottom: 4 }}>محاولات اختيار طريقة التسجيل (كل الوقت)</h2>
           <p style={{ fontSize: 12.5, color: "#4A5568", margin: "0 0 12px" }}>
             بيعدّ كل ضغطة، بما فيها الإعادة وتسجيل دخول مستخدمين قدامى، مش حسابات جديدة
           </p>
+          {!signupMethodStats && (
+            <OnDemandButton
+              label="عرض"
+              state={onDemandState("signupAttempts", false, signupMethodError)}
+              onClick={() => requestOnDemand("signupAttempts")}
+            />
+          )}
           {signupMethodError && (
             <div style={{ fontSize: 13, color: "#B03A14", background: "#FBEAE3", borderRadius: 8, padding: "10px 14px" }}>
               تعذر تحميل بيانات طرق التسجيل — باقي الإحصائيات تحت شغالة عادي.
@@ -1006,36 +1135,45 @@ export default function AdminPage() {
         </div>
       )}
 
-      {stats && (
+      {(
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 16, marginBottom: 4 }}>طريقة التسجيل الفعلية (تقريبي)</h2>
           <p style={{ fontSize: 12.5, color: "#4A5568", margin: "0 0 12px" }}>
             حسابات فعلية مش محاولات — مستنتجة من بيانات كل مستخدم (رقم التليفون/الاسم/تأكيد الإيميل) مش من
             مزوّد الدخول نفسه، فنسبة صغيرة ممكن تتصنّف غلط. المجموع = إجمالي المستخدمين المسجلين.
           </p>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {(
-              [
-                ["📱 تليفون", "phone"],
-                ["🔍 جوجل", "google"],
-                ["✉️ إيميل", "email"],
-                ["❔ غير معروف", "unknown"],
-              ] as const
-            )
-              .filter(([, key]) => key !== "unknown" || stats.signupMethodInferred.unknown > 0)
-              .map(([label, key]) => (
-                <FunnelStepCard
-                  key={key}
-                  label={label}
-                  value={stats.signupMethodInferred[key]}
-                  subtitle={
-                    stats.totalUsers > 0
-                      ? `${Math.round((stats.signupMethodInferred[key] / stats.totalUsers) * 100)}% من ${stats.totalUsers}`
-                      : undefined
-                  }
-                />
-              ))}
-          </div>
+          {!usersBreakdown && (
+            <OnDemandButton
+              label="عرض"
+              state={onDemandState("usersBreakdown", false, usersBreakdownError)}
+              onClick={() => requestOnDemand("usersBreakdown")}
+            />
+          )}
+          {usersBreakdown && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {(
+                [
+                  ["📱 تليفون", "phone"],
+                  ["🔍 جوجل", "google"],
+                  ["✉️ إيميل", "email"],
+                  ["❔ غير معروف", "unknown"],
+                ] as const
+              )
+                .filter(([, key]) => key !== "unknown" || usersBreakdown.signupMethodInferred.unknown > 0)
+                .map(([label, key]) => (
+                  <FunnelStepCard
+                    key={key}
+                    label={label}
+                    value={usersBreakdown.signupMethodInferred[key]}
+                    subtitle={
+                      usersBreakdown.total > 0
+                        ? `${Math.round((usersBreakdown.signupMethodInferred[key] / usersBreakdown.total) * 100)}% من ${usersBreakdown.total}`
+                        : undefined
+                    }
+                  />
+                ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1133,8 +1271,14 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {pendingReports.map((r) => (
-                    <JobReportRow key={r.id} report={r} onMarkReviewed={handleMarkReviewed} reviewing={reviewingReportId === r.id} />
+                  {pendingReports.map((r, i) => (
+                    <JobReportRow
+                      key={r.id}
+                      report={r}
+                      onMarkReviewed={handleMarkReviewed}
+                      reviewing={reviewingReportId === r.id}
+                      autoLoadReporter={i < AUTO_LOAD_REPORTER_COUNT}
+                    />
                   ))}
                 </div>
               )}
@@ -1455,13 +1599,56 @@ export default function AdminPage() {
   );
 }
 
-function StatCard({ label, value, subtitle }: { label: string; value: number | string; subtitle?: string }) {
+function StatCard({
+  label,
+  value,
+  subtitle,
+  action,
+}: {
+  label: string;
+  value: number | string;
+  subtitle?: string;
+  action?: ReactNode;
+}) {
   return (
     <div style={{ background: "#fff", border: "1px solid #14213D22", borderRadius: 8, padding: 12, textAlign: "center" }}>
       <div style={{ fontSize: 22, fontWeight: 900 }}>{value}</div>
       <div style={{ fontSize: 12, color: "#4A5568" }}>{label}</div>
       {subtitle && <div style={{ fontSize: 11, color: "#4A5568", marginTop: 4 }}>{subtitle}</div>}
+      {action}
     </div>
+  );
+}
+
+// زرار "عرض" لقسم بيتحمّل عند الطلب: idle = الزرار، loading = رسالة تحميل، error = "إعادة المحاولة"،
+// done = مفيش حاجة (النتيجة ظاهرة).
+function OnDemandButton({
+  label,
+  state,
+  onClick,
+}: {
+  label: string;
+  state: "idle" | "loading" | "error" | "done";
+  onClick: () => void;
+}) {
+  if (state === "done") return null;
+  if (state === "loading") return <div style={{ fontSize: 12, color: "#4A5568", marginTop: 6 }}>جاري التحميل...</div>;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        marginTop: 6,
+        padding: "4px 12px",
+        fontSize: 12,
+        border: "1px solid #14213D",
+        background: "transparent",
+        borderRadius: 6,
+        cursor: "pointer",
+      }}
+    >
+      {state === "error" ? "تعذر التحميل — إعادة المحاولة" : label}
+    </button>
   );
 }
 
@@ -1470,11 +1657,13 @@ function JobReportRow({
   onMarkReviewed,
   reviewing,
   dimmed,
+  autoLoadReporter,
 }: {
   report: JobReport;
   onMarkReviewed?: (id: string) => void;
   reviewing?: boolean;
   dimmed?: boolean;
+  autoLoadReporter?: boolean;
 }) {
   return (
     <div style={{ border: "1px solid #14213D22", borderRadius: 8, padding: 14, opacity: dimmed ? 0.6 : 1 }}>
@@ -1486,7 +1675,7 @@ function JobReportRow({
           <div style={{ fontSize: 13, color: "#B03A14", marginTop: 4 }}>السبب: {report.reason}</div>
           {report.details && <div style={{ fontSize: 13, color: "#4A5568", marginTop: 4 }}>{report.details}</div>}
           <div style={{ fontSize: 11.5, color: "#4A5568", marginTop: 4 }}>{formatDate(report.createdAt)}</div>
-          <ReporterInfo reporterId={report.reporterId} />
+          <ReporterInfo reporterId={report.reporterId} autoLoad={autoLoadReporter} />
         </div>
         {onMarkReviewed && (
           <button

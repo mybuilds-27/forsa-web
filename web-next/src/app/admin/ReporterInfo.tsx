@@ -92,11 +92,15 @@ const KIND_LABELS: Record<ReporterInfoData["kind"], string> = {
 
 type LoadState = { uid: string; info: ReporterInfoData | null; error: boolean };
 
-export default function ReporterInfo({ reporterId }: { reporterId?: string | null }) {
+// autoLoad=true: بيحمّل بيانات المبلّغ أول ما الصف يظهر. غير كده بيظهر زرار "عرض بيانات المبلّغ"
+// وبيحمّلها لما يتضغط (الكاش فوق بيمنع تكرار القراءة لنفس المبلّغ).
+export default function ReporterInfo({ reporterId, autoLoad }: { reporterId?: string | null; autoLoad?: boolean }) {
   const [state, setState] = useState<LoadState | null>(null);
+  const [requested, setRequested] = useState(false);
+  const shouldLoad = !!autoLoad || requested;
 
   useEffect(() => {
-    if (!reporterId) return;
+    if (!reporterId || !shouldLoad) return;
     let cancelled = false;
     getReporter(reporterId)
       .then((info) => {
@@ -109,12 +113,26 @@ export default function ReporterInfo({ reporterId }: { reporterId?: string | nul
     return () => {
       cancelled = true;
     };
-  }, [reporterId]);
+  }, [reporterId, shouldLoad]);
 
   const boxStyle = { fontSize: 12.5, color: "#4A5568", marginTop: 6, background: "#F8F6F0", borderRadius: 6, padding: "6px 10px" } as const;
 
   if (!reporterId) {
     return <div style={boxStyle}>👤 المبلّغ: زائر غير مسجّل</div>;
+  }
+
+  if (!shouldLoad) {
+    return (
+      <div style={boxStyle}>
+        <button
+          type="button"
+          onClick={() => setRequested(true)}
+          style={{ padding: "3px 10px", fontSize: 12, border: "1px solid #14213D", background: "transparent", borderRadius: 6, cursor: "pointer" }}
+        >
+          👤 عرض بيانات المبلّغ
+        </button>
+      </div>
+    );
   }
 
   if (state?.uid !== reporterId) {
