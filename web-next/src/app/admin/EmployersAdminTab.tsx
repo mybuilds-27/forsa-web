@@ -34,7 +34,7 @@ const PAGE_SIZE = 20;
 const BANNED_SET_LIMIT = 200;
 const REPORTS_SCAN_LIMIT = 500;
 const IN_QUERY_CHUNK = 30;
-const JOBS_PANEL_LIMIT = 50;
+const JOBS_PANEL_LIMIT = 200;
 const PLAN_MONTH_OPTIONS = [1, 3, 6, 12];
 // أعلى code point في نطاق Unicode الخاص — حد أعلى لاستعلام "يبدأ بـ" في Firestore.
 const PREFIX_QUERY_END = String.fromCharCode(0xf8ff);
@@ -431,24 +431,30 @@ function EmployerCard({
   async function loadJobs() {
     setJobsError(false);
     try {
-      const snap = await getDocs(
-        query(collection(db, "job_posts"), where("employerId", "==", row.id), orderBy("createdAt", "desc"), limit(JOBS_PANEL_LIMIT))
-      );
+      // من غير orderBy عن قصد: where employerId + orderBy createdAt محتاج composite index، فبنجيب
+      // بالفلتر بس (single-field، بيشتغل من غير index) ونرتّب هنا.
+      const snap = await getDocs(query(collection(db, "job_posts"), where("employerId", "==", row.id), limit(JOBS_PANEL_LIMIT)));
       const nowMs = Date.now();
-      setJobs(
-        snap.docs.map((d) => {
-          const data = d.data();
-          const expiresAt = data.expiresAt as Timestamp | undefined;
-          const createdAt = data.createdAt as Timestamp | undefined;
-          return {
-            id: d.id,
-            title: typeof data.title === "string" ? data.title : "وظيفة",
-            isActive: data.isActive === true,
-            expired: !!expiresAt?.toMillis && expiresAt.toMillis() <= nowMs,
-            createdAtMillis: createdAt?.toMillis ? createdAt.toMillis() : null,
-          };
-        })
-      );
+      const items = snap.docs.map((d) => {
+        const data = d.data();
+        const expiresAt = data.expiresAt as Timestamp | undefined;
+        const createdAt = data.createdAt as Timestamp | undefined;
+        return {
+          id: d.id,
+          title: typeof data.title === "string" ? data.title : "وظيفة",
+          isActive: data.isActive === true,
+          expired: !!expiresAt?.toMillis && expiresAt.toMillis() <= nowMs,
+          createdAtMillis: createdAt?.toMillis ? createdAt.toMillis() : null,
+        };
+      });
+      // الأحدث أول، ومن غير createdAt في الآخر.
+      items.sort((a, b) => {
+        if (a.createdAtMillis === null && b.createdAtMillis === null) return 0;
+        if (a.createdAtMillis === null) return 1;
+        if (b.createdAtMillis === null) return -1;
+        return b.createdAtMillis - a.createdAtMillis;
+      });
+      setJobs(items);
     } catch (err) {
       console.error("Admin employer jobs load failed", err);
       setJobsError(true);
@@ -683,7 +689,7 @@ function EmployerCard({
                 </div>
               ))}
               {jobs.length === JOBS_PANEL_LIMIT && (
-                <div style={{ fontSize: 12, color: "#4A5568" }}>بيعرض آخر {JOBS_PANEL_LIMIT} وظيفة بس.</div>
+                <div style={{ fontSize: 12, color: "#4A5568" }}>بيعرض {JOBS_PANEL_LIMIT} وظيفة بس، وممكن يكون فيه وظايف تانية للشركة مش ظاهرة.</div>
               )}
             </div>
           )}
