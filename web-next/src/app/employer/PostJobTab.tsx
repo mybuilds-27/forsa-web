@@ -12,6 +12,9 @@ import { findRecentlyCreatedJobPost, verifyJobPostUpdated } from "@/lib/serverWr
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import KeywordsPicker, { MAX_KEYWORDS } from "@/components/KeywordsPicker";
 
+// تحت الطول ده بتظهر ملاحظة غير مانعة تحت خانة الوصف.
+const DESCRIPTION_NOTE_MIN_LENGTH = 200;
+
 const AGE_OPTIONS = Array.from({ length: 50 }, (_, i) => 16 + i);
 
 // نفس القايمة المستخدمة في باقي الملفات (Navbar.tsx، admin/page.tsx، InviteToJobModal.tsx)
@@ -82,6 +85,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
   const [salaryFrom, setSalaryFrom] = useState("");
   const [salaryTo, setSalaryTo] = useState("");
   const [showSalary, setShowSalary] = useState(true);
+  // الراتب "مش مكتوب" لو مخفي، أو قابل للتفاوض (الأرقام بتتحفظ null)، أو مفيش رقم أكبر من صفر في الخانتين.
+  // بتتحسب لحظيًا من قيم الفورم، من غير أي قراءة Firestore.
+  const salaryMissing = !showSalary || salaryNegotiable || !(Number(salaryFrom) > 0 || Number(salaryTo) > 0);
 
   const [ageFrom, setAgeFrom] = useState("");
   const [ageTo, setAgeTo] = useState("");
@@ -777,11 +783,23 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>وصف الوظيفة</label>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="المهام والمميزات..." style={{ ...inputStyle, minHeight: 80 }} />
+              {description.trim().length < DESCRIPTION_NOTE_MIN_LENGTH && (
+                <div style={softNoteStyle}>
+                  💡 الوصف الأطول والأوضح بيجيب متقدمين أنسب.{" "}
+                  <a href="/articles/how-to-write-a-job-ad" target="_blank" rel="noopener noreferrer" style={{ color: "#14213D", fontWeight: 700 }}>
+                    إزاي تكتب إعلان وظيفة ناجح؟
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </fieldset>
 
-        <CollapsibleSection title="💰 الراتب وعدد الفرص" subtitle="حدد نطاق الراتب — بيساعد يجذب مرشحين مناسبين أكتر">
+        <CollapsibleSection
+          title="💰 الراتب وعدد الفرص"
+          subtitle="حدد نطاق الراتب — بيساعد يجذب مرشحين مناسبين أكتر"
+          note={salaryMissing ? <div style={softNoteStyle}>💡 الإعلانات اللي فيها مرتب أو نطاق مرتب بتجيب متقدمين أنسب.</div> : undefined}
+        >
           <div style={gridStyle}>
             <div>
               <label style={labelStyle}>عدد الفرص المتاحة</label>
@@ -1008,10 +1026,12 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
 function CollapsibleSection({
   title,
   subtitle,
+  note,
   children,
 }: {
   title: string;
   subtitle: string;
+  note?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -1022,6 +1042,7 @@ function CollapsibleSection({
           <span className="chevron" style={chevronStyle}>▾</span>
         </div>
         <div style={summarySubtitleStyle}>{subtitle}</div>
+        {note}
       </summary>
       <div style={collapsibleBodyStyle}>{children}</div>
     </details>
@@ -1083,6 +1104,16 @@ const collapsibleBodyStyle: React.CSSProperties = {
 };
 
 const gridStyle: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 };
+// ملاحظة غير مانعة (مش بتمنع النشر ولا بتفتح نافذة تأكيد) — لون هادي بدل الأحمر.
+const softNoteStyle: React.CSSProperties = {
+  fontSize: 12.5,
+  color: "#8A570D",
+  background: "rgba(232,163,61,0.12)",
+  borderRadius: 6,
+  padding: "6px 10px",
+  marginTop: 6,
+  lineHeight: 1.7,
+};
 const labelStyle: React.CSSProperties = { display: "block", marginBottom: 4, fontSize: 13.5, fontWeight: 600 };
 const inputStyle: React.CSSProperties = { width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 6, fontSize: 14 };
 const ghostBtnStyle: React.CSSProperties = { padding: "8px 16px", background: "transparent", border: "1px solid #14213D", borderRadius: 6, cursor: "pointer" };
