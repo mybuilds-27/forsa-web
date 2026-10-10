@@ -314,7 +314,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
   }
 
   async function handleDelete(postId: string) {
-    if (!confirm('متأكد إنك عايز تحذف الإعلان نهائيًا؟ الأفضل تستخدم "إيقاف الإعلان" بدل الحذف لو ممكن ترجعله لاحقًا.')) return;
+    if (!confirm('هل تريد حذف الوظيفة نهائيًا؟ إذا كنت قد تحتاجها لاحقًا، يُفضّل استخدام "إيقاف" بدلًا من الحذف.')) return;
     await deleteJobPost(postId);
     setDetailPost(null);
     loadMyJobPosts();
@@ -347,7 +347,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
       setApplicants(sorted);
     } catch (err) {
       console.error("Fetch applicants failed", err);
-      setApplicantsError("حصل خطأ أثناء تحميل المتقدمين، حاول مرة أخرى.");
+      setApplicantsError("تعذّر تحميل المرشحين. حاول مرة أخرى.");
     } finally {
       setLoadingApplicants(false);
     }
@@ -376,11 +376,11 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
 
   return (
     <div dir="rtl" style={{ maxWidth: 800, margin: "0 auto" }}>
-      <h2 style={{ marginBottom: 16 }}>بيانات شركتك</h2>
+      <h2 style={{ marginBottom: 16 }}>بيانات الشركة</h2>
 
       <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20, marginBottom: 10 }}>
         {companyData.logoURL && (
-          <CompanyLogo src={companyData.logoURL} alt="لوجو الشركة" style={{ marginBottom: 10 }} />
+          <CompanyLogo src={companyData.logoURL} alt="شعار الشركة" style={{ marginBottom: 10 }} />
         )}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
           <span style={tagStyle}>{companyData.companyName}</span>
@@ -414,14 +414,14 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
         }}
       >
         <h3 style={{ marginBottom: isPremiumPlan ? 10 : 16, fontSize: 17 }}>
-          باقتك الحالية: {isPremiumPlan ? "مدفوعة ⭐" : "مجانية"}
+          باقتك الحالية: {isPremiumPlan ? "مدفوعة" : "مجانية"}
         </h3>
 
         {isPremiumPlan ? (
           <>
             {daysLeft !== null && (
               <p style={{ fontSize: 14, fontWeight: 700, color: daysLeft <= 7 ? "#8A570D" : "#14213D", marginBottom: 14 }}>
-                {daysLeft > 0 ? `باقي ${daysLeft} يوم في الاشتراك` : "اشتراكك انتهى وهيترجع للباقة المجانية تلقائيًا قريبًا"}
+                {daysLeft > 0 ? `متبقٍ ${daysLeft} يوم في الاشتراك` : "انتهى اشتراكك، وسيتم التحويل إلى الباقة المجانية تلقائيًا قريبًا"}
               </p>
             )}
             <PremiumFeaturesList />
@@ -431,7 +431,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
             onClick={() => setShowUpgradeModal(true)}
             style={{ padding: "10px 20px", background: "#14213D", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}
           >
-            شوف مزايا الباقة المدفوعة
+            اطّلع على مزايا الباقة المدفوعة
           </button>
         )}
       </div>
@@ -439,13 +439,13 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
       {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} />}
 
       <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20, marginBottom: 30 }}>
-        <h3 style={{ marginBottom: 16, fontSize: 17 }}>📊 إحصائيات</h3>
+        <h3 style={{ marginBottom: 16, fontSize: 17 }}>الإحصائيات</h3>
 
         <h4 style={{ fontSize: 13, fontWeight: 700, color: "#4A5568", marginBottom: 10 }}>نظرة عامة</h4>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <StatCard label="الوظائف" value={`${posts.filter((p) => p.isActive !== false).length} نشطة من ${posts.length}`} />
           <StatCard label="إجمالي المشاهدات" value={Object.values(viewCounts).reduce((a, b) => a + b, 0)} />
-          <StatCard label="إجمالي المتقدمين" value={Object.values(applicantCounts).reduce((a, b) => a + b, 0)} />
+          <StatCard label="إجمالي المرشحين" value={Object.values(applicantCounts).reduce((a, b) => a + b, 0)} />
           <StatCard
             label="الدعوات المرسلة"
             value={invitationStats ? invitationStats.total : invitationStatsError ? "تعذّر التحميل" : "..."}
@@ -463,20 +463,20 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                 // (UAX #9)، حتى لو الـstring نفسه في الـDOM صحيح 100%. عزل الاتجاه هنا بيضمن
                 // العرض الصحيح دايمًا بغض النظر عن عدد خانات الرقمين.
                 <StatCard
-                  label="دعوات الشهر ده"
+                  label="دعوات هذا الشهر"
                   value={<span dir="ltr">{invitationStats.thisMonth} / {invitationStats.monthlyLimit}</span>}
                   tone={quotaTone(invitationStats.thisMonth, invitationStats.monthlyLimit)}
                 />
               )}
-              {invitationStatsError && <StatCard label="دعوات الشهر ده" value="تعذّر التحميل" />}
+              {invitationStatsError && <StatCard label="دعوات هذا الشهر" value="تعذّر التحميل" />}
               {contactRevealStats && (
                 <StatCard
-                  label="فتح بطاقات متقدمين الشهر ده"
+                  label="بطاقات مرشحين مفتوحة هذا الشهر"
                   value={<span dir="ltr">{contactRevealStats.thisMonth} / {contactRevealStats.monthlyLimit}</span>}
                   tone={quotaTone(contactRevealStats.thisMonth, contactRevealStats.monthlyLimit)}
                 />
               )}
-              {contactRevealStatsError && <StatCard label="فتح بطاقات متقدمين الشهر ده" value="تعذّر التحميل" />}
+              {contactRevealStatsError && <StatCard label="بطاقات مرشحين مفتوحة هذا الشهر" value="تعذّر التحميل" />}
             </div>
           </>
         )}
@@ -486,11 +486,11 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
         <ApplicationsBarChart data={dailyApplications} />
       </div>
 
-      <h2 style={{ marginBottom: 16 }}>إعلاناتك المنشورة</h2>
+      <h2 style={{ marginBottom: 16 }}>وظائفك المنشورة</h2>
 
-      {loading && <p>جاري التحميل...</p>}
+      {loading && <p>جارٍ التحميل...</p>}
       {!loading && posts.length === 0 && (
-        <div style={{ padding: 30, textAlign: "center", color: "#4A5568" }}>لسه ما نشرتش أي إعلان وظيفة.</div>
+        <div style={{ padding: 30, textAlign: "center", color: "#4A5568" }}>لم تنشر أي وظيفة بعد.</div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -518,19 +518,19 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                   <div style={{ cursor: "pointer", flex: 1, minWidth: 240 }} onClick={() => setDetailPost(p)}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
                       <span style={isPaused ? pausedPillStyle : activePillStyle}>
-                        {isPaused ? "⏸ متوقف" : "● نشط"}
+                        {isPaused ? "متوقفة" : "نشطة"}
                       </span>
-                      {p.featured && <span style={featuredPillStyle}>⭐ مميز</span>}
+                      {p.featured && <span style={featuredPillStyle}>مميزة</span>}
                     </div>
                     <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "#14213D" }}>{p.title}</h3>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", fontSize: 13, color: "#4A5568", marginBottom: 10 }}>
-                      <span>📍 {p.city} - {p.governorate}</span>
+                      <span>{p.city} - {p.governorate}</span>
                       <span aria-hidden>·</span>
-                      <span>🕐 {JOB_TYPE_LABELS[p.jobType] || p.jobType}</span>
+                      <span>{JOB_TYPE_LABELS[p.jobType] || p.jobType}</span>
                       {p.jobLevel && (
                         <>
                           <span aria-hidden>·</span>
-                          <span>🎯 {EXPERIENCE_LEVELS[p.jobLevel] || p.jobLevel}</span>
+                          <span>{EXPERIENCE_LEVELS[p.jobLevel] || p.jobLevel}</span>
                         </>
                       )}
                     </div>
@@ -547,17 +547,17 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
                     <span style={applicantBadgeStyle}>
                       {hasViewers
-                        ? `📞 ${viewerCount} شخص شاف وسيلة التواصل`
+                        ? `${viewerCount} شخص اطّلع على وسيلة التواصل`
                         : isContactMethod
-                        ? `📞 ${contactApplyText(p)}`
-                        : `👥 ${appCount} متقدم`}
+                        ? contactApplyText(p)
+                        : `${appCount} مرشح`}
                     </span>
                     {views !== undefined && (
-                      <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>👁️ {views} مشاهدة</span>
+                      <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>{views} مشاهدة</span>
                     )}
                     <span style={{ fontSize: 12, color: "#4A5568", whiteSpace: "nowrap" }}>
                       {formatDate(p.createdAt)}
-                      {!isPaused && daysLeft !== null ? ` · باقي ${daysLeft} يوم` : ""}
+                      {!isPaused && daysLeft !== null ? ` · متبقٍ ${daysLeft} يوم` : ""}
                     </span>
                   </div>
                 </div>
@@ -577,23 +577,23 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button onClick={() => toggleApplicants(p.id)} style={primaryActionStyle}>
                       {appCount > 0 || !isContactMethod
-                        ? `👥 عرض المتقدمين (${appCount})`
+                        ? `عرض المرشحين (${appCount})`
                         : hasViewers
-                        ? `📞 عرض التفاصيل (${viewerCount})`
-                        : "👥 عرض المتقدمين"}
+                        ? `عرض التفاصيل (${viewerCount})`
+                        : "عرض المرشحين"}
                     </button>
                     {appCount > 0 && (
-                      <button onClick={() => exportExcel(p.id, p.title, p.screeningQuestions)} style={ghostActionStyle}>⬇ تحميل Excel</button>
+                      <button onClick={() => exportExcel(p.id, p.title, p.screeningQuestions)} style={ghostActionStyle}>تنزيل ملف Excel</button>
                     )}
                   </div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <button onClick={() => onEditPost(p.id, p)} style={toolBtnStyle}>✎ تعديل</button>
+                    <button onClick={() => onEditPost(p.id, p)} style={toolBtnStyle}>تعديل</button>
                     <button onClick={() => toggleActive(p.id, isPaused)} style={toolBtnStyle}>
-                      {isPaused ? "▶ تفعيل" : "⏸ إيقاف"}
+                      {isPaused ? "تفعيل" : "إيقاف"}
                     </button>
                     <ShareButton jobId={p.id} title={p.title} />
-                    <button onClick={() => setFbPostJob(p)} style={toolBtnStyle}>📋 نسخ نص فيسبوك</button>
-                    <button onClick={() => handleDelete(p.id)} style={dangerToolBtnStyle}>✕ حذف</button>
+                    <button onClick={() => setFbPostJob(p)} style={toolBtnStyle}>نسخ نص فيسبوك</button>
+                    <button onClick={() => handleDelete(p.id)} style={dangerToolBtnStyle}>حذف</button>
                   </div>
                 </div>
               </div>
@@ -601,14 +601,14 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
               {openApplicantsFor === p.id && (
                 <div style={{ padding: "16px 20px 18px", borderTop: "1px solid #14213D14", display: "flex", flexDirection: "column", gap: 12 }}>
                   {loadingApplicants ? (
-                    <div style={{ padding: 12, color: "#4A5568" }}>جاري التحميل...</div>
+                    <div style={{ padding: 12, color: "#4A5568" }}>جارٍ التحميل...</div>
                   ) : applicantsError ? (
                     <div style={{ padding: 12, color: "#B03A14" }}>{applicantsError}</div>
                   ) : applicants.length === 0 ? (
                     <div style={{ padding: 12, color: "#4A5568" }}>
                       {isContactMethod
-                        ? `التقديم على الوظيفة دي بيتم عبر ${CONTACT_METHOD_LABELS[p.contactMethod || ""] || "التواصل المباشر"} مباشرة، مش من خلال الموقع.`
-                        : "لسه محدش قدّم على الإعلان ده."}
+                        ? `يتم التقديم على هذه الوظيفة عبر ${CONTACT_METHOD_LABELS[p.contactMethod || ""] || "التواصل المباشر"} مباشرة، وليس من خلال الموقع.`
+                        : "لم يتقدم أي مرشح لهذه الوظيفة بعد."}
                     </div>
                   ) : (
                     applicants.map((a, i) => (
@@ -699,7 +699,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
               <span style={tagStyle}>{detailPost.city} - {detailPost.governorate}</span>
               <span style={tagStyle}>{JOB_TYPE_LABELS[detailPost.jobType] || detailPost.jobType}</span>
               {detailPost.jobLevel && <span style={tagStyle}>{EXPERIENCE_LEVELS[detailPost.jobLevel] || detailPost.jobLevel}</span>}
-              {detailPost.featured && <span style={tagStyle}>⭐ مميز</span>}
+              {detailPost.featured && <span style={tagStyle}>مميزة</span>}
             </div>
 
             <p style={{ lineHeight: 1.7, marginBottom: 12 }}>{detailPost.description}</p>
@@ -715,21 +715,21 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                     : detailPost.ageFrom
                     ? `من ${detailPost.ageFrom} سنة`
                     : detailPost.ageTo
-                    ? `لحد ${detailPost.ageTo} سنة`
+                    ? `حتى ${detailPost.ageTo} سنة`
                     : undefined
                 }
               />
-              <DetailRow label="محتاج عربية" value={detailPost.needsCar === "yes" ? "أيوة ✓" : detailPost.needsCar === "no" ? "لأ" : undefined} />
+              <DetailRow label="تتطلب سيارة" value={detailPost.needsCar === "yes" ? "نعم" : detailPost.needsCar === "no" ? "لا" : undefined} />
               <DetailRow label="ساعات العمل يوميًا" value={detailPost.hoursPerDay ? `${detailPost.hoursPerDay} ساعات` : undefined} />
               <DetailRow label="أيام الراحة شهريًا" value={detailPost.daysOffPerMonth !== undefined && detailPost.daysOffPerMonth !== null ? `${detailPost.daysOffPerMonth} يوم` : undefined} />
-              <DetailRow label="تأمين اجتماعي" value={detailPost.socialInsurance === "yes" ? "متوفر ✓" : detailPost.socialInsurance === "no" ? "غير متوفر" : undefined} />
-              <DetailRow label="تأمين صحي خاص" value={detailPost.privateHealthInsurance === "yes" ? "متوفر ✓" : detailPost.privateHealthInsurance === "no" ? "غير متوفر" : undefined} />
-              <DetailRow label="مواصلات" value={detailPost.transportationAvailable === "yes" ? "متوفرة ✓" : detailPost.transportationAvailable === "no" ? "غير متوفرة" : undefined} />
-              <DetailRow label="سكن المغتربين" value={detailPost.housingForExpats === "yes" ? "متوفر ✓" : detailPost.housingForExpats === "no" ? "غير متوفر" : undefined} />
+              <DetailRow label="تأمين اجتماعي" value={detailPost.socialInsurance === "yes" ? "متوفر" : detailPost.socialInsurance === "no" ? "غير متوفر" : undefined} />
+              <DetailRow label="تأمين صحي خاص" value={detailPost.privateHealthInsurance === "yes" ? "متوفر" : detailPost.privateHealthInsurance === "no" ? "غير متوفر" : undefined} />
+              <DetailRow label="مواصلات" value={detailPost.transportationAvailable === "yes" ? "متوفرة" : detailPost.transportationAvailable === "no" ? "غير متوفرة" : undefined} />
+              <DetailRow label="سكن المغتربين" value={detailPost.housingForExpats === "yes" ? "متوفر" : detailPost.housingForExpats === "no" ? "غير متوفر" : undefined} />
             </div>
 
             {detailPost.transportationAreas && (
-              <p style={{ marginTop: 10 }}><strong>أماكن المواصلات:</strong> {detailPost.transportationAreas}</p>
+              <p style={{ marginTop: 10 }}><strong>مناطق المواصلات:</strong> {detailPost.transportationAreas}</p>
             )}
             {detailPost.requirements && (
               <p style={{ marginTop: 10 }}><strong>الشروط:</strong> {detailPost.requirements}</p>
@@ -739,7 +739,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
             )}
             {detailPost.receiveMethod === "contact" && detailPost.contactValue && (
               <p style={{ marginTop: 10 }}>
-                <strong>التواصل ({{ email: "إيميل", whatsapp: "واتساب", phone: "تليفون" }[detailPost.contactMethod || ""] || detailPost.contactMethod}):</strong> {detailPost.contactValue}
+                <strong>التواصل ({{ email: "البريد الإلكتروني", whatsapp: "واتساب", phone: "الهاتف" }[detailPost.contactMethod || ""] || detailPost.contactMethod}):</strong> {detailPost.contactValue}
               </p>
             )}
 
@@ -748,7 +748,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
                 onClick={() => { onEditPost(detailPost.id, detailPost); setDetailPost(null); }}
                 style={{ padding: "10px 20px", background: "#14213D", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}
               >
-                ✎ تعديل الإعلان
+                تعديل الوظيفة
               </button>
             </div>
           </div>

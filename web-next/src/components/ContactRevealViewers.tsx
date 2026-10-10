@@ -95,10 +95,10 @@ export default function ContactRevealViewers({ jobPostId, job, employerPlan, isA
   }
 
   const revealHint = isAdmin
-    ? "أنت أدمن — مستثنى من الحد الشهري لكشف بيانات التواصل."
+    ? "حساب أدمن: مستثنى من الحد الشهري لكشف بيانات التواصل."
     : employerPlan === "premium"
-    ? `الضغط بيستهلك واحدة من ${MONTHLY_CONTACT_REVEAL_LIMIT} كشف شهريًا، وبيظهر للباحث في إحصائياته.`
-    : "التواصل المباشر متاح للباقة المدفوعة بس — الضغط بيفتح تفاصيل الباحث وخيار الترقية.";
+    ? `كل ضغطة تُحتسب من ${MONTHLY_CONTACT_REVEAL_LIMIT} عملية كشف شهريًا، وتظهر للمرشح في إحصائياته.`
+    : "التواصل المباشر متاح للباقة المدفوعة فقط. تفتح الضغطة تفاصيل المرشح وخيار الترقية.";
 
   const visibleEntries = entries ? entries.slice(0, visibleCount) : [];
   const remaining = entries ? entries.length - visibleEntries.length : 0;
@@ -119,25 +119,25 @@ export default function ContactRevealViewers({ jobPostId, job, employerPlan, isA
           fontFamily: "inherit",
         }}
       >
-        {expanded ? "إخفاء ▲" : "👁 مين شاف صفحة الوظيفة (مش متقدمين)؟ ▼"}
+        {expanded ? "إخفاء ▲" : "من اطّلع على صفحة الوظيفة (من غير المتقدمين)؟ ▼"}
       </button>
 
       {expanded && (
         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
           {loading ? (
-            <div style={{ fontSize: 12, color: "#4A5568" }}>جاري التحميل...</div>
+            <div style={{ fontSize: 12, color: "#4A5568" }}>جارٍ التحميل...</div>
           ) : error ? (
-            <div style={{ fontSize: 13, color: "#B03A14" }}>حصلت مشكلة في جلب القايمة، اقفل القسم وافتحه تاني.</div>
+            <div style={{ fontSize: 13, color: "#B03A14" }}>تعذّر تحميل القائمة. أغلق القسم ثم افتحه مرة أخرى.</div>
           ) : entries ? (
             <>
               <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: "#14213D" }}>
-                👁 باحثين شافوا صفحة الوظيفة دي ({entries.length}
+                باحثون اطّلعوا على صفحة هذه الوظيفة ({entries.length}
                 {omittedCount > 0 ? "+" : ""})
               </h3>
 
               {entries.length === 0 ? (
                 <div style={{ fontSize: 12, color: "#4A5568" }}>
-                  لسه محدش (غير المتقدمين فوق) شاف صفحة الوظيفة دي وهو مسجّل دخول.
+                  لم يطّلع أي مستخدم مسجّل على صفحة هذه الوظيفة بعد (بخلاف المرشحين أعلاه).
                 </div>
               ) : (
                 <>
@@ -152,9 +152,9 @@ export default function ContactRevealViewers({ jobPostId, job, employerPlan, isA
                       lineHeight: 1.7,
                     }}
                   >
-                    دول مستخدمين مسجلين <strong>فتحوا صفحة الوظيفة بس</strong> — مش متقدمين، ومش بالضرورة مهتمين أو اتواصلوا
-                    معاك. بنعرض بروفايل اللي وافق على الظهور لأصحاب الأعمال فقط، من غير تليفون أو إيميل. كشف بيانات التواصل
-                    بيتحسب من الحد الشهري ({MONTHLY_CONTACT_REVEAL_LIMIT}) للباقة المدفوعة.
+                    هؤلاء مستخدمون مسجّلون <strong>فتحوا صفحة الوظيفة فقط</strong>، وليسوا مرشحين متقدمين، وليس بالضرورة أنهم
+                    مهتمون أو تواصلوا معك. نعرض فقط الملفات الشخصية لمن وافقوا على الظهور لأصحاب الأعمال، بدون الهاتف أو البريد
+                    الإلكتروني. يُحتسب كشف بيانات التواصل من الحد الشهري للباقة المدفوعة ({MONTHLY_CONTACT_REVEAL_LIMIT}).
                   </div>
 
                   {visibleEntries.map(({ viewer, profile, match }) =>
@@ -186,9 +186,9 @@ export default function ContactRevealViewers({ jobPostId, job, employerPlan, isA
                       >
                         <span>
                           <strong style={{ color: "#14213D" }}>{viewer.fullName}</strong>
-                          {formatViewedAt(viewer) ? ` — شاف الصفحة ${formatViewedAt(viewer)}` : ""}
+                          {formatViewedAt(viewer) ? ` — اطّلع على الصفحة ${formatViewedAt(viewer)}` : ""}
                         </span>
-                        <span>بروفايله مش متاح لأصحاب الأعمال</span>
+                        <span>ملفه الشخصي غير متاح لأصحاب الأعمال</span>
                       </div>
                     )
                   )}
@@ -209,13 +209,13 @@ export default function ContactRevealViewers({ jobPostId, job, employerPlan, isA
                         fontFamily: "inherit",
                       }}
                     >
-                      عرض الباقي ({remaining})
+                      عرض البقية ({remaining})
                     </button>
                   )}
 
                   {omittedCount > 0 && (
                     <div style={{ fontSize: 12, color: "#4A5568" }}>
-                      بنعرض أحدث {MAX_PROFILES_LOADED} شخص بس ({omittedCount} تانيين مش معروضين).
+                      يتم عرض أحدث {MAX_PROFILES_LOADED} شخص فقط ({omittedCount} آخرون غير معروضين).
                     </div>
                   )}
                 </>

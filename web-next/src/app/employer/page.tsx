@@ -24,7 +24,7 @@ export default function EmployerPage() {
     <Suspense
       fallback={
         <div dir="rtl" style={{ textAlign: "center", padding: 60 }}>
-          <p>جاري التحميل...</p>
+          <p>جارٍ التحميل...</p>
         </div>
       }
     >
@@ -92,7 +92,7 @@ function EmployerPageInner() {
   if (status === "loading") {
     return (
       <div dir="rtl" style={{ textAlign: "center", padding: 60 }}>
-        <p>جاري التحميل...</p>
+        <p>جارٍ التحميل...</p>
       </div>
     );
   }
@@ -117,16 +117,16 @@ function EmployerPageInner() {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
           {!isPremium && (
             <button onClick={() => setUpgradeModalOpen(true)} style={upgradeBtnStyle}>
-              🚀 طلب الترقية للباقة المدفوعة
+              اطلب الترقية للباقة المدفوعة
             </button>
           )}
           <a
-            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("أهلاً، محتاج مساعدة في حسابي كصاحب عمل على موقع الشغل.")}`}
+            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("مرحبًا، أحتاج مساعدة في حساب الشركة على موقع الشغل.")}`}
             target="_blank"
             rel="noopener noreferrer"
             style={whatsappBtnStyle}
           >
-            💬 محتاج مساعدة؟ كلمنا واتساب
+            تواصل مع الدعم عبر واتساب
           </a>
         </div>
 

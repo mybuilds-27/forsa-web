@@ -134,7 +134,7 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
 
   return (
     <div dir="rtl">
-      <h2 style={{ fontSize: 20, marginBottom: 16 }}>🔍 البحث عن كوادر</h2>
+      <h2 style={{ fontSize: 20, marginBottom: 16 }}>البحث عن كوادر</h2>
 
       {showJustPostedBanner && (
         <div
@@ -168,11 +168,11 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
             ✕
           </button>
           <p style={{ margin: 0, fontSize: 14, color: "#14213D", lineHeight: 1.7 }}>
-            🎉 الوظيفة اتنشرت! بدل ما تستنى حد يقدّم، تقدر تدوّر على كوادر مناسبة بنفسك
-            وتبعتلهم دعوة مباشرة للتقديم على الوظيفة دي.
+            تم نشر الوظيفة. يمكنك الآن البحث عن مرشحين مناسبين وإرسال دعوة مباشرة لهم
+            للتقديم على هذه الوظيفة.
           </p>
           <p style={{ margin: "6px 0 0", fontSize: 13, color: "#2F6F4E", fontWeight: 700 }}>
-            {employerPlan === "premium" ? "عندك 30 دعوة مباشرة شهريًا" : "عندك 5 دعوات مباشرة شهريًا"}
+            {employerPlan === "premium" ? "رصيدك: 30 دعوة مباشرة شهريًا" : "رصيدك: 5 دعوات مباشرة شهريًا"}
           </p>
         </div>
       )}
@@ -219,11 +219,11 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
 
       {!hasActiveFilter && (
         <div style={{ padding: 30, textAlign: "center", color: "#4A5568", border: "1px dashed #14213D22", borderRadius: 10 }}>
-          اختر تخصص أو محافظة أو مستوى وظيفة أو نوع دوام عشان تبدأ البحث عن الكوادر المناسبة.
+          اختر تخصصًا أو محافظة أو مستوى وظيفة أو نوع دوام لبدء البحث عن المرشحين المناسبين.
         </div>
       )}
 
-      {hasActiveFilter && loading && <p>جاري التحميل...</p>}
+      {hasActiveFilter && loading && <p>جارٍ التحميل...</p>}
       {hasActiveFilter && error && <div style={{ color: "#B03A14", padding: 12 }}>{error}</div>}
 
       {hasActiveFilter && !loading && !error && (
@@ -234,7 +234,7 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
 
           {displayedResults.length === 0 && (
             <div style={{ padding: 30, textAlign: "center", color: "#4A5568" }}>
-              مفيش نتائج مطابقة دلوقتي — جرب توسّع الفلاتر
+              لا توجد نتائج مطابقة حاليًا. جرّب توسيع معايير البحث.
             </div>
           )}
 
@@ -274,7 +274,7 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <h4 style={{ margin: 0, fontSize: 16 }}>{s.fullName || "بدون اسم"}</h4>
                     {activity === "recent" && <span style={activePillStyle}>نشط مؤخرًا</span>}
-                    {activity === "inactive" && <span style={pausedPillStyle}>غير نشط من فترة</span>}
+                    {activity === "inactive" && <span style={pausedPillStyle}>غير نشط منذ فترة</span>}
                   </div>
                   <div style={{ fontSize: 13, color: "#4A5568", marginTop: 2 }}>{s.jobTitle || ""}</div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
@@ -284,7 +284,7 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
                   </div>
                   {hasExtraTags && (
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-                      {educationLabel && <span style={tagStyle}>🎓 المؤهل: {educationLabel}</span>}
+                      {educationLabel && <span style={tagStyle}>المؤهل: {educationLabel}</span>}
                       {languageEntries.map((l) => (
                         <span key={l.name} style={tagStyle}>
                           اللغة: {l.name}
@@ -316,7 +316,7 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
                 disabled={loadingMore}
                 style={{ padding: "8px 20px", border: "1px solid #14213D", borderRadius: 6, background: "transparent", cursor: "pointer" }}
               >
-                {loadingMore ? "جاري التحميل..." : "تحميل المزيد"}
+                {loadingMore ? "جارٍ التحميل..." : "عرض المزيد"}
               </button>
             </div>
           )}

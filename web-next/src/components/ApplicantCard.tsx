@@ -118,7 +118,7 @@ export default function ApplicantCard({
 
   async function handleStatusChange(newStatus: ApplicationStatus) {
     if (!a.jobPostId || !a.seekerId) {
-      setStatusError("متقدرش نحدّث الحالة — بيانات التقديم ناقصة");
+      setStatusError("تعذّر تحديث الحالة: بيانات التقديم غير مكتملة");
       return;
     }
     const previous = status;
@@ -130,7 +130,7 @@ export default function ApplicantCard({
     } catch (err) {
       console.error("[ApplicantCard] فشل تحديث حالة التقديم", err);
       setStatus(previous);
-      setStatusError("حصلت مشكلة، حاول تاني");
+      setStatusError("تعذّر تحديث الحالة. حاول مرة أخرى.");
     }
     setSavingStatus(false);
   }
@@ -142,25 +142,25 @@ export default function ApplicantCard({
           {s.photoURL && (
             <img
               src={s.photoURL}
-              alt={s.fullName || "المتقدم"}
+              alt={s.fullName || "المرشح"}
               style={{ width: 48, height: 48, objectFit: "cover", borderRadius: "50%", flexShrink: 0 }}
             />
           )}
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <h4 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#14213D" }}>{s.fullName || "بدون اسم"}</h4>
-              {matchPercent != null && <span style={matchPillStyle(matchPercent)}>🎯 {matchPercent}% مطابقة</span>}
+              {matchPercent != null && <span style={matchPillStyle(matchPercent)}>{matchPercent}% مطابقة</span>}
             </div>
             {s.jobTitle && <div style={{ fontSize: 16, color: "#4A5568" }}>{s.jobTitle}</div>}
           </div>
         </div>
 
         {viewerMode ? (
-          <span style={viewedPillStyle}>👁 شاف الصفحة{viewedAtLabel ? ` — ${viewedAtLabel}` : ""}</span>
+          <span style={viewedPillStyle}>اطّلع على الصفحة{viewedAtLabel ? ` — ${viewedAtLabel}` : ""}</span>
         ) : (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ ...sectionLabelStyle, fontSize: 16, marginBottom: 0 }}>حالة المتقدم:</span>
+            <span style={{ ...sectionLabelStyle, fontSize: 16, marginBottom: 0 }}>حالة المرشح:</span>
             <select
               value={status}
               disabled={savingStatus}
@@ -181,7 +181,7 @@ export default function ApplicantCard({
               ))}
             </select>
           </div>
-          {savingStatus && <span style={{ fontSize: 11.5, color: "#4A5568" }}>جاري الحفظ...</span>}
+          {savingStatus && <span style={{ fontSize: 11.5, color: "#4A5568" }}>جارٍ الحفظ...</span>}
           {statusError && <span style={{ fontSize: 11.5, color: "#B03A14" }}>{statusError}</span>}
         </div>
         )}
@@ -191,13 +191,13 @@ export default function ApplicantCard({
         {s.specialization && <span style={bigTagStyle}><TagIcon size={15} /> التخصص: {s.specialization}</span>}
         <span style={bigTagStyle}><PinIcon size={15} /> المحافظة: {s.city || ""} - {s.governorate || ""}</span>
         <span style={bigTagStyle}><BriefcaseIcon size={15} /> سنوات الخبرة: {s.yearsOfExperience || 0} سنوات</span>
-        {s.educationLevel && <span style={bigTagStyle}>🎓 المؤهل: {EDUCATION_LEVEL_LABELS[s.educationLevel] || s.educationLevel}</span>}
+        {s.educationLevel && <span style={bigTagStyle}>المؤهل:{EDUCATION_LEVEL_LABELS[s.educationLevel] || s.educationLevel}</span>}
         {s.militaryStatus && <span style={bigTagStyle}><ShieldIcon size={15} /> موقف التجنيد: {MILITARY_STATUS_LABELS[s.militaryStatus] || s.militaryStatus}</span>}
       </div>
 
       {isAdmin && (
         <div style={{ fontSize: 13, color: "#4A5568", marginTop: 8 }}>
-          🕓 آخر تعديل للبروفايل: {formatLastProfileUpdate(lastProfileUpdate)}
+          آخر تعديل للملف الشخصي: {formatLastProfileUpdate(lastProfileUpdate)}
         </div>
       )}
 
@@ -231,20 +231,20 @@ export default function ApplicantCard({
               onClick={onRevealContact}
               style={{ ...bigGhostActionStyle, background: "#14213D", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" }}
             >
-              🔓 كشف بيانات التواصل
+              كشف بيانات التواصل
             </button>
           )}
           {revealHint && <div style={{ fontSize: 12, color: "#4A5568" }}>{revealHint}</div>}
         </div>
       ) : (
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #14213D14", display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ fontSize: 16 }}>📞 <strong>{s.phone || "—"}</strong></div>
+        <div style={{ fontSize: 16 }}>الهاتف: <strong>{s.phone || "—"}</strong></div>
         {whatsappLink && (
           <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={whatsappButtonStyle}>
-            💬 واتساب
+            واتساب
           </a>
         )}
-        {s.email && <div style={{ fontSize: 16 }}>✉️ {s.email}</div>}
+        {s.email && <div style={{ fontSize: 16 }}>البريد الإلكتروني: {s.email}</div>}
         {s.cvFileURL ? (
           <a
             href={s.cvFileURL}
@@ -274,7 +274,7 @@ export default function ApplicantCard({
                 cursor: "pointer",
               }}
             >
-              <DocumentIcon size={17} /> عرض سيرة ذاتية تلقائية (من البروفايل)
+              <DocumentIcon size={17} /> عرض سيرة ذاتية مُولّدة من الملف الشخصي
             </button>
           )
         )}
@@ -374,11 +374,11 @@ function AutoCVModal({ seekerId, onClose }: { seekerId: string; onClose: () => v
           ✕
         </button>
 
-        {state === "loading" && <p style={{ textAlign: "center", padding: 40, color: "#4A5568" }}>جاري تجهيز السيرة الذاتية...</p>}
-        {state === "error" && <p style={{ textAlign: "center", padding: 40, color: "#B03A14" }}>حصلت مشكلة في جلب بيانات الباحث، حاول تاني.</p>}
+        {state === "loading" && <p style={{ textAlign: "center", padding: 40, color: "#4A5568" }}>جارٍ تجهيز السيرة الذاتية...</p>}
+        {state === "error" && <p style={{ textAlign: "center", padding: 40, color: "#B03A14" }}>تعذّر تحميل بيانات المرشح. حاول مرة أخرى.</p>}
         {state === "empty" && (
           <p style={{ textAlign: "center", padding: 40, color: "#4A5568" }}>
-            الباحث لسه ما حددش حتى اسمه أو تخصصه، فمفيش بيانات كافية لتوليد سيرة ذاتية.
+            لم يُدخل المرشح اسمه أو تخصصه بعد، ولا توجد بيانات كافية لإنشاء سيرة ذاتية.
           </p>
         )}
         {state === "ready" && data && (
@@ -397,7 +397,7 @@ function AutoCVModal({ seekerId, onClose }: { seekerId: string; onClose: () => v
                   marginBottom: 18,
                 }}
               >
-                ⚠️ بيانات الباحث لسه غير مكتملة، السيرة دي مبنية على المتاح بس
+                بيانات المرشح غير مكتملة، وهذه السيرة مبنية على البيانات المتاحة فقط.
               </div>
             )}
             <CVPreview data={data} skills={normalizeEntries(data.skills)} languages={normalizeEntries(data.languages)} autoGenerated />

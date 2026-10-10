@@ -5,8 +5,8 @@
 // ولوحة الأدمن (admin/page.tsx) عشان منكررش نفس المنطق في مكانين.
 export const CONTACT_METHOD_LABELS: Record<string, string> = {
   whatsapp: "واتساب",
-  email: "الإيميل",
-  phone: "التليفون",
+  email: "البريد الإلكتروني",
+  phone: "الهاتف",
 };
 
 export function contactApplyText(p: { contactMethod?: string }): string {

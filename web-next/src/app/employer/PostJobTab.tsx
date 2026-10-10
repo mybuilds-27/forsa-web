@@ -345,7 +345,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       } catch (err) {
         console.error("Failed to refresh auth token before posting", err);
         logClientError(isEditMode ? "job_post_update" : "job_post_create", err, { stage: "token_refresh" });
-        alert("يظهر إن جلستك انتهت — سجّل دخولك تاني وجرب تنشر الوظيفة من جديد.");
+        alert("انتهت جلستك. سجّل الدخول مرة أخرى ثم أعد نشر الوظيفة.");
         return;
       }
 
@@ -395,8 +395,8 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
           if (countSnap.data().count >= monthlyLimit) {
             alert(
               currentPlan === "premium"
-                ? `وصلت للحد الأقصى (${monthlyLimit} إعلانات) للباقة المدفوعة الشهر ده.`
-                : `الباقة المجانية بتسمح بحد أقصى ${monthlyLimit} إعلانات جديدة شهريًا، وإنت وصلت للحد ده الشهر ده.`
+                ? `وصلت إلى الحد الأقصى للباقة المدفوعة هذا الشهر (${monthlyLimit} وظائف).`
+                : `تسمح الباقة المجانية بنشر ${monthlyLimit} وظائف جديدة شهريًا بحد أقصى، وقد وصلت إلى هذا الحد هذا الشهر.`
             );
             return;
           }
@@ -418,19 +418,19 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         );
         if (!duplicateSnap.empty) {
           const confirmed = window.confirm(
-            "يبدو إنك نشرت وظيفة بنفس الاسم ده قبل شوية، متأكد عايز تنشر تاني؟"
+            "نشرت وظيفة بنفس المسمى منذ دقائق. هل تريد نشرها مرة أخرى؟"
           );
           if (!confirmed) return;
         }
       }
 
       if (receiveMethod === "contact" && (!contactMethod || !contactValue.trim())) {
-        alert('اخترت "إظهار وسيلة تواصل" — لازم تحدد طريقة التواصل وتكتب بياناتها.');
+        alert('اخترت "إظهار وسيلة تواصل". حدّد طريقة التواصل وأدخل بياناتها.');
         return;
       }
 
       if (minExperience && maxExperience && Number(minExperience) > Number(maxExperience)) {
-        alert("الحد الأدنى لسنوات الخبرة أكبر من الحد الأقصى — راجع الرقمين.");
+        alert("الحد الأدنى لسنوات الخبرة أكبر من الحد الأقصى. راجع القيمتين.");
         return;
       }
 
@@ -497,7 +497,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
           return { value: undefined };
         });
         setSlowSaveNotice(false);
-        alert("تم حفظ التعديلات ✓");
+        alert("تم حفظ التعديلات.");
         resetForm();
         onPosted();
       } else {
@@ -522,7 +522,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
           return { value: doc(db, "job_posts", createdId) };
         });
         setSlowSaveNotice(false);
-        setSuccessMessage("تم نشر الإعلان بنجاح ✓");
+        setSuccessMessage("تم نشر الوظيفة بنجاح.");
         resetForm();
         // النشر نجح فعليًا، فمفيش داعي نفضل محتفظين بالمسودة المحلية بعد كده.
         try {
@@ -543,7 +543,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       setSlowSaveNotice(false);
       if (isHardTimeout) {
         alert(
-          "حصلت مشكلة في الاتصال ومقدرناش نتأكد من نجاح الحفظ خلال وقت معقول — تأكد من اتصال الإنترنت، وحدّث الصفحة (refresh) قبل ما تجرب تاني. لو الوظيفة اتنشرت فعلاً هتلاقيها في قائمة إعلاناتك."
+          "تعذّر التأكد من حفظ الوظيفة بسبب مشكلة في الاتصال. تأكد من اتصال الإنترنت، ثم حدّث الصفحة قبل المحاولة مرة أخرى. إذا تم النشر بالفعل، ستجد الوظيفة في قائمة وظائفك."
         );
       } else {
         alert(friendlyErrorMessage(err));
@@ -608,7 +608,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         cursor: submitting ? "wait" : "pointer",
       }}
     >
-      {submitting ? "جاري الحفظ..." : (isEditMode ? "حفظ التعديلات" : "نشر الإعلان")}
+      {submitting ? "جارٍ الحفظ..." : (isEditMode ? "حفظ التعديلات" : "انشر الوظيفة")}
     </button>
   );
 
@@ -616,7 +616,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     return (
       <div dir="rtl" style={{ maxWidth: 700, margin: "0 auto" }}>
         <h2 style={{ fontSize: 22, marginBottom: 16 }}>
-          {isEditMode ? "تعديل الإعلان" : "انشر إعلان وظيفة جديد"}
+          {isEditMode ? "تعديل الوظيفة" : "انشر وظيفة جديدة"}
         </h2>
         <EmailVerificationNotice email={emailVerification.email || ""} />
       </div>
@@ -665,24 +665,24 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             pointerEvents: "none",
           }}
         >
-          ⏳ بياخد وقت أطول من المعتاد، برجاء الانتظار...
+          يستغرق الحفظ وقتًا أطول من المعتاد، يرجى الانتظار...
         </div>
       )}
 
       <h2 style={{ fontSize: 22, marginBottom: 10 }}>
-        {isEditMode ? "تعديل الإعلان" : "انشر إعلان وظيفة جديد"}
+        {isEditMode ? "تعديل الوظيفة" : "انشر وظيفة جديدة"}
       </h2>
 
       <div style={progressBarStyle}>
         <span style={readyToPost ? readyBadgeStyle : pendingBadgeStyle}>
-          {readyToPost ? "✓ الحد الأدنى للنشر جاهز" : `أكمل ${missingRequiredFields.join(" و")}`}
+          {readyToPost ? "الحد الأدنى للنشر مكتمل" : `أكمل ${missingRequiredFields.join(" و")}`}
         </span>
-        <span style={{ color: "#4A5568", fontSize: 12.5 }}>باقي التفاصيل تحت اختيارية بالكامل</span>
+        <span style={{ color: "#4A5568", fontSize: 12.5 }}>باقي التفاصيل أدناه اختيارية</span>
       </div>
 
       <form onSubmit={handleSubmit}>
         <fieldset style={basicSectionStyle}>
-          <h3 style={basicH3Style}>📋 المعلومات الأساسية</h3>
+          <h3 style={basicH3Style}>المعلومات الأساسية</h3>
           <div style={gridStyle}>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>المسمى الوظيفي</label>
@@ -698,7 +698,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             </div>
             {specSelect === "other" && (
               <div>
-                <label style={labelStyle}>اكتب التخصص</label>
+                <label style={labelStyle}>أدخل التخصص</label>
                 <input type="text" value={specOther} onChange={(e) => setSpecOther(e.target.value)} required style={inputStyle} />
               </div>
             )}
@@ -729,7 +729,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
               </div>
             )}
             <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>الكلمات المفتاحية (اختياري) — بتساعد تظهر الوظيفة للباحثين المناسبين أكتر</label>
+              <label style={labelStyle}>الكلمات المفتاحية (اختياري) — تساعد على ظهور الوظيفة للمرشحين المناسبين</label>
               <KeywordsPicker value={keywords} onChange={setKeywords} />
             </div>
             <div>
@@ -771,12 +771,12 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
               <select value={citySelect} onChange={(e) => setCitySelect(e.target.value)} style={inputStyle}>
                 <option value="">غير محدد</option>
                 {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-                <option value="other">أخرى (اكتب بنفسك)</option>
+                <option value="other">أخرى (أدخلها يدويًا)</option>
               </select>
             </div>
             {citySelect === "other" && (
               <div>
-                <label style={labelStyle}>اكتب المدينة</label>
+                <label style={labelStyle}>أدخل المدينة</label>
                 <input type="text" value={cityOther} onChange={(e) => setCityOther(e.target.value)} style={inputStyle} />
               </div>
             )}
@@ -785,9 +785,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="المهام والمميزات..." style={{ ...inputStyle, minHeight: 80 }} />
               {description.trim().length < DESCRIPTION_NOTE_MIN_LENGTH && (
                 <div style={softNoteStyle}>
-                  💡 الوصف الأطول والأوضح بيجيب متقدمين أنسب.{" "}
+                  الوصف المفصّل والواضح يجذب مرشحين أنسب.{" "}
                   <a href="/articles/how-to-write-a-job-ad" target="_blank" rel="noopener noreferrer" style={{ color: "#14213D", fontWeight: 700 }}>
-                    إزاي تكتب إعلان وظيفة ناجح؟
+                    كيف تكتب إعلان وظيفة فعّالًا؟
                   </a>
                 </div>
               )}
@@ -796,9 +796,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         </fieldset>
 
         <CollapsibleSection
-          title="💰 الراتب وعدد الفرص"
-          subtitle="حدد نطاق الراتب — بيساعد يجذب مرشحين مناسبين أكتر"
-          note={salaryMissing ? <div style={softNoteStyle}>💡 الإعلانات اللي فيها مرتب أو نطاق مرتب بتجيب متقدمين أنسب.</div> : undefined}
+          title="الراتب وعدد الفرص"
+          subtitle="حدّد نطاق الراتب لجذب مرشحين مناسبين"
+          note={salaryMissing ? <div style={softNoteStyle}>الوظائف التي تذكر الراتب أو نطاقه تجذب مرشحين أنسب.</div> : undefined}
         >
           <div style={gridStyle}>
             <div>
@@ -823,12 +823,12 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             )}
             <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 6 }}>
               <input type="checkbox" id="showSalary" checked={showSalary} onChange={(e) => setShowSalary(e.target.checked)} />
-              <label htmlFor="showSalary" style={{ fontSize: 13.5 }}>أظهر الراتب في الإعلان (لو مش متعلّم، هيظهر "غير محدد")</label>
+              <label htmlFor="showSalary" style={{ fontSize: 13.5 }}>أظهر الراتب في الوظيفة (إذا لم يتم التحديد، سيظهر "غير محدد")</label>
             </div>
           </div>
         </CollapsibleSection>
 
-        <CollapsibleSection title="📝 شروط المتقدم" subtitle="حدد سن أو شروط معينة لو محتاجها — سيب الحقول فاضية لو أي حد يقدر يقدّم">
+        <CollapsibleSection title="شروط المرشح" subtitle="حدّد السن أو أي شروط مطلوبة، أو اترك الحقول فارغة إذا كان التقديم متاحًا للجميع">
           <div style={gridStyle}>
             <div>
               <label style={labelStyle}>السن من</label>
@@ -845,11 +845,11 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
               </select>
             </div>
             <div>
-              <label style={labelStyle}>محتاج عربية؟</label>
+              <label style={labelStyle}>هل تتطلب الوظيفة سيارة؟</label>
               <select value={needsCar} onChange={(e) => setNeedsCar(e.target.value)} style={inputStyle}>
                 <option value="">غير محدد</option>
-                <option value="yes">أيوة</option>
-                <option value="no">لأ</option>
+                <option value="yes">نعم</option>
+                <option value="no">لا</option>
               </select>
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
@@ -859,9 +859,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
           </div>
         </CollapsibleSection>
 
-        <CollapsibleSection title="❓ أسئلة فرز للمتقدمين" subtitle="ضيف أسئلة يجاوب عليها كل متقدم وقت التقديم — بتوفر عليك وقت الفرز">
+        <CollapsibleSection title="أسئلة فرز المرشحين" subtitle="أضف أسئلة يجيب عنها كل مرشح عند التقديم لتوفير وقت الفرز">
           <p style={{ fontSize: 13, color: "#4A5568", marginBottom: 12 }}>
-            المتقدم هيجاوب على الأسئلة دي وقت التقديم، وهتظهر إجاباته لك جنب باقي بياناته.
+            يجيب المرشح عن هذه الأسئلة عند التقديم، وتظهر إجاباته مع باقي بياناته.
           </p>
 
           {screeningQuestions.length > 0 && (
@@ -894,7 +894,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
                       onClick={() => removeScreeningQuestion(q.id)}
                       style={{ background: "none", border: "none", color: "#B03A14", cursor: "pointer" }}
                     >
-                      ✕
+                      حذف
                     </button>
                   </div>
                 </div>
@@ -904,28 +904,28 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
 
           <div style={gridStyle}>
             <div>
-              <label style={labelStyle}>اختر سؤال</label>
+              <label style={labelStyle}>اختر سؤالًا</label>
               <select value={newQuestionSelect} onChange={(e) => setNewQuestionSelect(e.target.value)} style={inputStyle}>
                 <option value="">اختر من القائمة</option>
                 {availableQuestionOptions.map((q) => (
                   <option key={q.text} value={q.text}>{q.text}</option>
                 ))}
-                <option value="other">أخرى (اكتب سؤالك)</option>
+                <option value="other">أخرى (أدخل سؤالك)</option>
               </select>
             </div>
             {newQuestionSelect === "other" && (
               <div>
-                <label style={labelStyle}>اكتب السؤال</label>
+                <label style={labelStyle}>أدخل السؤال</label>
                 <input type="text" value={newQuestionOther} onChange={(e) => setNewQuestionOther(e.target.value)} style={inputStyle} />
               </div>
             )}
           </div>
           <button type="button" onClick={addScreeningQuestion} style={{ ...ghostBtnStyle, marginTop: 12 }}>
-            + إضافة السؤال
+            أضف السؤال
           </button>
         </CollapsibleSection>
 
-        <CollapsibleSection title="⏰ ساعات العمل والمزايا" subtitle="وضّح ساعات العمل والمزايا زي التأمين والمواصلات — بيزود ثقة المتقدمين">
+        <CollapsibleSection title="ساعات العمل والمزايا" subtitle="وضّح ساعات العمل والمزايا مثل التأمين والمواصلات لزيادة ثقة المرشحين">
           <div style={gridStyle}>
             <div>
               <label style={labelStyle}>عدد ساعات العمل يوميًا</label>
@@ -961,7 +961,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             </div>
             {transportationAvailable === "yes" && (
               <div>
-                <label style={labelStyle}>الأماكن اللي المواصلات متوفرة ليها</label>
+                <label style={labelStyle}>المناطق التي تغطيها المواصلات</label>
                 <input type="text" value={transportationAreas} onChange={(e) => setTransportationAreas(e.target.value)} placeholder="مثال: مدينة نصر، العبور" style={inputStyle} />
               </div>
             )}
@@ -980,21 +980,21 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
           </div>
         </CollapsibleSection>
 
-        <CollapsibleSection title="🏢 إعدادات الإعلان" subtitle="تحكم في ظهور اسم شركتك وطريقة استقبال المتقدمين">
+        <CollapsibleSection title="إعدادات الوظيفة" subtitle="تحكّم في ظهور اسم الشركة وطريقة استقبال المرشحين">
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
             <input type="checkbox" id="showCompanyNamePost" checked={showCompanyName} onChange={(e) => setShowCompanyName(e.target.checked)} />
-            <label htmlFor="showCompanyNamePost" style={{ fontSize: 13.5 }}>أظهر اسم الشركة في الإعلان</label>
+            <label htmlFor="showCompanyNamePost" style={{ fontSize: 13.5 }}>أظهر اسم الشركة في الوظيفة</label>
           </div>
 
-          <label style={labelStyle}>طريقة استقبال المتقدمين</label>
+          <label style={labelStyle}>طريقة استقبال المرشحين</label>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13.5 }}>
               <input type="radio" checked={receiveMethod === "platform"} onChange={() => setReceiveMethod("platform")} style={{ marginTop: 3 }} />
-              <span><strong>استقبل الطلبات من خلال الموقع بس</strong> — تشوف المتقدمين من "عرض المتقدمين" في إعلاناتك</span>
+              <span><strong>استقبال الطلبات عبر الموقع فقط</strong> — تظهر لك الطلبات من "عرض المرشحين" في قائمة وظائفك</span>
             </label>
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13.5 }}>
               <input type="radio" checked={receiveMethod === "contact"} onChange={() => setReceiveMethod("contact")} style={{ marginTop: 3 }} />
-              <span><strong>إظهار وسيلة تواصل مباشرة في الإعلان</strong> — الباحثين عن عمل يتواصلوا معاك مباشرة</span>
+              <span><strong>إظهار وسيلة تواصل مباشرة في الوظيفة</strong> — يتواصل معك الباحثون عن عمل مباشرة</span>
             </label>
           </div>
 
@@ -1004,14 +1004,14 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
                 <label style={labelStyle}>طريقة التواصل</label>
                 <select value={contactMethod} onChange={(e) => setContactMethod(e.target.value)} style={inputStyle}>
                   <option value="">اختر</option>
-                  <option value="email">إيميل</option>
+                  <option value="email">البريد الإلكتروني</option>
                   <option value="whatsapp">واتساب</option>
-                  <option value="phone">تليفون</option>
+                  <option value="phone">الهاتف</option>
                 </select>
               </div>
               <div>
                 <label style={labelStyle}>بيانات التواصل</label>
-                <input type="text" value={contactValue} onChange={(e) => setContactValue(e.target.value)} placeholder="الإيميل أو الرقم" style={inputStyle} />
+                <input type="text" value={contactValue} onChange={(e) => setContactValue(e.target.value)} placeholder="البريد الإلكتروني أو الرقم" style={inputStyle} />
               </div>
             </div>
           )}

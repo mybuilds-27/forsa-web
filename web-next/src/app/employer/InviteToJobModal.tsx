@@ -130,8 +130,8 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, d
         if (invitesThisMonth.length >= monthlyLimit) {
           setError(
             employerPlan === "premium"
-              ? `وصلت للحد الأقصى (${monthlyLimit} دعوة) للباقة المدفوعة الشهر ده.`
-              : `الباقة المجانية بتسمح بحد أقصى ${monthlyLimit} دعوات شهريًا، وإنت وصلت للحد ده الشهر ده.`
+              ? `وصلت إلى الحد الأقصى للدعوات في الباقة المدفوعة هذا الشهر (${monthlyLimit} دعوة).`
+              : `تسمح الباقة المجانية بإرسال ${monthlyLimit} دعوات شهريًا بحد أقصى، وقد وصلت إلى هذا الحد هذا الشهر.`
           );
           setSending(false);
           return;
@@ -140,7 +140,7 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, d
 
       const job = jobs.find((j) => j.id === selectedJobId);
       if (!job) {
-        setError("اختار وظيفة الأول.");
+        setError("اختر وظيفة أولًا.");
         setSending(false);
         return;
       }
@@ -159,7 +159,7 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, d
       setSent(true);
     } catch (err) {
       console.error("Send invite failed", err);
-      setError("حصلت مشكلة — جرب تاني.");
+      setError("تعذّر إرسال الدعوة. حاول مرة أخرى.");
     }
     setSending(false);
   }
@@ -209,21 +209,21 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, d
           ✕
         </button>
 
-        <h2 style={{ marginBottom: 6, fontSize: 19 }}>ادعُ {seekerName || "الباحث"} للتقديم</h2>
+        <h2 style={{ marginBottom: 6, fontSize: 19 }}>ادعُ {seekerName || "المرشح"} للتقديم</h2>
 
         {sent ? (
-          <p style={{ color: "#2F6F4E", fontSize: 14 }}>✓ اتبعتت الدعوة بنجاح.</p>
+          <p style={{ color: "#2F6F4E", fontSize: 14 }}>تم إرسال الدعوة بنجاح.</p>
         ) : (
           <>
             <p style={{ color: "#4A5568", fontSize: 13.5, marginBottom: 16 }}>
-              اختار وظيفة من إعلاناتك النشطة، وهنبعتله إيميل يدعوه للتقديم عليها.
+              اختر وظيفة من وظائفك النشطة، وسنرسل للمرشح بريدًا إلكترونيًا يدعوه للتقديم عليها.
             </p>
 
-            {loading && <p>جاري التحميل...</p>}
+            {loading && <p>جارٍ التحميل...</p>}
 
             {!loading && jobs.length === 0 && (
               <div style={{ padding: 16, textAlign: "center", color: "#4A5568" }}>
-                مفيش إعلانات نشطة عندك دلوقتي.
+                لا توجد لديك وظائف نشطة حاليًا.
               </div>
             )}
 
@@ -275,7 +275,7 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, d
                       }}
                       onFocus={() => setIsOpen(true)}
                       onKeyDown={(e) => e.key === "Escape" && setIsOpen(false)}
-                      placeholder="دور على وظيفة من إعلاناتك..."
+                      placeholder="ابحث في وظائفك..."
                       style={{ width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 6, fontSize: 14, fontFamily: "inherit" }}
                     />
                     {isOpen && (
@@ -296,7 +296,7 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, d
                         }}
                       >
                         {filteredJobs.length === 0 ? (
-                          <div style={{ padding: "8px 10px", fontSize: 13, color: "#4A5568" }}>مفيش نتائج مطابقة</div>
+                          <div style={{ padding: "8px 10px", fontSize: 13, color: "#4A5568" }}>لا توجد نتائج مطابقة</div>
                         ) : (
                           filteredJobs.map((j) => (
                             <div
@@ -335,7 +335,7 @@ export default function InviteToJobModal({ seekerId, seekerName, employerPlan, d
                 opacity: sending || !selectedJobId ? 0.6 : 1,
               }}
             >
-              {sending ? "جاري الإرسال..." : "إرسال الدعوة"}
+              {sending ? "جارٍ الإرسال..." : "أرسل الدعوة"}
             </button>
           </>
         )}

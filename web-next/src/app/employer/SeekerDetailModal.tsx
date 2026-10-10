@@ -181,7 +181,7 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
           <h2 style={{ marginBottom: 4 }}>{s.fullName || "بدون اسم"}</h2>
           <div style={{ color: "#4A5568", marginBottom: 4 }}>{s.jobTitle || ""}</div>
           <div style={{ fontSize: 12.5, color: "#4A5568", marginBottom: 12 }}>
-            🕓 آخر تحديث للبروفايل: {formatUpdatedAt(s.updatedAt)}
+            آخر تحديث للملف الشخصي: {formatUpdatedAt(s.updatedAt)}
           </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
@@ -224,7 +224,7 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
                   <strong>{row.jobTitle || ""}</strong>
                   {!s.hideCompanyNames && row.company ? ` — ${row.company}` : ""}
                   <div style={{ color: "#4A5568", marginTop: 4 }}>
-                    {row.fromDate || ""} {row.fromDate || row.toDate ? "—" : ""} {row.isCurrent ? "لسه شغال هنا" : row.toDate || ""}
+                    {row.fromDate || ""} {row.fromDate || row.toDate ? "—" : ""} {row.isCurrent ? "حتى الآن" : row.toDate || ""}
                   </div>
                   {row.responsibilities && <div style={{ marginTop: 4 }}>{row.responsibilities}</div>}
                 </div>
@@ -235,7 +235,7 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
           <hr style={{ margin: "20px 0", border: "none", borderTop: "1px solid #14213D22" }} />
 
           {isPremium && contactState === "loading" && (
-            <div style={{ fontSize: 13.5, color: "#4A5568" }}>جاري التحقق من بيانات التواصل...</div>
+            <div style={{ fontSize: 13.5, color: "#4A5568" }}>جارٍ التحقق من بيانات التواصل...</div>
           )}
 
           {isPremium && contactState === "email-unverified" && (
@@ -245,7 +245,7 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
           {isPremium && contactState === "limit-reached" && (
             <div style={{ background: "#F5EFDE", padding: 16, borderRadius: 8 }}>
               <p style={{ fontSize: 13.5, color: "#B03A14" }}>
-                وصلت للحد الأقصى ({MONTHLY_CONTACT_REVEAL_LIMIT} عملية كشف بيانات تواصل) للباقة المدفوعة الشهر ده.
+                وصلت إلى الحد الأقصى لكشف بيانات التواصل في الباقة المدفوعة هذا الشهر ({MONTHLY_CONTACT_REVEAL_LIMIT} عملية).
               </p>
             </div>
           )}
@@ -256,40 +256,40 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
           {isAdmin || (isPremium && contactState === "allowed") ? (
             <div>
               <h3 style={{ fontSize: 15, marginBottom: 10 }}>بيانات التواصل</h3>
-              <div style={{ fontSize: 14.5, marginBottom: 6 }}>📞 <strong>{s.phone || "—"}</strong></div>
+              <div style={{ fontSize: 14.5, marginBottom: 6 }}>الهاتف: <strong>{s.phone || "—"}</strong></div>
               {(() => {
                 const whatsappLink = whatsappCompanyName
                   ? buildWhatsAppLink(s.phone, talentWhatsAppMessage(whatsappCompanyName))
                   : null;
                 return whatsappLink ? (
                   <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{ ...whatsappButtonStyle, marginBottom: 6 }}>
-                    💬 واتساب
+                    واتساب
                   </a>
                 ) : null;
               })()}
-              {s.email && <div style={{ fontSize: 14.5, marginBottom: 6 }}>✉️ {s.email}</div>}
+              {s.email && <div style={{ fontSize: 14.5, marginBottom: 6 }}>البريد الإلكتروني: {s.email}</div>}
               {s.cvFileURL && (
                 <a href={s.cvFileURL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 6, color: "#14213D" }}>
-                  📄 السيرة الذاتية
+                  السيرة الذاتية
                 </a>
               )}
               <button
                 onClick={() => setShowInvite(true)}
                 style={{ display: "block", marginTop: 14, padding: "8px 16px", background: "#14213D", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13.5 }}
               >
-                ✉️ ادعُه للتقديم على وظيفة
+                ادعُه للتقديم على وظيفة
               </button>
             </div>
           ) : !isAdmin && !isPremium ? (
             <div style={{ background: "#F5EFDE", padding: 16, borderRadius: 8 }}>
               <p style={{ fontSize: 13.5, color: "#4A5568", marginBottom: 12 }}>
-                التواصل المباشر مع الكوادر (تليفون، إيميل، السيرة الذاتية) متاح بس للباقة المدفوعة.
+                التواصل المباشر مع المرشحين (الهاتف، البريد الإلكتروني، السيرة الذاتية) متاح للباقة المدفوعة فقط.
               </p>
               <button
                 onClick={() => setShowUpgrade(true)}
                 style={{ padding: "8px 16px", background: "#E8A33D", color: "#14213D", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13.5 }}
               >
-                🚀 طلب الترقية للباقة المدفوعة
+                اطلب الترقية للباقة المدفوعة
               </button>
               {/* الدعوة للتقديم متاحة للباقة المجانية كمان (InviteToJobModal بتدعمها فعليًا،
                   حد 5 دعوات شهريًا) — القيد على المدفوعة بس هو كشف بيانات التواصل فوق. */}
@@ -297,7 +297,7 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
                 onClick={() => setShowInvite(true)}
                 style={{ display: "block", marginTop: 10, padding: "8px 16px", background: "#14213D", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13.5 }}
               >
-                ✉️ ادعُه للتقديم على وظيفة
+                ادعُه للتقديم على وظيفة
               </button>
             </div>
           ) : null}

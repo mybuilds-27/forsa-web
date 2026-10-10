@@ -86,19 +86,19 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
 
     if (logoFile) {
       if (logoFile.size > 2 * 1024 * 1024) {
-        alert("حجم الصورة أكبر من 2 ميجا — اختار صورة أصغر.");
+        alert("حجم الصورة أكبر من 2 ميجابايت. يرجى اختيار صورة أصغر.");
         setSaving(false);
         return;
       }
       try {
-        setLogoStatus("جاري رفع اللوجو...");
+        setLogoStatus("جارٍ رفع الشعار...");
         const fileRef = ref(storage, `logos/${user.uid}/${logoFile.name}`);
         await uploadBytes(fileRef, logoFile);
         data.logoURL = await getDownloadURL(fileRef);
-        setLogoStatus("تم رفع اللوجو ✓");
+        setLogoStatus("تم رفع الشعار.");
       } catch (err) {
         console.error("Logo upload failed", err);
-        setLogoStatus("حصلت مشكلة في رفع اللوجو — اتحفظت باقي البيانات من غيره");
+        setLogoStatus("تعذّر رفع الشعار. تم حفظ باقي البيانات بدونه.");
       }
     }
 
@@ -160,7 +160,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
       setSaving(false);
       if (isHardTimeout) {
         alert(
-          "حصلت مشكلة في الاتصال ومقدرناش نتأكد من نجاح الحفظ خلال وقت معقول — تأكد من اتصال الإنترنت، وحدّث الصفحة (refresh) قبل ما تجرب تاني. لو البيانات اتحفظت فعلاً هتلاقيها محدثة بعد التحديث."
+          "تعذّر التأكد من حفظ البيانات بسبب مشكلة في الاتصال. تأكد من اتصال الإنترنت، ثم حدّث الصفحة قبل المحاولة مرة أخرى. إذا تم الحفظ بالفعل، ستظهر البيانات محدّثة بعد تحديث الصفحة."
         );
       } else {
         alert(friendlyErrorMessage(err));
@@ -188,7 +188,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
             pointerEvents: "none",
           }}
         >
-          ⏳ بياخد وقت أطول من المعتاد، برجاء الانتظار...
+          يستغرق الحفظ وقتًا أطول من المعتاد، يرجى الانتظار...
         </div>
       )}
 
@@ -202,7 +202,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
             <label style={labelStyle}>اسم الشركة</label>
             <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required style={inputStyle} />
             <div style={{ fontSize: 12.5, color: "#4A5568", marginTop: 6 }}>
-              🔒 اسمك هيفضل مخفي عن الباحثين افتراضيًا، ومش هيظهر إلا لو اخترت إظهاره (تقدر تتحكم في الإعداد ده تحت أو لكل وظيفة على حدة).
+              اسم الشركة مخفي عن الباحثين افتراضيًا، ولا يظهر إلا إذا اخترت إظهاره. يمكنك التحكم في هذا الإعداد أدناه أو لكل وظيفة على حدة.
             </div>
           </div>
           <div>
@@ -211,20 +211,20 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
           </div>
 
           <div style={{ gridColumn: "1 / -1" }}>
-            <label style={labelStyle}>لوجو الشركة (اختياري)</label>
+            <label style={labelStyle}>شعار الشركة (اختياري)</label>
             <FileUploadButton
-              label="📷 اختيار صورة"
+              label="اختر صورة"
               accept="image/*"
-              fileName={logoFile?.name || (logoURL ? "✓ صورة محفوظة بالفعل" : undefined)}
+              fileName={logoFile?.name || (logoURL ? "تم حفظ صورة بالفعل" : undefined)}
               onChange={setLogoFile}
             />
             <div style={{ fontSize: 12.5, color: "#4A5568", marginTop: 6 }}>
-              {logoStatus || "صورة PNG أو JPG، حد أقصى 2 ميجا"}
+              {logoStatus || "صورة PNG أو JPG، بحد أقصى 2 ميجابايت"}
             </div>
           </div>
 
           <div>
-            <label style={labelStyle}>رقم التليفون</label>
+            <label style={labelStyle}>رقم الهاتف</label>
             <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required style={inputStyle} />
           </div>
 
@@ -255,12 +255,12 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
             <select value={citySelect} onChange={(e) => setCitySelect(e.target.value)} style={inputStyle}>
               <option value="">غير محدد</option>
               {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-              <option value="other">أخرى (اكتب بنفسك)</option>
+              <option value="other">أخرى (أدخلها يدويًا)</option>
             </select>
           </div>
           {citySelect === "other" && (
             <div>
-              <label style={labelStyle}>اكتب المدينة</label>
+              <label style={labelStyle}>أدخل المدينة</label>
               <input type="text" value={cityOther} onChange={(e) => setCityOther(e.target.value)} placeholder="اسم المدينة/المنطقة" style={inputStyle} />
             </div>
           )}
@@ -270,10 +270,10 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
             <select value={companySize} onChange={(e) => setCompanySize(e.target.value)} required style={inputStyle}>
               <option value="">اختر</option>
               <option value="under20">أقل من 20</option>
-              <option value="20to100">من 20 لـ 100</option>
-              <option value="100to500">من 100 لـ 500</option>
-              <option value="500to1000">من 500 لـ 1000</option>
-              <option value="over1000">أكتر من 1000</option>
+              <option value="20to100">من 20 إلى 100</option>
+              <option value="100to500">من 100 إلى 500</option>
+              <option value="500to1000">من 500 إلى 1000</option>
+              <option value="over1000">أكثر من 1000</option>
             </select>
           </div>
 
@@ -285,7 +285,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
               onChange={(e) => setShowCompanyNameDefault(e.target.checked)}
             />
             <label htmlFor="showCompanyNameDefaultCheck" style={{ fontSize: 13.5 }}>
-              أظهر اسم شركتي افتراضيًا في كل الإعلانات الجديدة (تقدر تغيّرها لكل إعلان لوحده)
+              أظهر اسم الشركة افتراضيًا في كل الوظائف الجديدة (يمكن تغييره لكل وظيفة على حدة)
             </label>
           </div>
         </div>
@@ -306,7 +306,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
             marginTop: 20,
           }}
         >
-          {saving ? "جاري الحفظ..." : "حفظ بيانات الشركة"}
+          {saving ? "جارٍ الحفظ..." : "حفظ بيانات الشركة"}
         </button>
       </form>
     </div>

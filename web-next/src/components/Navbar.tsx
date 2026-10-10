@@ -191,9 +191,9 @@ export default function Navbar() {
         </Link>
         {showSeekerItems && (
           <>
-            <Link href="/seeker?tab=jobs" style={linkStyle}>🏠 تصفح الوظائف</Link>
-            <Link href="/seeker?tab=saved" style={linkStyle}>🔖 الوظائف المحفوظة</Link>
-            <Link href="/seeker?tab=profile" style={linkStyle}>👤 حسابي</Link>
+            <Link href="/seeker?tab=jobs" style={linkStyle}>تصفح الوظائف</Link>
+            <Link href="/seeker?tab=saved" style={linkStyle}>الوظائف المحفوظة</Link>
+            <Link href="/seeker?tab=profile" style={linkStyle}>حسابي</Link>
           </>
         )}
         {/* مش مربوطة بـshowSeekerItems (يعني مش مقتصرة على صفحات الباحث) — لازم تفضل ظاهرة
@@ -208,27 +208,27 @@ export default function Navbar() {
             onClick={() => router.push(`/seeker?tab=profile&openEdit=${Date.now()}`)}
             style={{ ...profileNudgeStyle, fontFamily: "inherit", cursor: "pointer" }}
           >
-            ⚠️ بياناتك {profileCompletion}% مكتملة — كمّل دلوقتي
+            بياناتك {profileCompletion}% مكتملة — كمّل دلوقتي
           </button>
         )}
         {showEmployerItems && (
           <span style={isPremium ? premiumBadgeStyle : freeBadgeStyle}>
-            {isPremium ? "⭐ الباقة المدفوعة" : "الباقة المجانية"}
+            {isPremium ? "الباقة المدفوعة" : "الباقة المجانية"}
           </span>
         )}
         {showEmployerItems && (
           <>
-            <Link href="/employer?tab=company" style={linkStyle}>🏠 لوحة الشركة</Link>
-            <Link href="/employer?tab=postjob" style={linkStyle}>📝 نشر وظيفة جديدة</Link>
-            <Link href="/employer?tab=talent" style={linkStyle}>🔍 البحث عن كوادر</Link>
+            <Link href="/employer?tab=company" style={linkStyle}>لوحة الشركة</Link>
+            <Link href="/employer?tab=postjob" style={linkStyle}>نشر وظيفة جديدة</Link>
+            <Link href="/employer?tab=talent" style={linkStyle}>البحث عن كوادر</Link>
           </>
         )}
         {/* مخفي عن الباحث المسجّل دخول بس (عنده "تصفح الوظائف" جوه لوحته، نفس القايمة + تقديم وحفظ) —
             الأدمن مستثنى حتى لو حسابه من نوع job_seeker، والزوار وأصحاب الأعمال بيشوفوه عادي. */}
-        {!(userType === "job_seeker" && !isAdmin) && <Link href="/jobs" style={linkStyle}>💼 الوظائف</Link>}
-        <Link href="/companies" style={linkStyle}>🏛️ الشركات</Link>
-        <Link href="/articles" style={linkStyle}>📰 مقالات</Link>
-        {showAdminLink && <Link href="/admin" style={linkStyle}>📊 لوحة الإدارة</Link>}
+        {!(userType === "job_seeker" && !isAdmin) && <Link href="/jobs" style={linkStyle}>الوظائف</Link>}
+        <Link href="/companies" style={linkStyle}>الشركات</Link>
+        <Link href="/articles" style={linkStyle}>مقالات</Link>
+        {showAdminLink && <Link href="/admin" style={linkStyle}>لوحة الإدارة</Link>}
         {signedIn && <NotificationBell />}
         {signedIn && <EnableNotificationsButton />}
         {signedIn && <EnablePushNudge />}

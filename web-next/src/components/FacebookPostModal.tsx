@@ -78,9 +78,9 @@ export default function FacebookPostModal({ job, onClose }: Props) {
           ✕
         </button>
 
-        <h3 style={{ margin: "0 0 4px", fontSize: 16, color: "#14213D" }}>📋 نص جاهز للنشر على فيسبوك</h3>
+        <h3 style={{ margin: "0 0 4px", fontSize: 16, color: "#14213D" }}>نص جاهز للنشر على فيسبوك</h3>
         <p style={{ fontSize: 12.5, color: "#4A5568", marginBottom: 14, lineHeight: 1.7 }}>
-          عدّل النص زي ما تحب (تقدر تضيف الراتب أو التأمين أو المواصلات مثلًا) قبل ما تنسخه.
+          عدّل النص كما تريد قبل نسخه (مثلًا أضف الراتب أو التأمين أو المواصلات).
         </p>
 
         <textarea
@@ -118,7 +118,7 @@ export default function FacebookPostModal({ job, onClose }: Props) {
             fontFamily: "inherit",
           }}
         >
-          {copied ? "✓ اتنسخ النص" : "📋 نسخ النص"}
+          {copied ? "تم نسخ النص" : "انسخ النص"}
         </button>
       </div>
     </div>
