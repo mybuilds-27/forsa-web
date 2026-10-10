@@ -18,6 +18,12 @@ const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
 // صفحة، ده بيحصل مرة كل ساعة كحد أقصى لكل مستخدم بدل كل صفحة يفتحها.
 const ACTIVITY_UPDATE_INTERVAL_MS = 60 * 60 * 1000;
 
+// آخر وقت قررنا فيه نكتب lastActiveAt لكل uid في التاب ده — حارس إضافي فوق فحص المستند نفسه،
+// بيتحدّث بشكل متزامن *قبل* updateDoc. من غيره كان فيه loop: الكتابة بتطلّع snapshot محلي فيه
+// lastActiveAt = null (serverTimestamp لسه معلّق)، فالشرط يتحقق تاني ونكتب تاني، وهكذا بلا نهاية
+// طول ما التاب مفتوح. على مستوى الموديول (مش state) عشان يفضل ثابت مع إعادة الـrender والتنقل.
+const lastActiveWriteByUid = new Map<string, number>();
+
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -42,6 +48,9 @@ export default function Navbar() {
       unsubscribeEmployerDoc = null;
       unsubscribeSeekerDoc?.();
       unsubscribeSeekerDoc = null;
+      // نوع الحساب اللي اشتراكات employers/job_seekers الحالية معمولة عليه — undefined يعني لسه
+      // مفيش. بيتصفّر مع كل تغيير في المستخدم (uid جديد)، فالاشتراكات بتتعمل من جديد ساعتها.
+      let subscribedType: string | null | undefined = undefined;
 
       if (!user) {
         setSignedIn(false);
@@ -69,14 +78,30 @@ export default function Navbar() {
           // الـsnapshot المشترك ده بدل قراءة إضافية، وبنحدّث بس لو آخر تحديث أقدم من ساعة
           // (أو أول مرة)، عشان منكتبش على Firestore في كل تحميل صفحة. لو المستند لسه ماتكتبش
           // (سباق مع routeAfterAuth وقت أول تسجيل دخول) بنسيب الموضوع للـsnapshot الجاي.
-          if (userDoc.exists()) {
-            const lastActiveAt = userDoc.data().lastActiveAt as Timestamp | undefined;
-            if (!lastActiveAt || Date.now() - lastActiveAt.toMillis() > ACTIVITY_UPDATE_INTERVAL_MS) {
+          // مبنقررش الكتابة من لقطة محلية فيها كتابات معلّقة (hasPendingWrites) — دي مش حالة
+          // السيرفر لسه. serverTimestamps: "estimate" عشان الـserverTimestamp المعلّق ميرجعش null،
+          // والحارس lastActiveWriteByUid بيمنع أكتر من كتابة في الساعة لنفس الـuid في التاب ده.
+          if (userDoc.exists() && !userDoc.metadata.hasPendingWrites) {
+            const lastActiveAt = userDoc.data({ serverTimestamps: "estimate" }).lastActiveAt as Timestamp | undefined;
+            const now = Date.now();
+            const lastWriteInTab = lastActiveWriteByUid.get(user.uid);
+            const docIsStale = !lastActiveAt || now - lastActiveAt.toMillis() > ACTIVITY_UPDATE_INTERVAL_MS;
+            const tabIsStale = lastWriteInTab === undefined || now - lastWriteInTab > ACTIVITY_UPDATE_INTERVAL_MS;
+            if (docIsStale && tabIsStale) {
+              // بيتسجّل قبل updateDoc ومبيتشالش لو الكتابة فشلت: الفشل بيرجّع snapshot محلي
+              // (rollback)، ولو شلنا الحارس كنا هنرجع لنفس الـloop مع أي خطأ دائم زي permission-denied.
+              lastActiveWriteByUid.set(user.uid, now);
               updateDoc(doc(db, "users", user.uid), { lastActiveAt: serverTimestamp() }).catch((err) => {
                 console.error("[Navbar] فشل تحديث lastActiveAt", err);
               });
             }
           }
+
+          // كل تحديث لمستند users/{uid} (زي lastActiveAt نفسه) كان بيلغي اشتراكات employers/
+          // job_seekers ويعملها من جديد = قراءة كاملة زيادة كل مرة. دلوقتي بس لو النوع اتغيّر فعلًا
+          // (الـuid ثابت جوه الاستماع ده، وتغييره بيعدّي على onAuthStateChanged فوق اللي بيصفّر كل حاجة).
+          if (type === subscribedType) return;
+          subscribedType = type;
 
           unsubscribeEmployerDoc?.();
           unsubscribeEmployerDoc = null;
