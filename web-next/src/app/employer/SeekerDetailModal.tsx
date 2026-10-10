@@ -239,7 +239,7 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
           )}
 
           {isPremium && contactState === "email-unverified" && (
-            <EmailVerificationNotice email={unverifiedEmail} />
+            <EmailVerificationNotice email={unverifiedEmail} audience="employer" />
           )}
 
           {isPremium && contactState === "limit-reached" && (

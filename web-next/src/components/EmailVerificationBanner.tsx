@@ -4,12 +4,49 @@ import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { checkEmailVerificationGate, resendVerificationEmail } from "@/lib/emailVerificationGate";
+import type { CopyAudience } from "@/lib/errorMessages";
+
+// النصوص بس اللي بتختلف بين الجمهورين (شوف CopyAudience) — الشكل والمنطق واحد. afterEmail هو
+// الفاصل اللي بعد الإيميل (مسافة قبل "—" عند الباحث، ولا حاجة قبل النقطة عند صاحب العمل).
+const COPY: Record<CopyAudience, {
+  sentPrefix: string;
+  emailFallback: string;
+  afterEmail: string;
+  sentSuffix: string;
+  sending: string;
+  resend: string;
+  sent: string;
+  error: string;
+}> = {
+  seeker: {
+    sentPrefix: "📩 بعتنالك إيميل تأكيد على",
+    emailFallback: "إيميلك",
+    afterEmail: " ",
+    sentSuffix: "— لو مش لاقيه دوّر في الـ Spam",
+    sending: "جاري الإرسال...",
+    resend: "إعادة إرسال",
+    sent: "✓ اتبعت لينك جديد",
+    error: "حصلت مشكلة، حاول تاني",
+  },
+  employer: {
+    sentPrefix: "أرسلنا رسالة تأكيد إلى",
+    emailFallback: "بريدك الإلكتروني",
+    afterEmail: "",
+    sentSuffix: ". إذا لم تجدها، تحقق من مجلد Spam.",
+    sending: "جارٍ الإرسال...",
+    resend: "إعادة إرسال",
+    sent: "تم إرسال رابط جديد",
+    error: "تعذّر الإرسال. حاول مرة أخرى.",
+  },
+};
 
 // بانر صغير أعلى /seeker و/employer للحساب اللي سجّل بإيميل ولسه ماأكدش — بيستخدم نفس
 // checkEmailVerificationGate اللي بيقرر EmailVerificationNotice (مين محتاج تأكيد: users/{uid}.
 // requiresEmailVerification === true + emailVerified لسه false بعد reload)، فحسابات التليفون
 // وجوجل والحسابات القديمة مبتظهرلهاش خالص. من غير زرار قفل: بيختفي لوحده أول ما الإيميل يتأكد.
-export default function EmailVerificationBanner() {
+// audience الافتراضي "seeker" (النص الأصلي)؛ /employer بيمرّر "employer".
+export default function EmailVerificationBanner({ audience = "seeker" }: { audience?: CopyAudience } = {}) {
+  const copy = COPY[audience];
   const [email, setEmail] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -34,12 +71,12 @@ export default function EmailVerificationBanner() {
 
   async function handleResend() {
     setStatus("sending");
-    const result = await resendVerificationEmail();
+    const result = await resendVerificationEmail(audience);
     if (result.ok) {
       setStatus("sent");
     } else {
       setStatus("error");
-      setErrorMsg(result.error || "حصلت مشكلة، حاول تاني");
+      setErrorMsg(result.error || copy.error);
     }
   }
 
@@ -65,15 +102,16 @@ export default function EmailVerificationBanner() {
       }}
     >
       <span>
-        📩 بعتنالك إيميل تأكيد على{" "}
+        {copy.sentPrefix}{" "}
         {email ? (
           <strong dir="ltr" style={{ display: "inline-block", wordBreak: "break-all" }}>
             {email}
           </strong>
         ) : (
-          "إيميلك"
-        )}{" "}
-        — لو مش لاقيه دوّر في الـ Spam
+          copy.emailFallback
+        )}
+        {copy.afterEmail}
+        {copy.sentSuffix}
       </span>
       <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <button
@@ -93,9 +131,9 @@ export default function EmailVerificationBanner() {
             fontFamily: "inherit",
           }}
         >
-          {status === "sending" ? "جاري الإرسال..." : "إعادة إرسال"}
+          {status === "sending" ? copy.sending : copy.resend}
         </button>
-        {status === "sent" && <span style={{ fontSize: 12.5, color: "#2F6F4E", fontWeight: 700 }}>✓ اتبعت لينك جديد</span>}
+        {status === "sent" && <span style={{ fontSize: 12.5, color: "#2F6F4E", fontWeight: 700 }}>{copy.sent}</span>}
         {status === "error" && <span style={{ fontSize: 12.5, color: "#B03A14", fontWeight: 700 }}>{errorMsg}</span>}
       </span>
     </div>

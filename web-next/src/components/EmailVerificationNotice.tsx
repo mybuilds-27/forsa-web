@@ -2,27 +2,75 @@
 
 import { useState } from "react";
 import { resendVerificationEmail } from "@/lib/emailVerificationGate";
+import type { CopyAudience } from "@/lib/errorMessages";
 
 type Props = {
   email: string;
+  // الافتراضي "seeker" (النص العامي الأصلي زي ما هو). "employer" = نسخة "بساطة مهنية" من غير إيموجي
+  // لصفحات صاحب العمل بس.
+  audience?: CopyAudience;
+};
+
+// النصوص بس اللي بتختلف بين الجمهورين — الشكل والمنطق واحد. afterEmail هو الفاصل اللي بعد الإيميل
+// (مسافة في نسخة الباحث قبل "—"، ولا حاجة في نسخة صاحب العمل قبل النقطة).
+const COPY: Record<CopyAudience, {
+  icon: string | null;
+  title: string;
+  sentPrefix: string;
+  emailFallback: string;
+  afterEmail: string;
+  sentSuffix: string;
+  spamHint: string;
+  sending: string;
+  resend: string;
+  sent: string;
+  error: string;
+}> = {
+  seeker: {
+    icon: "📩",
+    title: "أكد إيميلك الأول عشان تقدر تستخدم حسابك",
+    sentPrefix: "بعتنالك إيميل تأكيد على",
+    emailFallback: "إيميلك",
+    afterEmail: " ",
+    sentSuffix: "— افتحه ودوس على اللينك اللي جواه، وبعدين رجّع افتح الصفحة دي تاني.",
+    spamHint: "⚠️ لو مش لاقي الإيميل في الوارد، دوّر في الـ Spam (الرسائل غير المرغوب فيها)",
+    sending: "جاري الإرسال...",
+    resend: "📤 إعادة إرسال اللينك",
+    sent: "✓ اتبعت لينك جديد على إيميلك — دوّر في الـ Spam برضه",
+    error: "حصلت مشكلة، حاول تاني",
+  },
+  employer: {
+    icon: null,
+    title: "يرجى تأكيد بريدك الإلكتروني أولًا لاستخدام حسابك",
+    sentPrefix: "أرسلنا رسالة تأكيد إلى",
+    emailFallback: "بريدك الإلكتروني",
+    afterEmail: "",
+    sentSuffix: ". افتح الرسالة واضغط على الرابط بداخلها، ثم أعد فتح هذه الصفحة.",
+    spamHint: "إذا لم تجد الرسالة في صندوق الوارد، تحقق من مجلد الرسائل غير المرغوب فيها (Spam).",
+    sending: "جارٍ الإرسال...",
+    resend: "إعادة إرسال الرابط",
+    sent: "تم إرسال رابط جديد إلى بريدك الإلكتروني. تحقق من مجلد Spam أيضًا.",
+    error: "تعذّر الإرسال. حاول مرة أخرى.",
+  },
 };
 
 // مكوّن مشترك بيتعرض بدل أي فيتشر أساسي (نشر وظيفة، تقديم، عرض بيانات تواصل) لو الحساب
 // لسه محتاج تأكيد إيميل — شوف lib/emailVerificationGate.ts لمنطق تحديد مين محتاج التأكيد ده.
 // صندوق بارز بحدود سميكة وخط كبير، وجملة "دوّر في الـSpam" في صندوق مستقل ملفت (الإيميل الافتراضي
 // من فايربيز كتير بيوصل للسبام)، وزرار إعادة الإرسال تحتها مباشرة.
-export default function EmailVerificationNotice({ email }: Props) {
+export default function EmailVerificationNotice({ email, audience = "seeker" }: Props) {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const copy = COPY[audience];
 
   async function handleResend() {
     setStatus("sending");
-    const result = await resendVerificationEmail();
+    const result = await resendVerificationEmail(audience);
     if (result.ok) {
       setStatus("sent");
     } else {
       setStatus("error");
-      setErrorMsg(result.error || "حصلت مشكلة، حاول تاني");
+      setErrorMsg(result.error || copy.error);
     }
   }
 
@@ -38,12 +86,12 @@ export default function EmailVerificationNotice({ email }: Props) {
         boxShadow: "0 2px 8px rgba(232,163,61,0.25)",
       }}
     >
-      <div style={{ fontSize: 40, marginBottom: 8 }}>📩</div>
+      {copy.icon && <div style={{ fontSize: 40, marginBottom: 8 }}>{copy.icon}</div>}
       <div style={{ fontSize: 19, fontWeight: 800, color: "#14213D", marginBottom: 10 }}>
-        أكد إيميلك الأول عشان تقدر تستخدم حسابك
+        {copy.title}
       </div>
       <div style={{ fontSize: 15, color: "#37414F", lineHeight: 1.9, marginBottom: 14 }}>
-        بعتنالك إيميل تأكيد على{" "}
+        {copy.sentPrefix}{" "}
         {email ? (
           <strong
             dir="ltr"
@@ -59,9 +107,10 @@ export default function EmailVerificationNotice({ email }: Props) {
             {email}
           </strong>
         ) : (
-          "إيميلك"
-        )}{" "}
-        — افتحه ودوس على اللينك اللي جواه، وبعدين رجّع افتح الصفحة دي تاني.
+          copy.emailFallback
+        )}
+        {copy.afterEmail}
+        {copy.sentSuffix}
       </div>
       <div
         style={{
@@ -76,7 +125,7 @@ export default function EmailVerificationNotice({ email }: Props) {
           marginBottom: 14,
         }}
       >
-        ⚠️ لو مش لاقي الإيميل في الوارد، دوّر في الـ Spam (الرسائل غير المرغوب فيها)
+        {copy.spamHint}
       </div>
       <button
         type="button"
@@ -95,7 +144,7 @@ export default function EmailVerificationNotice({ email }: Props) {
           fontFamily: "inherit",
         }}
       >
-        {status === "sending" ? "جاري الإرسال..." : "📤 إعادة إرسال اللينك"}
+        {status === "sending" ? copy.sending : copy.resend}
       </button>
       {status === "sent" && (
         <div
@@ -109,7 +158,7 @@ export default function EmailVerificationNotice({ email }: Props) {
             fontWeight: 700,
           }}
         >
-          ✓ اتبعت لينك جديد على إيميلك — دوّر في الـ Spam برضه
+          {copy.sent}
         </div>
       )}
       {status === "error" && (

@@ -1,6 +1,7 @@
 import { sendEmailVerification, type User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
+import type { CopyAudience } from "./errorMessages";
 
 // الدومين اللي لينك التأكيد بيرجّع عليه المستخدم (زرار "متابعة" في صفحة فايربيز بعد التأكيد).
 // لازم يكون في Authentication → Settings → Authorized domains في كونسول فايربيز.
@@ -52,9 +53,24 @@ export async function checkEmailVerificationGate(): Promise<EmailVerificationGat
   return { blocked: true, email: user.email || "" };
 }
 
-export async function resendVerificationEmail(): Promise<{ ok: boolean; error?: string }> {
+// رسايل الخطأ حسب الجمهور (شوف CopyAudience في errorMessages.ts) — الباحث هو الافتراضي.
+const RESEND_ERRORS: Record<CopyAudience, { notSignedIn: string; tooManyRequests: string; failed: string }> = {
+  seeker: {
+    notSignedIn: "لازم تكون مسجل دخول",
+    tooManyRequests: "استنى شوية قبل ما تطلب لينك تاني",
+    failed: "حصلت مشكلة، حاول تاني",
+  },
+  employer: {
+    notSignedIn: "يجب تسجيل الدخول أولًا",
+    tooManyRequests: "يرجى الانتظار قليلًا قبل طلب رابط جديد",
+    failed: "تعذّر الإرسال. حاول مرة أخرى.",
+  },
+};
+
+export async function resendVerificationEmail(audience: CopyAudience = "seeker"): Promise<{ ok: boolean; error?: string }> {
+  const errors = RESEND_ERRORS[audience];
   const user = auth.currentUser;
-  if (!user) return { ok: false, error: "لازم تكون مسجل دخول" };
+  if (!user) return { ok: false, error: errors.notSignedIn };
   try {
     // نوع الحساب من users/{uid} عشان لينك الرجوع يوديه لصفحته (/employer أو /seeker).
     let userType: string | null = null;
@@ -70,8 +86,8 @@ export async function resendVerificationEmail(): Promise<{ ok: boolean; error?: 
     console.error("[emailVerificationGate] فشل إعادة إرسال لينك التأكيد", err);
     const code = err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : undefined;
     if (code === "auth/too-many-requests") {
-      return { ok: false, error: "استنى شوية قبل ما تطلب لينك تاني" };
+      return { ok: false, error: errors.tooManyRequests };
     }
-    return { ok: false, error: "حصلت مشكلة، حاول تاني" };
+    return { ok: false, error: errors.failed };
   }
 }

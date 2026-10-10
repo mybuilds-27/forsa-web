@@ -546,7 +546,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
           "تعذّر التأكد من حفظ الوظيفة بسبب مشكلة في الاتصال. تأكد من اتصال الإنترنت، ثم حدّث الصفحة قبل المحاولة مرة أخرى. إذا تم النشر بالفعل، ستجد الوظيفة في قائمة وظائفك."
         );
       } else {
-        alert(friendlyErrorMessage(err));
+        alert(friendlyErrorMessage(err, "employer"));
       }
     } finally {
       setSubmitting(false);
@@ -618,7 +618,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         <h2 style={{ fontSize: 22, marginBottom: 16 }}>
           {isEditMode ? "تعديل الوظيفة" : "انشر وظيفة جديدة"}
         </h2>
-        <EmailVerificationNotice email={emailVerification.email || ""} />
+        <EmailVerificationNotice email={emailVerification.email || ""} audience="employer" />
       </div>
     );
   }

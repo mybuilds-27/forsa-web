@@ -65,17 +65,26 @@ export function authErrorMessage(err: any): string {
   return `حصلت مشكلة غير متوقعة (كود: ${code || "unknown"})، جرب تاني أو تواصل معانا لو استمرت`;
 }
 
+// جمهور النص في المكونات والرسائل المشتركة: الباحث (الافتراضي، عامي زي ما هو) أو صاحب العمل
+// (أسلوب "بساطة مهنية" بفصحى مبسطة ومن غير إيموجي). المنطق واحد للاتنين، النص بس اللي بيختلف.
+export type CopyAudience = "employer" | "seeker";
+
 // رسالة عربية بسيطة للمستخدم العادي لأي خطأ تقني تاني برّه مسارات التسجيل (فهرس Firestore
 // ناقص، صلاحيات، إلخ) — التفاصيل الحقيقية تتسجل بـconsole.error/logClientError بس، مش
 // تتعرض في الواجهة. الكود بيتضاف لرسالة الفallback نفس منطق authErrorMessage فوق.
-export function friendlyErrorMessage(err: any): string {
+export function friendlyErrorMessage(err: any, audience: CopyAudience = "seeker"): string {
   const code: string = (err?.code || "").toLowerCase();
   const message: string = (err?.message || "").toLowerCase();
   const isNetworkIssue =
     code.includes("network") || code.includes("unavailable") || message.includes("network");
+  const isEmployer = audience === "employer";
 
   if (isNetworkIssue) {
-    return "يظهر إن في مشكلة في الاتصال بالإنترنت، تأكد من النت وحاول تاني";
+    return isEmployer
+      ? "يبدو أن هناك مشكلة في الاتصال بالإنترنت. تأكد من الاتصال وحاول مرة أخرى."
+      : "يظهر إن في مشكلة في الاتصال بالإنترنت، تأكد من النت وحاول تاني";
   }
-  return `حصلت مشكلة غير متوقعة (كود: ${err?.code || "unknown"})، جرب تاني أو تواصل معانا لو استمرت`;
+  return isEmployer
+    ? `حدث خطأ غير متوقع (الكود: ${err?.code || "unknown"}). حاول مرة أخرى أو تواصل معنا إذا استمرت المشكلة.`
+    : `حصلت مشكلة غير متوقعة (كود: ${err?.code || "unknown"})، جرب تاني أو تواصل معانا لو استمرت`;
 }

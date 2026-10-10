@@ -163,7 +163,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
           "تعذّر التأكد من حفظ البيانات بسبب مشكلة في الاتصال. تأكد من اتصال الإنترنت، ثم حدّث الصفحة قبل المحاولة مرة أخرى. إذا تم الحفظ بالفعل، ستظهر البيانات محدّثة بعد تحديث الصفحة."
         );
       } else {
-        alert(friendlyErrorMessage(err));
+        alert(friendlyErrorMessage(err, "employer"));
       }
     }
   }

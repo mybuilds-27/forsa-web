@@ -111,7 +111,7 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
       setError("");
     } catch (err) {
       console.error("Seeker search failed", err);
-      setError(friendlyErrorMessage(err));
+      setError(friendlyErrorMessage(err, "employer"));
     }
 
     if (reset) setLoading(false);
