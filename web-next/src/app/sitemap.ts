@@ -34,22 +34,27 @@ export default async function sitemap() {
   let specializationPages: { url: string; lastModified: Date }[] = [];
   let comboPages: { url: string; lastModified: Date }[] = [];
   try {
-    const { jobIds, governorates, specializations, combos } = await getActiveJobsSeoData();
+    const { jobIds, governorates, specializations, combos, governorateCounts, specializationCounts } =
+      await getActiveJobsSeoData();
 
     jobPages = jobIds.map((id) => ({
       url: `${baseUrl}/jobs/${id}`,
       lastModified: new Date(),
     }));
 
-    governoratePages = governorates.map((g) => ({
-      url: `${baseUrl}/jobs/${slugify(g)}`,
-      lastModified: new Date(),
-    }));
+    governoratePages = governorates
+      .filter((g) => (governorateCounts[g] || 0) >= MIN_JOBS_FOR_INDEX)
+      .map((g) => ({
+        url: `${baseUrl}/jobs/${slugify(g)}`,
+        lastModified: new Date(),
+      }));
 
-    specializationPages = specializations.map((s) => ({
-      url: `${baseUrl}/jobs/specialization/${slugify(s)}`,
-      lastModified: new Date(),
-    }));
+    specializationPages = specializations
+      .filter((s) => (specializationCounts[s] || 0) >= MIN_JOBS_FOR_INDEX)
+      .map((s) => ({
+        url: `${baseUrl}/jobs/specialization/${slugify(s)}`,
+        lastModified: new Date(),
+      }));
 
     comboPages = combos
       .filter((c) => c.count >= MIN_JOBS_FOR_INDEX)

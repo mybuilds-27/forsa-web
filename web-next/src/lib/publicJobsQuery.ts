@@ -90,8 +90,8 @@ export async function getFilteredPublicJobs(
 
 export type JobCombo = { governorate: string; specialization: string; count: number };
 
-// الحد الأدنى لعدد الوظايف النشطة عشان صفحة محافظة+تخصص تتفهرس: أقل منه الصفحة بتفضل ظاهرة للزوار
-// بس بـnoindex (jobs/[id]/[specialty]/page.tsx) ومبتتحطش في الـsitemap (sitemap.ts).
+// الحد الأدنى لعدد الوظايف النشطة عشان أي صفحة تصفح تتفهرس (محافظة+تخصص، تخصص، محافظة، منطقة): أقل
+// منه الصفحة بتفضل ظاهرة للزوار بس بـnoindex,follow ومبتتحطش في الـsitemap (sitemap.ts).
 export const MIN_JOBS_FOR_INDEX = 2;
 
 export async function getActiveJobsSeoData(): Promise<{
@@ -99,6 +99,10 @@ export async function getActiveJobsSeoData(): Promise<{
   governorates: string[];
   specializations: string[];
   combos: JobCombo[];
+  // عدد الوظايف النشطة لكل محافظة/تخصص معتمد لوحده (نفس شروط govSet/specSet) — للـsitemap عشان
+  // يفلتر بـMIN_JOBS_FOR_INDEX زي التركيبات.
+  governorateCounts: Record<string, number>;
+  specializationCounts: Record<string, number>;
 }> {
   const snap = await getDocs(query(collection(db, "job_posts"), where("isActive", "==", true)));
   const now = Date.now();
@@ -106,6 +110,8 @@ export async function getActiveJobsSeoData(): Promise<{
   const comboMap = new Map<string, JobCombo>();
   const govSet = new Set<string>();
   const specSet = new Set<string>();
+  const governorateCounts: Record<string, number> = {};
+  const specializationCounts: Record<string, number> = {};
   const validGovernorates = new Set(GOVERNORATES);
   const validSpecializations = new Set(SPECIALIZATION_OPTIONS);
 
@@ -118,8 +124,14 @@ export async function getActiveJobsSeoData(): Promise<{
     const p = d.data() as any;
     if (p.expiresAt && p.expiresAt.toMillis() < now) continue;
     jobIds.push(d.id);
-    if (p.governorate && validGovernorates.has(p.governorate)) govSet.add(p.governorate);
-    if (p.specialization && validSpecializations.has(p.specialization)) specSet.add(p.specialization);
+    if (p.governorate && validGovernorates.has(p.governorate)) {
+      govSet.add(p.governorate);
+      governorateCounts[p.governorate] = (governorateCounts[p.governorate] || 0) + 1;
+    }
+    if (p.specialization && validSpecializations.has(p.specialization)) {
+      specSet.add(p.specialization);
+      specializationCounts[p.specialization] = (specializationCounts[p.specialization] || 0) + 1;
+    }
     if (!p.governorate || !validGovernorates.has(p.governorate)) continue;
     if (!p.specialization || !validSpecializations.has(p.specialization)) continue;
     const key = `${p.governorate}|||${p.specialization}`;
@@ -133,5 +145,7 @@ export async function getActiveJobsSeoData(): Promise<{
     governorates: Array.from(govSet),
     specializations: Array.from(specSet),
     combos: Array.from(comboMap.values()).sort((a, b) => b.count - a.count),
+    governorateCounts,
+    specializationCounts,
   };
 }

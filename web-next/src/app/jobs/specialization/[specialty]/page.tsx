@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findSpecialtyBySlug, slugify } from "@/lib/constants";
-import { getActivePublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
+import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX } from "@/lib/publicJobsQuery";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
 
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ specialty
   return {
     title,
     description,
-    ...(jobs.length === 0 ? { robots: { index: false, follow: true } } : {}),
+    ...(jobs.length < MIN_JOBS_FOR_INDEX ? { robots: { index: false, follow: true } } : {}),
   };
 }
 
