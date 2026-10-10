@@ -117,11 +117,11 @@ export default async function HomePage() {
               background: "#fff",
             }}
           >
-            <h3 style={{ fontSize: 18, color: COLORS.ink, marginBottom: 14 }}>وظّف الكوادر اللي محتاجها</h3>
+            <h3 style={{ fontSize: 18, color: COLORS.ink, marginBottom: 14 }}>وظّف الكوادر المناسبة لشركتك</h3>
             <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", display: "flex", flexDirection: "column", gap: 8 }}>
-              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ 5 إعلانات وظايف مجانًا كل شهر</li>
-              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ دعوة كوادر مباشرة</li>
-              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ من غير أي مستندات أو رسوم</li>
+              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>• انشر 5 وظائف شهريًا دون رسوم</li>
+              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>• ادعُ المرشحين المناسبين مباشرة</li>
+              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>• تسجيل سريع دون مستندات</li>
             </ul>
             <Link
               href="/register?role=employer"
@@ -137,7 +137,7 @@ export default async function HomePage() {
                 textDecoration: "none",
               }}
             >
-              سجّل بشركتك ←
+              سجّل شركتك
             </Link>
           </div>
         </div>
