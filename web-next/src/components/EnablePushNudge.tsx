@@ -77,7 +77,7 @@ export default function EnablePushNudge() {
           ✕
         </button>
 
-        <h2 style={{ marginBottom: 6, fontSize: 19 }}>🔔 عايز توصلك التحديثات فورًا؟</h2>
+        <h2 style={{ marginBottom: 6, fontSize: 19 }}>عايز توصلك التحديثات فورًا؟</h2>
         <p style={{ color: "#4A5568", fontSize: 13.5, lineHeight: 1.7, marginBottom: 20 }}>
           فعّل التنبيهات عشان توصلك رسالة فورية أول ما حد يرد على تقديمك، يقدّم على وظيفتك، أو
           تلاقي وظيفة جديدة تناسبك.

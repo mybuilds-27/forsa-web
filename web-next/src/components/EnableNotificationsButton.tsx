@@ -108,7 +108,7 @@ export default function EnableNotificationsButton() {
         title="فعّل التنبيهات"
         aria-label="فعّل التنبيهات"
       >
-        🔔 فعّل التنبيهات
+        فعّل التنبيهات
       </button>
       {errorMsg && (
         <div

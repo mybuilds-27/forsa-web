@@ -172,7 +172,7 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
             للتقديم على هذه الوظيفة.
           </p>
           <p style={{ margin: "6px 0 0", fontSize: 13, color: "#2F6F4E", fontWeight: 700 }}>
-            {employerPlan === "premium" ? "رصيدك: 30 دعوة مباشرة شهريًا" : "رصيدك: 5 دعوات مباشرة شهريًا"}
+            {employerPlan === "premium" ? "تتضمن باقتك 30 دعوة مباشرة شهريًا" : "تتضمن باقتك 5 دعوات مباشرة شهريًا"}
           </p>
         </div>
       )}
