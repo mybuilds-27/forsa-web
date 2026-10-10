@@ -366,7 +366,7 @@ function buildDailySummaryEmailHtml({ totalCount, jobs }) {
                     ${escapeHtml(j.title)}
                   </td>
                   <td style="padding:10px 0;border-bottom:1px solid #DED2B5;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:14px;color:#4A5568;text-align:left;white-space:nowrap;">
-                    ${j.count} متقدم
+                    ${j.count}
                   </td>
                 </tr>`
     )
@@ -377,7 +377,7 @@ function buildDailySummaryEmailHtml({ totalCount, jobs }) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ملخص المتقدمين اليومي</title>
+<title>ملخص المرشحين اليومي</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body style="margin:0;padding:0;background-color:#FAF6EC;">
@@ -391,7 +391,7 @@ function buildDailySummaryEmailHtml({ totalCount, jobs }) {
           <tr>
             <td style="padding:28px;direction:rtl;text-align:right;">
               <p style="margin:0 0 18px;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:15px;color:#14213D;line-height:1.8;">
-                عندك <strong>${totalCount}</strong> متقدم جديد على إعلاناتك خلال آخر 24 ساعة:
+                عدد المرشحين الجدد على وظائفك خلال آخر 24 ساعة: <strong>${totalCount}</strong>
               </p>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F1EAD9;border-radius:10px;margin-bottom:24px;">
                 <tr>
@@ -409,7 +409,7 @@ function buildDailySummaryEmailHtml({ totalCount, jobs }) {
                       <tr>
                         <td style="border-radius:8px;background-color:#14213D;">
                           <a href="https://www.elshoghl.com/employer" target="_blank" style="display:inline-block;padding:13px 30px;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:8px;">
-                            عرض التفاصيل من لوحة صاحب العمل
+                            عرض التفاصيل من لوحة الشركة
                           </a>
                         </td>
                       </tr>
@@ -437,11 +437,11 @@ function buildDailySummaryEmailHtml({ totalCount, jobs }) {
 
 function buildDailySummaryEmailText({ totalCount, jobs }) {
   return [
-    `عندك ${totalCount} متقدم جديد على إعلاناتك خلال آخر 24 ساعة:`,
+    `عدد المرشحين الجدد على وظائفك خلال آخر 24 ساعة: ${totalCount}`,
     "",
-    ...jobs.map((j) => `- ${j.title}: ${j.count} متقدم`),
+    ...jobs.map((j) => `- ${j.title}: ${j.count}`),
     "",
-    "اعرض التفاصيل من لوحة صاحب العمل: https://www.elshoghl.com/employer",
+    "عرض التفاصيل من لوحة الشركة: https://www.elshoghl.com/employer",
     "",
     "الشغل — موقع توظيف مصري · elshoghl.com",
   ].join("\n");
@@ -648,11 +648,11 @@ function buildWeeklyDigestEmailText({ newJobs, savedJobs, unsubscribeUrl }) {
 
 function buildSignupReminderEmailHtml({ userType, ctaLink }) {
   const isEmployer = userType === "employer";
-  const heading = isEmployer ? "محتاج مساعدة في نشر أول وظيفة؟" : "محتاج مساعدة تكمّل بروفايلك؟";
+  const heading = isEmployer ? "أكمل بيانات شركتك لنشر أول وظيفة" : "محتاج مساعدة تكمّل بروفايلك؟";
   const body = isEmployer
-    ? "لاحظنا إنك سجّلت دخول على موقع الشغل بس لسه ما استكملتش بيانات شركتك. الأمر بياخد دقايق بس، وبعدها تقدر تنشر أول وظيفة وتوصل لكوادر مناسبة."
+    ? "سجّلت الدخول إلى موقع الشغل، ولم تكمل بيانات شركتك بعد. تستغرق هذه الخطوة دقائق، وبعدها يمكنك نشر أول وظيفة والوصول إلى مرشحين مناسبين."
     : "لاحظنا إنك سجّلت دخول على موقع الشغل بس لسه ما استكملتش بروفايلك. باقيلك دقيقة بس عشان تقدر تتصفح وتقدّم على الوظائف المناسبة ليك.";
-  const ctaLabel = isEmployer ? "كمّل بيانات شركتك" : "كمّل بروفايلك";
+  const ctaLabel = isEmployer ? "أكمل بيانات الشركة" : "كمّل بروفايلك";
 
   return `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -713,17 +713,18 @@ function buildSignupReminderEmailHtml({ userType, ctaLink }) {
 
 function buildSignupReminderEmailText({ userType, ctaLink }) {
   const isEmployer = userType === "employer";
-  const heading = isEmployer ? "محتاج مساعدة في نشر أول وظيفة؟" : "محتاج مساعدة تكمّل بروفايلك؟";
+  const heading = isEmployer ? "أكمل بيانات شركتك لنشر أول وظيفة" : "محتاج مساعدة تكمّل بروفايلك؟";
   const body = isEmployer
-    ? "لاحظنا إنك سجّلت دخول على موقع الشغل بس لسه ما استكملتش بيانات شركتك. الأمر بياخد دقايق بس."
+    ? "سجّلت الدخول إلى موقع الشغل، ولم تكمل بيانات شركتك بعد. تستغرق هذه الخطوة دقائق، وبعدها يمكنك نشر أول وظيفة والوصول إلى مرشحين مناسبين."
     : "لاحظنا إنك سجّلت دخول على موقع الشغل بس لسه ما استكملتش بروفايلك. باقيلك دقيقة بس.";
-  return [heading, "", body, "", `كمّل من هنا: ${ctaLink}`, "", "الشغل — موقع توظيف مصري · elshoghl.com"].join("\n");
+  const ctaLine = isEmployer ? `أكمل بيانات الشركة من هنا: ${ctaLink}` : `كمّل من هنا: ${ctaLink}`;
+  return [heading, "", body, "", ctaLine, "", "الشغل — موقع توظيف مصري · elshoghl.com"].join("\n");
 }
 
 function buildFirstJobReminderEmailHtml({ ctaLink }) {
-  const heading = "محتاج مساعدة في نشر أول وظيفة؟";
+  const heading = "انشر وظيفتك الأولى على موقع الشغل";
   const body =
-    "كمّلت بيانات شركتك على موقع الشغل من كام يوم، بس لسه ما نشرتش أول وظيفة. النشر مجاني بالكامل وبياخد دقايق بس — انشر وظيفتك الأولى دلوقتي ووصل لكوادر مناسبة.";
+    "أكملت بيانات شركتك على موقع الشغل قبل أيام، ولم تنشر وظيفتك الأولى بعد. النشر دون رسوم ويستغرق دقائق.";
 
   return `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -756,7 +757,7 @@ function buildFirstJobReminderEmailHtml({ ctaLink }) {
                       <tr>
                         <td style="border-radius:8px;background-color:#14213D;">
                           <a href="${ctaLink}" target="_blank" style="display:inline-block;padding:13px 30px;font-family:'Tajawal',Tahoma,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:8px;">
-                            انشر أول وظيفة
+                            انشر وظيفتك الأولى
                           </a>
                         </td>
                       </tr>
@@ -783,10 +784,10 @@ function buildFirstJobReminderEmailHtml({ ctaLink }) {
 }
 
 function buildFirstJobReminderEmailText({ ctaLink }) {
-  const heading = "محتاج مساعدة في نشر أول وظيفة؟";
+  const heading = "انشر وظيفتك الأولى على موقع الشغل";
   const body =
-    "كمّلت بيانات شركتك على موقع الشغل من كام يوم، بس لسه ما نشرتش أول وظيفة. النشر مجاني بالكامل وبياخد دقايق بس.";
-  return [heading, "", body, "", `انشر أول وظيفة من هنا: ${ctaLink}`, "", "الشغل — موقع توظيف مصري · elshoghl.com"].join("\n");
+    "أكملت بيانات شركتك على موقع الشغل قبل أيام، ولم تنشر وظيفتك الأولى بعد. النشر دون رسوم ويستغرق دقائق.";
+  return [heading, "", body, "", `انشر وظيفتك الأولى من هنا: ${ctaLink}`, "", "الشغل — موقع توظيف مصري · elshoghl.com"].join("\n");
 }
 
 function unsubscribePageHtml({ success, message }) {
@@ -1081,15 +1082,15 @@ exports.onApplicationCreated = onDocumentCreated(
     const jobTitle = jobSnap.exists ? jobSnap.data().title || "وظيفة" : "وظيفة";
     const applicantName = application.seekerSnapshot?.fullName;
     const message = applicantName
-      ? `متقدم جديد على وظيفة "${jobTitle}": ${applicantName}`
-      : `متقدم جديد على وظيفة "${jobTitle}"`;
+      ? `تقدّم مرشح جديد على وظيفة "${jobTitle}": ${applicantName}`
+      : `تقدّم مرشح جديد على وظيفة "${jobTitle}"`;
     const link = `/employer?tab=company`;
 
     // ثاني حدث بيتغطى بـPush Notifications بعد نجاح المرحلة الأولى (onApplicationStatusChanged) —
     // نفس منطق التوازي (Promise.all) عشان الإشعار الداخلي والـpush يشتغلوا مع بعض بدل التسلسل.
     await Promise.all([
       createNotification({ userId: application.employerId, type: "new_applicant", message, link }),
-      sendPushToUser({ userId: application.employerId, title: "متقدم جديد", body: message, link }),
+      sendPushToUser({ userId: application.employerId, title: "مرشح جديد", body: message, link }),
     ]);
   }
 );
@@ -1164,7 +1165,7 @@ exports.dailyApplicationsSummary = onSchedule(
 
         await sendViaResend({
           to: employerEmail,
-          subject: `${totalCount} متقدم جديد على إعلاناتك اليوم`,
+          subject: `مرشحون جدد على وظائفك اليوم (${totalCount})`,
           html: buildDailySummaryEmailHtml({ totalCount, jobs }),
           text: buildDailySummaryEmailText({ totalCount, jobs }),
           logPrefix: "dailyApplicationsSummary",
@@ -1706,8 +1707,8 @@ exports.staleApplicationReminders = onSchedule(
       const count = docSnaps.length;
       const message =
         count === 1
-          ? "عندك تقديم لسه محدش راجعه من 3 أيام — يستاهل نظرة"
-          : `عندك ${count} تقديمات لسه محدش راجعها من 3 أيام — يستاهلوا نظرة`;
+          ? "لديك طلب تقديم لم تتم مراجعته منذ 3 أيام. يُفضّل مراجعته."
+          : `عدد طلبات التقديم التي لم تُراجَع منذ 3 أيام: ${count}. يُفضّل مراجعتها.`;
 
       const notifRef = db.collection("notifications").doc();
       batch.set(notifRef, {
@@ -1914,7 +1915,7 @@ exports.signupCompletionReminders = onSchedule(
       try {
         await sendViaResend({
           to: data.email,
-          subject: userType === "employer" ? "محتاج مساعدة في نشر أول وظيفة؟" : "محتاج مساعدة تكمّل بروفايلك؟",
+          subject: userType === "employer" ? "أكمل بيانات شركتك لنشر أول وظيفة" : "محتاج مساعدة تكمّل بروفايلك؟",
           html: buildSignupReminderEmailHtml({ userType, ctaLink }),
           text: buildSignupReminderEmailText({ userType, ctaLink }),
           logPrefix: "signupCompletionReminders",
@@ -1984,7 +1985,7 @@ exports.firstJobPostReminders = onSchedule(
       try {
         await sendViaResend({
           to: email,
-          subject: "محتاج مساعدة في نشر أول وظيفة؟",
+          subject: "انشر وظيفتك الأولى على موقع الشغل",
           html: buildFirstJobReminderEmailHtml({ ctaLink }),
           text: buildFirstJobReminderEmailText({ ctaLink }),
           logPrefix: "firstJobPostReminders",
