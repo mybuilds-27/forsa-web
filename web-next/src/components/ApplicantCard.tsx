@@ -191,7 +191,7 @@ export default function ApplicantCard({
         {s.specialization && <span style={bigTagStyle}><TagIcon size={15} /> التخصص: {s.specialization}</span>}
         <span style={bigTagStyle}><PinIcon size={15} /> المحافظة: {s.city || ""} - {s.governorate || ""}</span>
         <span style={bigTagStyle}><BriefcaseIcon size={15} /> سنوات الخبرة: {s.yearsOfExperience || 0} سنوات</span>
-        {s.educationLevel && <span style={bigTagStyle}>المؤهل:{EDUCATION_LEVEL_LABELS[s.educationLevel] || s.educationLevel}</span>}
+        {s.educationLevel && <span style={bigTagStyle}>المؤهل: {EDUCATION_LEVEL_LABELS[s.educationLevel] || s.educationLevel}</span>}
         {s.militaryStatus && <span style={bigTagStyle}><ShieldIcon size={15} /> موقف التجنيد: {MILITARY_STATUS_LABELS[s.militaryStatus] || s.militaryStatus}</span>}
       </div>
 
