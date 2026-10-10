@@ -38,11 +38,16 @@ function groupBySpecialization(combos: JobCombo[]): SpecializationGroup[] {
 export default function BrowseBySpecialization({
   combos,
   currentSpecialization,
+  linkSpecializationPage = false,
 }: {
   combos: JobCombo[];
   // اسم التخصص الحالي بنفس قيمة combos بالظبط (مش slug) — مجموعته بس بتتفتح، والباقي مقفول. لو مفيش
   // تخصص بالاسم ده في القايمة مفيش حاجة بتتفتح ومفيش خطأ.
   currentSpecialization?: string;
+  // لينك "كل وظائف {التخصص}" لصفحة التخصص (/jobs/specialization/{slug}) أول كل مجموعة — بديل قايمة
+  // أزرار "تصفح حسب التخصص" اللي كانت مكررة في الرئيسية. مقفول افتراضيًا عشان لوحة الأدمن (عندها
+  // قايمة لينكات تخصص منفصلة) تفضل زي ما هي.
+  linkSpecializationPage?: boolean;
 }) {
   const groups = groupBySpecialization(combos);
   if (groups.length === 0) return null;
@@ -58,6 +63,14 @@ export default function BrowseBySpecialization({
             {g.specialization} ({g.total})
           </summary>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "4px 14px 12px" }}>
+            {linkSpecializationPage && (
+              <Link
+                href={`/jobs/specialization/${slugify(g.specialization)}`}
+                style={{ ...tagStyle, textDecoration: "none", color: "#14213D", padding: "6px 12px", fontSize: 13, fontWeight: 700 }}
+              >
+                كل وظائف {g.specialization} ({g.total})
+              </Link>
+            )}
             {g.governorates.map((gov) => (
               <Link
                 key={gov.governorate}

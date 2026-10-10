@@ -346,11 +346,11 @@ export default async function HomePage() {
             <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 12 }}>
               كل الوظائف المتاحة حاليًا مقسّمة حسب المحافظة والتخصص.
             </p>
-            <BrowseBySpecialization combos={seoData.combos} />
+            <BrowseBySpecialization combos={seoData.combos} linkSpecializationPage />
           </div>
         )}
 
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 40 }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, marginBottom: 14 }}>
             تصفح حسب المحافظة
           </h3>
@@ -362,23 +362,6 @@ export default async function HomePage() {
                 style={{ ...tagStyle, textDecoration: "none", color: COLORS.ink, padding: "7px 14px", fontSize: 13 }}
               >
                 {g}
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 40 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, marginBottom: 14 }}>
-            تصفح حسب التخصص
-          </h3>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {SPECIALIZATION_OPTIONS.map((s) => (
-              <Link
-                key={s}
-                href={`/jobs?specialization=${encodeURIComponent(s)}`}
-                style={{ ...tagStyle, textDecoration: "none", color: COLORS.ink, padding: "7px 14px", fontSize: 13 }}
-              >
-                {s}
               </Link>
             ))}
           </div>

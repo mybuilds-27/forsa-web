@@ -12,7 +12,7 @@ export default function BrowseSidebar({ combos, currentSpecialization }: { combo
       <summary style={{ cursor: "pointer", fontSize: 15, fontWeight: 700, color: "#14213D", marginBottom: 10 }}>
         تصفح حسب المحافظة والتخصص
       </summary>
-      <BrowseBySpecialization combos={combos} currentSpecialization={currentSpecialization} />
+      <BrowseBySpecialization combos={combos} currentSpecialization={currentSpecialization} linkSpecializationPage />
     </details>
   );
 }

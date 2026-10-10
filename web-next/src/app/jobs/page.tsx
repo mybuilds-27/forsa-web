@@ -55,7 +55,7 @@ export default async function JobsListPage({ searchParams }: Props) {
           {/* كل التركيبات اللي فيها وظايف نشطة (مش أشهر 40 بس) — مجمّعة بالتخصص في <details> مقفولة،
               واللينكات موجودة في الـHTML لجوجل حتى وهي مقفولة. نفس seoData المجلوبة فوق، مفيش
               قراءة Firestore زيادة. */}
-          <BrowseBySpecialization combos={seoData.combos} />
+          <BrowseBySpecialization combos={seoData.combos} linkSpecializationPage />
         </div>
       )}
 
