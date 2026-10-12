@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   collection,
   query,
@@ -434,6 +435,12 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
             اطّلع على مزايا الباقة المدفوعة
           </button>
         )}
+
+        <div style={{ marginTop: 12 }}>
+          <Link href="/pricing" style={{ fontSize: 13, color: "#14213D" }}>
+            تفاصيل الباقات
+          </Link>
+        </div>
       </div>
 
       {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} />}

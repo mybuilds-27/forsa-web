@@ -6,6 +6,7 @@ import { getCompanies } from "@/lib/companiesQuery";
 import { GOVERNORATES, SEO_AREAS, SPECIALIZATION_OPTIONS, slugify } from "@/lib/constants";
 import { JOB_TYPE_LABELS, tagStyle } from "@/lib/jobCardStyles";
 import CompanyLogo from "@/components/CompanyLogo";
+import { PREMIUM_DURATION_MONTHS, PREMIUM_PRICE_EGP } from "@/lib/planLimits";
 
 const COLORS = {
   ink: "#14213D",
@@ -139,6 +140,12 @@ export default async function HomePage() {
             >
               سجّل شركتك
             </Link>
+            <p style={{ fontSize: 12.5, color: COLORS.inkSoft, margin: "12px 0 0", textAlign: "center" }}>
+              تتوفر باقة مدفوعة بسعر {PREMIUM_PRICE_EGP} جنيه لمدة {PREMIUM_DURATION_MONTHS} أشهر.{" "}
+              <Link href="/pricing" style={{ color: COLORS.ink }}>
+                الباقات والأسعار
+              </Link>
+            </p>
           </div>
         </div>
 

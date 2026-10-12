@@ -19,6 +19,7 @@ export default function Footer() {
       <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", marginBottom: 8 }}>
         <Link href="/about" style={linkStyle}>من نحن</Link>
         <Link href="/why-free" style={linkStyle}>ليه مجاني؟</Link>
+        <Link href="/pricing" style={linkStyle}>الباقات والأسعار</Link>
         <Link href="/companies" style={linkStyle}>الشركات</Link>
         <Link href="/articles" style={linkStyle}>مقالات</Link>
         <Link href="/privacy" style={linkStyle}>سياسة الخصوصية</Link>

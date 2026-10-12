@@ -22,6 +22,7 @@ export default async function sitemap() {
     { url: `${baseUrl}/companies`, lastModified: new Date() },
     { url: `${baseUrl}/faq`, lastModified: new Date() },
     { url: `${baseUrl}/why-free`, lastModified: new Date() },
+    { url: `${baseUrl}/pricing`, lastModified: new Date() },
   ];
 
   const articlePages = articles.map((a) => ({

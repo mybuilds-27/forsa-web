@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { UPGRADE_CONTACT_EMAIL, UPGRADE_WHATSAPP_DISPLAY, upgradeEmailHref, upgradeWhatsAppHref } from "@/lib/upgradeContact";
 
 type Props = {
   onClose: () => void;
 };
-
-const WHATSAPP_NUMBER = "201012735333";
-const CONTACT_EMAIL = "elshoghl27@gmail.com";
 
 // قايمة مزايا الباقة المدفوعة — مُصدّرة عشان CompanyTab.tsx يستخدم نفس القايمة بالظبط في قسم
 // "حالة الباقة" لصاحب باقة مدفوعة بالفعل، مش نسخة تانية منفصلة ممكن تتفرّق عن دي بمرور الوقت.
@@ -26,9 +24,6 @@ export function PremiumFeaturesList() {
 }
 
 export default function UpgradeModal({ onClose }: Props) {
-  const whatsappMessage = encodeURIComponent("مرحبًا، أرغب في ترقية باقة الشركة على موقع الشغل إلى الباقة المدفوعة.");
-  const emailSubject = encodeURIComponent("طلب ترقية باقة صاحب عمل");
-
   return (
     <div
       onClick={onClose}
@@ -96,18 +91,17 @@ export default function UpgradeModal({ onClose }: Props) {
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <a
-            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={linkBtnStyle}
-          >
-            واتساب: 01012735333
+          <a href={upgradeWhatsAppHref} target="_blank" rel="noopener noreferrer" style={linkBtnStyle}>
+            واتساب: {UPGRADE_WHATSAPP_DISPLAY}
           </a>
-          <a href={`mailto:${CONTACT_EMAIL}?subject=${emailSubject}`} style={linkBtnStyle}>
-            البريد الإلكتروني: {CONTACT_EMAIL}
+          <a href={upgradeEmailHref} style={linkBtnStyle}>
+            البريد الإلكتروني: {UPGRADE_CONTACT_EMAIL}
           </a>
         </div>
+
+        <Link href="/pricing" style={{ display: "inline-block", fontSize: 12.5, color: "#14213D", marginTop: 14 }}>
+          تفاصيل الباقات
+        </Link>
       </div>
     </div>
   );
