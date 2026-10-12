@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { checkEmailVerificationGate, resendVerificationEmail } from "@/lib/emailVerificationGate";
+import { useVerificationResendCooldown } from "@/lib/useVerificationResendCooldown";
 import type { CopyAudience } from "@/lib/errorMessages";
 
 // النصوص بس اللي بتختلف بين الجمهورين (شوف CopyAudience) — الشكل والمنطق واحد. afterEmail هو
@@ -17,6 +18,7 @@ const COPY: Record<CopyAudience, {
   resend: string;
   sent: string;
   error: string;
+  cooldown: (seconds: number) => string;
 }> = {
   seeker: {
     sentPrefix: "📩 بعتنالك إيميل تأكيد على",
@@ -27,6 +29,7 @@ const COPY: Record<CopyAudience, {
     resend: "إعادة إرسال",
     sent: "✓ اتبعت لينك جديد",
     error: "حصلت مشكلة، حاول تاني",
+    cooldown: (s) => `إعادة إرسال بعد ${s} ثانية`,
   },
   employer: {
     sentPrefix: "أرسلنا رسالة تأكيد إلى",
@@ -37,6 +40,7 @@ const COPY: Record<CopyAudience, {
     resend: "إعادة إرسال",
     sent: "تم إرسال رابط جديد",
     error: "تعذّر الإرسال. حاول مرة أخرى.",
+    cooldown: (s) => `إعادة الإرسال بعد ${s} ثانية`,
   },
 };
 
@@ -50,6 +54,7 @@ export default function EmailVerificationBanner({ audience = "seeker" }: { audie
   const [email, setEmail] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [cooldown, refreshCooldown] = useVerificationResendCooldown();
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +83,7 @@ export default function EmailVerificationBanner({ audience = "seeker" }: { audie
       setStatus("error");
       setErrorMsg(result.error || copy.error);
     }
+    refreshCooldown();
   }
 
   if (email === null) return null;
@@ -117,7 +123,7 @@ export default function EmailVerificationBanner({ audience = "seeker" }: { audie
         <button
           type="button"
           onClick={handleResend}
-          disabled={status === "sending"}
+          disabled={status === "sending" || cooldown > 0}
           style={{
             padding: "6px 14px",
             fontSize: 13,
@@ -126,12 +132,12 @@ export default function EmailVerificationBanner({ audience = "seeker" }: { audie
             background: "#fff",
             color: "#8A570D",
             borderRadius: 8,
-            cursor: status === "sending" ? "wait" : "pointer",
-            opacity: status === "sending" ? 0.7 : 1,
+            cursor: status === "sending" ? "wait" : cooldown > 0 ? "not-allowed" : "pointer",
+            opacity: status === "sending" || cooldown > 0 ? 0.7 : 1,
             fontFamily: "inherit",
           }}
         >
-          {status === "sending" ? copy.sending : copy.resend}
+          {status === "sending" ? copy.sending : cooldown > 0 ? copy.cooldown(cooldown) : copy.resend}
         </button>
         {status === "sent" && <span style={{ fontSize: 12.5, color: "#2F6F4E", fontWeight: 700 }}>{copy.sent}</span>}
         {status === "error" && <span style={{ fontSize: 12.5, color: "#B03A14", fontWeight: 700 }}>{errorMsg}</span>}

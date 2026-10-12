@@ -7,6 +7,31 @@ import type { CopyAudience } from "./errorMessages";
 // لازم يكون في Authentication → Settings → Authorized domains في كونسول فايربيز.
 const SITE_ORIGIN = "https://www.elshoghl.com";
 
+// تهدئة زرار "إعادة إرسال" لينك التأكيد: إيميلات التأكيد بتطلع من نفس حصة Resend (SMTP)، وكل ضغطة ناجحة
+// إيميل جديد. آخر وقت إرسال بيتحفظ في localStorage (مشترك بين البانر وEmailVerificationNotice، ومش بيتصفّر
+// مع ريفريش الصفحة)، وبيتسجّل كمان مع إرسال التسجيل الأول. لو localStorage مش متاحة التهدئة بتتلغي بس، مش الإرسال.
+export const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
+const VERIFICATION_SENT_AT_KEY = "elshoghl_verification_email_sent_at";
+
+function markVerificationEmailSent() {
+  try {
+    localStorage.setItem(VERIFICATION_SENT_AT_KEY, String(Date.now()));
+  } catch {
+    // وضع تصفح خاص أو مساحة ممتلئة — مفيش تهدئة، مش مشكلة
+  }
+}
+
+// الثواني الباقية قبل ما إعادة الإرسال تتسمح (0 = مسموح دلوقتي)
+export function verificationResendCooldownSeconds(): number {
+  try {
+    const sentAt = Number(localStorage.getItem(VERIFICATION_SENT_AT_KEY) || 0);
+    const leftMs = sentAt + VERIFICATION_RESEND_COOLDOWN_MS - Date.now();
+    return leftMs > 0 ? Math.ceil(leftMs / 1000) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 // بيبعت إيميل التأكيد ومعاه actionCodeSettings.url بيرجّع المستخدم على /employer أو /seeker حسب
 // نوع الحساب (userType: "employer" أو غيره = باحث). لو الدومين مش في Authorized domains فايربيز
 // بيرفض بـauth/unauthorized-continue-uri (أو invalid-continue-uri) — ساعتها بنبعت الإيميل من غير
@@ -15,11 +40,13 @@ export async function sendVerificationEmailWithContinue(user: User, userType: st
   const url = `${SITE_ORIGIN}${userType === "employer" ? "/employer" : "/seeker"}`;
   try {
     await sendEmailVerification(user, { url });
+    markVerificationEmailSent();
   } catch (err: unknown) {
     const code = err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : undefined;
     if (code === "auth/unauthorized-continue-uri" || code === "auth/invalid-continue-uri") {
       console.warn("[emailVerificationGate] الدومين مش مسموح كـcontinue url، بنبعت الإيميل من غيره", code);
       await sendEmailVerification(user);
+      markVerificationEmailSent();
       return;
     }
     throw err;
@@ -71,6 +98,8 @@ export async function resendVerificationEmail(audience: CopyAudience = "seeker")
   const errors = RESEND_ERRORS[audience];
   const user = auth.currentUser;
   if (!user) return { ok: false, error: errors.notSignedIn };
+  // حارس احتياطي لو الزرار اتضغط وهو في فترة التهدئة (المفروض بيكون disabled) — مفيش طلب لفايربيز خالص
+  if (verificationResendCooldownSeconds() > 0) return { ok: false, error: errors.tooManyRequests };
   try {
     // نوع الحساب من users/{uid} عشان لينك الرجوع يوديه لصفحته (/employer أو /seeker).
     let userType: string | null = null;
@@ -86,6 +115,8 @@ export async function resendVerificationEmail(audience: CopyAudience = "seeker")
     console.error("[emailVerificationGate] فشل إعادة إرسال لينك التأكيد", err);
     const code = err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : undefined;
     if (code === "auth/too-many-requests") {
+      // فايربيز نفسه رافض — نبدأ فترة التهدئة عشان الزرار يتقفل بدل ما المستخدم يفضل يضغط
+      markVerificationEmailSent();
       return { ok: false, error: errors.tooManyRequests };
     }
     return { ok: false, error: errors.failed };

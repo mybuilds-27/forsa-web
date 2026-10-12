@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { resendVerificationEmail } from "@/lib/emailVerificationGate";
+import { useVerificationResendCooldown } from "@/lib/useVerificationResendCooldown";
 import type { CopyAudience } from "@/lib/errorMessages";
 
 type Props = {
@@ -25,6 +26,7 @@ const COPY: Record<CopyAudience, {
   resend: string;
   sent: string;
   error: string;
+  cooldown: (seconds: number) => string;
 }> = {
   seeker: {
     icon: "📩",
@@ -38,6 +40,7 @@ const COPY: Record<CopyAudience, {
     resend: "📤 إعادة إرسال اللينك",
     sent: "✓ اتبعت لينك جديد على إيميلك — دوّر في الـ Spam برضه",
     error: "حصلت مشكلة، حاول تاني",
+    cooldown: (s) => `تقدر تبعت لينك تاني بعد ${s} ثانية`,
   },
   employer: {
     icon: null,
@@ -51,6 +54,7 @@ const COPY: Record<CopyAudience, {
     resend: "إعادة إرسال الرابط",
     sent: "تم إرسال رابط جديد إلى بريدك الإلكتروني. تحقق من مجلد Spam أيضًا.",
     error: "تعذّر الإرسال. حاول مرة أخرى.",
+    cooldown: (s) => `يمكنك إعادة الإرسال بعد ${s} ثانية`,
   },
 };
 
@@ -62,6 +66,7 @@ export default function EmailVerificationNotice({ email, audience = "seeker" }: 
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const copy = COPY[audience];
+  const [cooldown, refreshCooldown] = useVerificationResendCooldown();
 
   async function handleResend() {
     setStatus("sending");
@@ -72,6 +77,7 @@ export default function EmailVerificationNotice({ email, audience = "seeker" }: 
       setStatus("error");
       setErrorMsg(result.error || copy.error);
     }
+    refreshCooldown();
   }
 
   return (
@@ -130,7 +136,7 @@ export default function EmailVerificationNotice({ email, audience = "seeker" }: 
       <button
         type="button"
         onClick={handleResend}
-        disabled={status === "sending"}
+        disabled={status === "sending" || cooldown > 0}
         style={{
           padding: "12px 28px",
           fontSize: 15,
@@ -139,12 +145,12 @@ export default function EmailVerificationNotice({ email, audience = "seeker" }: 
           background: "#E8A33D",
           color: "#14213D",
           borderRadius: 10,
-          cursor: status === "sending" ? "wait" : "pointer",
-          opacity: status === "sending" ? 0.7 : 1,
+          cursor: status === "sending" ? "wait" : cooldown > 0 ? "not-allowed" : "pointer",
+          opacity: status === "sending" || cooldown > 0 ? 0.7 : 1,
           fontFamily: "inherit",
         }}
       >
-        {status === "sending" ? copy.sending : copy.resend}
+        {status === "sending" ? copy.sending : cooldown > 0 ? copy.cooldown(cooldown) : copy.resend}
       </button>
       {status === "sent" && (
         <div
