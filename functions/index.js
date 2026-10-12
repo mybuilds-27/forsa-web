@@ -813,9 +813,44 @@ function unsubscribePageHtml({ success, message }) {
 </html>`;
 }
 
-// بترجّع true لو Resend قبل الإيميل، وfalse لو رد بخطأ HTTP (بيتسجّل زي الأول). باقي الدوال بتتجاهل
-// القيمة المرجّعة فسلوكها ما اتغيرش. لو الطلب نفسه فشل (شبكة) الخطأ بيتعدّى للمستدعي زي الأول.
-async function sendViaResend({ to, subject, html, text, logPrefix }) {
+// بترجّع true لو Resend قبل الإيميل، وfalse لو رد بخطأ HTTP (بيتسجّل زي الأول)، وnull لو اتوقف عشان الحصة.
+// لو الطلب نفسه فشل (شبكة) الخطأ بيتعدّى للمستدعي زي الأول.
+// حماية حصة Resend: عدّاد يومي وشهري في email_quota (بيتكتب من هنا بس بالـAdmin SDK). أي إيميل "غير أساسي"
+// (الافتراضي — ملخصات وتذكيرات ودعوات وتحديث حالة) بيتوقف لو العدّاد اليومي أو الشهري وصل الحد، و"الأساسي"
+// (إيميلات الأدمن، وأي إيميل أمان/تأكيد لو اتضاف هنا) بيفضل يتبعت ويتحسب في العدّاد. اليوم والشهر بتوقيت UTC.
+// الفحص قبل الإرسال والزيادة بعد النجاح، فإيميلات متزامنة ممكن تعدّي الحد بكام إيميل — مقبول كهامش.
+// الحدود أقل من حد Resend (100 يوميًا / 3000 شهريًا) بهامش كبير: آخر 30 يوم كان فيه حوالي 72 حساب جديد يوميًا
+// (منهم حوالي 65 بإيميل حقيقي)، وإيميلات تأكيد الحساب من Firebase Auth بتاخد معظم الحصة اليومية ومش بتعدّي على
+// العدّاد ده، فلازم يفضل لها مساحة.
+const EMAIL_DAILY_NON_ESSENTIAL_LIMIT = 15;
+const EMAIL_MONTHLY_NON_ESSENTIAL_LIMIT = 400;
+
+function emailQuotaRefs() {
+  const iso = new Date().toISOString();
+  const quota = getFirestore().collection("email_quota");
+  return { day: quota.doc(`day-${iso.slice(0, 10)}`), month: quota.doc(`month-${iso.slice(0, 7)}`) };
+}
+
+// بيرجّع true لو اتبعت، false لو Resend رفض، وnull لو اتوقف عشان الحصة (غير أساسي بس).
+async function sendViaResend({ to, subject, html, text, logPrefix, essential = false }) {
+  const { day, month } = emailQuotaRefs();
+  if (!essential) {
+    try {
+      const [daySnap, monthSnap] = await getFirestore().getAll(day, month);
+      const dayCount = daySnap.exists ? daySnap.get("count") || 0 : 0;
+      const monthCount = monthSnap.exists ? monthSnap.get("count") || 0 : 0;
+      if (dayCount >= EMAIL_DAILY_NON_ESSENTIAL_LIMIT || monthCount >= EMAIL_MONTHLY_NON_ESSENTIAL_LIMIT) {
+        logger.warn(
+          `${logPrefix}: اتوقف الإرسال (حصة الإيميلات غير الأساسية) — اليوم ${dayCount}/${EMAIL_DAILY_NON_ESSENTIAL_LIMIT}، الشهر ${monthCount}/${EMAIL_MONTHLY_NON_ESSENTIAL_LIMIT}`
+        );
+        return null;
+      }
+    } catch (err) {
+      // لو قراءة العدّاد نفسها فشلت منقفلش الإرسال كله — بنكمّل ونسجّل
+      logger.error(`${logPrefix}: فشل قراءة عدّاد حصة الإيميلات، هيتبعت من غير فحص`, err);
+    }
+  }
+
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -829,6 +864,17 @@ async function sendViaResend({ to, subject, html, text, logPrefix }) {
     const errBody = await res.text();
     logger.error(`${logPrefix}: فشل إرسال الإيميل عبر Resend (HTTP ${res.status})`, errBody);
     return false;
+  }
+
+  // كل إيميل اتبعت (أساسي أو لأ) بيتحسب، عدد المستلمين مش عدد الطلبات (Resend بيحسب بالمستلم)
+  const recipients = Array.isArray(to) ? to.length : 1;
+  try {
+    const batch = getFirestore().batch();
+    batch.set(day, { count: FieldValue.increment(recipients) }, { merge: true });
+    batch.set(month, { count: FieldValue.increment(recipients) }, { merge: true });
+    await batch.commit();
+  } catch (err) {
+    logger.error(`${logPrefix}: اتبعت الإيميل بس فشل تحديث عدّاد الحصة`, err);
   }
   return true;
 }
@@ -977,6 +1023,11 @@ exports.onNewInvitation = onDocumentCreated(
             return;
           }
 
+          if (!isDeliverableEmail(seekerEmail)) {
+            logger.info(`onNewInvitation: تخطّي الإيميل (إيميل وهمي لحساب تليفون) — skippedFakeEmail: 1`);
+            return;
+          }
+
           const jobLink = `https://www.elshoghl.com/jobs/${invitation.jobPostId}`;
           const emailFields = { companyName, jobTitle, jobLink };
 
@@ -994,6 +1045,9 @@ exports.onNewInvitation = onDocumentCreated(
     ]);
   }
 );
+
+// الحالات اللي بتبعت إيميل للباحث عند تغيير حالة تقديمه (الباقي: إشعار داخل الموقع + push بس) — توفير لحصة Resend.
+const STATUS_EMAIL_STATUSES = new Set(["interview", "accepted", "rejected"]);
 
 exports.onApplicationStatusChanged = onDocumentUpdated(
   { document: "applications/{applicationId}", secrets: [RESEND_API_KEY] },
@@ -1037,6 +1091,8 @@ exports.onApplicationStatusChanged = onDocumentUpdated(
         link: `/jobs/${after.jobPostId}`,
       }),
       (async () => {
+        // الإيميل بس للحالات المهمة للباحث؛ "قيد المراجعة" والرجوع لـ"تقديم" بيكفيهم الإشعار والـpush فوق
+        if (!STATUS_EMAIL_STATUSES.has(afterStatus)) return;
         try {
           const seekerUserSnap = await db.collection("users").doc(after.seekerId).get();
           const seekerEmail = seekerUserSnap.exists ? seekerUserSnap.data().email : null;
@@ -1045,6 +1101,11 @@ exports.onApplicationStatusChanged = onDocumentUpdated(
             logger.error(
               `onApplicationStatusChanged: مفيش بريد إلكتروني مسجّل للباحث ${after.seekerId} — تم تجاهل الإيميل (الإشعار الداخلي اتعمل)`
             );
+            return;
+          }
+
+          if (!isDeliverableEmail(seekerEmail)) {
+            logger.info(`onApplicationStatusChanged: تخطّي الإيميل (إيميل وهمي لحساب تليفون) — skippedFakeEmail: 1`);
             return;
           }
 
@@ -1145,6 +1206,7 @@ exports.dailyApplicationsSummary = onSchedule(
     const jobTitles = new Map(jobTitleEntries);
 
     // إيميل واحد لكل صاحب عمل، حتى لو عنده تقديمات على أكتر من وظيفة
+    let skippedFakeEmail = 0;
     for (const [employerId, jobCounts] of byEmployer.entries()) {
       try {
         const userSnap = await db.collection("users").doc(employerId).get();
@@ -1157,23 +1219,33 @@ exports.dailyApplicationsSummary = onSchedule(
           continue;
         }
 
+        if (!isDeliverableEmail(employerEmail)) {
+          skippedFakeEmail++;
+          continue;
+        }
+
         const jobs = Array.from(jobCounts.entries()).map(([jobId, count]) => ({
           title: jobTitles.get(jobId) || "وظيفة",
           count,
         }));
         const totalCount = jobs.reduce((sum, j) => sum + j.count, 0);
 
-        await sendViaResend({
+        const delivered = await sendViaResend({
           to: employerEmail,
           subject: `مرشحون جدد على وظائفك اليوم (${totalCount})`,
           html: buildDailySummaryEmailHtml({ totalCount, jobs }),
           text: buildDailySummaryEmailText({ totalCount, jobs }),
           logPrefix: "dailyApplicationsSummary",
         });
+        // الحصة خلصت: باقي أصحاب الأعمال هيتوقفوا بنفس السبب، فمفيش داعي نكمّل
+        if (delivered === null) break;
       } catch (err) {
         // خطأ مع صاحب عمل واحد ميوقفش معالجة باقي أصحاب الأعمال
         logger.error(`dailyApplicationsSummary: حصلت مشكلة مع صاحب العمل ${employerId}`, err);
       }
+    }
+    if (skippedFakeEmail > 0) {
+      logger.info(`dailyApplicationsSummary: تخطّي ${skippedFakeEmail} صاحب عمل بإيميل وهمي (حسابات تليفون)`);
     }
   }
 );
@@ -1182,6 +1254,16 @@ exports.dailyApplicationsSummary = onSchedule(
 // بدل ميزتين منفصلتين — لتقليل تكلفة Resend. الشرط الأساسي: لو مفيش وظائف جديدة تطابق
 // تخصص الباحث الأسبوع ده، مفيش إيميل خالص — القسم بتاع المحفوظات إضافة على إيميل قايم
 // بالفعل، مش سبب مستقل لإرسال إيميل.
+// الملخص الأسبوعي أقل أولوية: أقصى عدد محاولات إرسال في التشغيل الواحد (وكمان بيتوقف لو حصة اليوم/الشهر
+// للإيميلات غير الأساسية خلصت — شوف sendViaResend). اللي ما اتبعتلهمش بياخدوا أولوية الأسبوع الجاي
+// (ترتيب بـweeklyDigestLastSentAt). الإيقاع بين كل إيميل والتاني عشان حد Resend (طلبين في الثانية).
+// 0 مؤقتًا: حصة Resend مش مستحملة الملخص دلوقتي (إيميلات التأكيد بتاخد معظم الحد اليومي). الدالة بتشتغل عادي
+// وبتسجّل كام باحث مؤهل وسبب التوقف ("cap 0") من غير ما تبعت أي إيميل — رجّعها لرقم أكبر من 0 لما الحصة تسمح.
+const WEEKLY_DIGEST_MAX_SENDS_PER_RUN = 0;
+const WEEKLY_DIGEST_SEND_INTERVAL_MS = 550;
+const WEEKLY_DIGEST_MAX_CONSECUTIVE_FAILURES = 5;
+const WEEKLY_DIGEST_RESEND_GUARD_MS = 6 * 24 * 60 * 60 * 1000;
+
 exports.weeklySeekerDigest = onSchedule(
   { schedule: "0 9 * * 0", timeZone: "Africa/Cairo", secrets: [RESEND_API_KEY], timeoutSeconds: 540 },
   async () => {
@@ -1196,6 +1278,10 @@ exports.weeklySeekerDigest = onSchedule(
         .collection("job_posts")
         .where("isActive", "==", true)
         .where("createdAt", ">=", since)
+        // orderBy عشان الاستعلام يستخدم الفهرس المنشور (isActive ASC + createdAt DESC) — من غيره Firestore كان
+        // بيطلب فهرس createdAt ASC مش موجود وبيفشل بـFAILED_PRECONDITION. الترتيب نفسه ملوش أثر: الوظايف
+        // بتترتب تاني جوه كل تخصص تحت.
+        .orderBy("createdAt", "desc")
         .get();
     } catch (err) {
       logger.error("weeklySeekerDigest: فشل جلب الوظائف الجديدة", err);
@@ -1279,6 +1365,9 @@ exports.weeklySeekerDigest = onSchedule(
       return;
     }
 
+    const lastSentMillis = (seeker) =>
+      seeker.weeklyDigestLastSentAt?.toMillis ? seeker.weeklyDigestLastSentAt.toMillis() : 0;
+
     // تصنيف الباحث حسب شروط الإرسال (من غير أي قراءة) — بيتستخدم في الحلقة وفي عدّ اللي اتوقفنا قبل ما
     // نوصله لو الوقت قرّب يخلص.
     function classifySeeker(seeker) {
@@ -1286,6 +1375,8 @@ exports.weeklySeekerDigest = onSchedule(
       // مفعّل، بس false الصريحة (بعد إلغاء الاشتراك) هي اللي بتوقف الإيميل
       if (seeker.emailNotificationsEnabled === false) return { reason: "unsubscribed" };
       if (!seeker.specialization) return { reason: "noSpecialization" };
+      // استلم خلال آخر 6 أيام (تشغيل اتعاد أو اشتغل مرتين نفس الأسبوع) — منكررش
+      if (now - lastSentMillis(seeker) < WEEKLY_DIGEST_RESEND_GUARD_MS) return { reason: "sentRecently" };
 
       let candidates = newJobsBySpecialization.get(seeker.specialization) || [];
       if (seeker.governorate) {
@@ -1305,19 +1396,31 @@ exports.weeklySeekerDigest = onSchedule(
       noMatchingJobs: 0,
       unsubscribed: 0,
       noSpecialization: 0,
+      sentRecently: 0,
     };
     let unreachedEligible = 0;
     let unreachedTotal = 0;
-    const seekerDocs = seekersSnap.docs;
+    let stopReason = null;
+    let consecutiveFailures = 0;
+    // اللي ما استلمش من أطول وقت الأول (اللي عمره ما استلم = 0 فبيبقى في الأول) — فلو السقف وقف التشغيل،
+    // اللي فضلوا بيتبعتلهم الأسبوع الجاي قبل اللي استلموا.
+    const seekerDocs = [...seekersSnap.docs].sort((a, b) => lastSentMillis(a.data()) - lastSentMillis(b.data()));
+
+    // عدّ اللي فضلوا من غير ما نوصلهم (من غير أي قراءة) لما الحلقة تقف لأي سبب
+    function countUnreached(fromIndex) {
+      for (let j = fromIndex; j < seekerDocs.length; j++) {
+        unreachedTotal++;
+        if (classifySeeker(seekerDocs[j].data()).reason === "eligible") unreachedEligible++;
+      }
+    }
 
     for (let i = 0; i < seekerDocs.length; i++) {
-      if (Date.now() - startedAt > LOOP_DEADLINE_MS) {
-        for (let j = i; j < seekerDocs.length; j++) {
-          unreachedTotal++;
-          if (classifySeeker(seekerDocs[j].data()).reason === "eligible") unreachedEligible++;
-        }
+      if (Date.now() - startedAt > LOOP_DEADLINE_MS) stopReason = `deadline ${LOOP_DEADLINE_MS / 1000}s`;
+      else if (counts.sent + counts.failed >= WEEKLY_DIGEST_MAX_SENDS_PER_RUN) stopReason = `cap ${WEEKLY_DIGEST_MAX_SENDS_PER_RUN}`;
+      if (stopReason) {
+        countUnreached(i);
         logger.warn(
-          `weeklySeekerDigest: عدّى ${LOOP_DEADLINE_MS / 1000} ثانية — وقفنا الحلقة. باحثين لسه ما اتعالجوش: ${unreachedTotal} (منهم ${unreachedEligible} مؤهلين للإرسال ومش هيتبعتلهم الأسبوع ده)`
+          `weeklySeekerDigest: وقفنا الحلقة (${stopReason}). باحثين لسه ما اتعالجوش: ${unreachedTotal} (منهم ${unreachedEligible} مؤهلين، هيتبعتلهم في تشغيل جاي قبل اللي استلموا)`
         );
         break;
       }
@@ -1336,6 +1439,7 @@ exports.weeklySeekerDigest = onSchedule(
       const savedJobIds = savedJobIdsBySeeker.get(seekerId) || [];
       const savedJobsForEmail = (await Promise.all(savedJobIds.map(getSavedJobDetails))).filter(Boolean);
 
+      let attemptedSend = false;
       try {
         const userSnap = await db.collection("users").doc(seekerId).get();
         const seekerEmail = userSnap.exists ? userSnap.data().email : null;
@@ -1354,6 +1458,7 @@ exports.weeklySeekerDigest = onSchedule(
 
         const unsubscribeUrl = `https://us-central1-recruitment-ccbea.cloudfunctions.net/unsubscribeSeekerEmails?uid=${seekerId}`;
 
+        attemptedSend = true;
         const delivered = await sendViaResend({
           to: seekerEmail,
           subject: "وظايف جديدة تناسبك الأسبوع ده على الشغل",
@@ -1361,13 +1466,44 @@ exports.weeklySeekerDigest = onSchedule(
           text: buildWeeklyDigestEmailText({ newJobs: newJobsForEmail, savedJobs: savedJobsForEmail, unsubscribeUrl }),
           logPrefix: "weeklySeekerDigest",
         });
-        if (delivered) counts.sent++;
-        else counts.failed++;
+        if (delivered === null) {
+          // حصة اليوم/الشهر للإيميلات غير الأساسية خلصت (شوف sendViaResend) — الباقيين لتشغيل جاي
+          stopReason = "quota";
+          countUnreached(i);
+          logger.warn(
+            `weeklySeekerDigest: وقفنا الحلقة (quota). باحثين لسه ما اتعالجوش: ${unreachedTotal} (منهم ${unreachedEligible} مؤهلين)`
+          );
+          break;
+        }
+        if (delivered) {
+          counts.sent++;
+          consecutiveFailures = 0;
+          try {
+            await seekerDoc.ref.update({ weeklyDigestLastSentAt: FieldValue.serverTimestamp() });
+          } catch (err) {
+            logger.error(`weeklySeekerDigest: اتبعت للباحث ${seekerId} بس فشل تسجيل weeklyDigestLastSentAt`, err);
+          }
+        } else {
+          counts.failed++;
+          consecutiveFailures++;
+        }
       } catch (err) {
         // خطأ مع باحث واحد ميوقفش معالجة الباقيين
         counts.failed++;
+        consecutiveFailures++;
         logger.error(`weeklySeekerDigest: حصلت مشكلة مع الباحث ${seekerId}`, err);
       }
+
+      if (consecutiveFailures >= WEEKLY_DIGEST_MAX_CONSECUTIVE_FAILURES) {
+        stopReason = `${consecutiveFailures} consecutive failures`;
+        countUnreached(i + 1);
+        logger.error(
+          `weeklySeekerDigest: وقفنا الحلقة بعد ${consecutiveFailures} أخطاء متتالية (غالبًا مشكلة في Resend). باحثين لسه ما اتعالجوش: ${unreachedTotal} (منهم ${unreachedEligible} مؤهلين)`
+        );
+        break;
+      }
+      // إيقاع ثابت بين كل محاولة إرسال فعلية والتانية عشان منعدّيش حد Resend (طلبين في الثانية) — مش بعد كل باحث
+      if (attemptedSend) await new Promise((resolve) => setTimeout(resolve, WEEKLY_DIGEST_SEND_INTERVAL_MS));
     }
 
     const summary = {
@@ -1379,11 +1515,13 @@ exports.weeklySeekerDigest = onSchedule(
       noMatchingJobs: counts.noMatchingJobs,
       unsubscribed: counts.unsubscribed,
       noSpecialization: counts.noSpecialization,
+      sentRecently: counts.sentRecently,
       unreachedTotal,
       unreachedEligible,
+      stopReason: stopReason || "completed",
     };
     logger.info(
-      `weeklySeekerDigest: اتبعت فعلًا ${summary.sent}، فشل ${summary.failed}، اتجاهل (إيميل وهمي) ${summary.skippedFakeEmail}، من غير إيميل ${summary.skippedNoEmail}، من غير وظايف مناسبة ${summary.noMatchingJobs}، ملغي الاشتراك ${summary.unsubscribed}، من غير تخصص ${summary.noSpecialization}، لسه ما اتعالجوش ${summary.unreachedTotal} (مؤهلين ${summary.unreachedEligible})، إجمالي الباحثين ${summary.totalSeekers}`,
+      `weeklySeekerDigest: اتبعت فعلًا ${summary.sent}، فشل ${summary.failed}، اتجاهل (إيميل وهمي) ${summary.skippedFakeEmail}، من غير إيميل ${summary.skippedNoEmail}، من غير وظايف مناسبة ${summary.noMatchingJobs}، ملغي الاشتراك ${summary.unsubscribed}، من غير تخصص ${summary.noSpecialization}، استلم خلال آخر 6 أيام ${summary.sentRecently}، لسه ما اتعالجوش ${summary.unreachedTotal} (مؤهلين ${summary.unreachedEligible})، إجمالي الباحثين ${summary.totalSeekers}، سبب التوقف: ${summary.stopReason}`,
       summary
     );
   }
@@ -1521,6 +1659,7 @@ exports.onNewJobReport = onDocumentCreated(
           // ثابت هنا بدل الثابت المشترك اللي باقي الدوال (زي onNewJobPostNotifyAdmins) بتستخدمه.
           await sendViaResend({
             to: "mohamedzakaria2727@gmail.com",
+            essential: true,
             subject: `🚩 بلاغ عن وظيفة: ${jobTitle}`,
             html: buildJobReportEmailHtml(emailFields),
             text: buildJobReportEmailText(emailFields),
@@ -1785,7 +1924,9 @@ exports.premiumExpiryReminders = onSchedule(
     if (expiringCandidates.length > 0) {
       try {
         await sendViaResend({
-          to: ADMIN_EMAILS,
+          // عنوان أدمن واحد بس (Resend بيحسب الحصة بالمستلم) — أساسي، مش بيتوقف بحد الحصة
+          to: ADMIN_EMAILS[0],
+          essential: true,
           subject: `⏰ ${expiringCandidates.length} باقة مدفوعة قربت تخلص`,
           html: buildPremiumExpiryEmailHtml({ employers: expiringCandidates }),
           text: buildPremiumExpiryEmailText({ employers: expiringCandidates }),
@@ -1845,7 +1986,8 @@ exports.premiumExpiryReminders = onSchedule(
 
       try {
         await sendViaResend({
-          to: ADMIN_EMAILS,
+          to: ADMIN_EMAILS[0],
+          essential: true,
           subject: `↩️ ${expiredCandidates.length} شركة رجعت للباقة المجانية تلقائيًا`,
           html: buildPremiumDowngradedEmailHtml({ employers: expiredCandidates }),
           text: buildPremiumDowngradedEmailText({ employers: expiredCandidates }),
@@ -1866,6 +2008,11 @@ exports.premiumExpiryReminders = onSchedule(
 // الفعلي (مفيش مستند مطابق بنفس الـuid في job_seekers ولا employers) بعد 3 أيام من تاريخ
 // إنشاء الحساب. signupReminderSent بيتحط على مستند users نفسه بعد الإرسال عشان الإيميل
 // يتبعت مرة واحدة بس لكل حساب، مش يتكرر يوميًا.
+// أقصى عدد إيميلات في التشغيل الواحد. 0 مؤقتًا: حصة Resend مش مستحملة (حوالي 72 حساب جديد يوميًا وإيميلات
+// التأكيد بتاخد معظم الحصة). الدالة بتشتغل وبتسجّل كام حساب مؤهل وسبب التوقف من غير إرسال ومن غير ما تعلّم
+// signupReminderSent — فالحسابات دي هتفضل مؤهلة لما السقف يرجع لرقم أكبر من 0.
+const SIGNUP_REMINDERS_MAX_PER_RUN = 0;
+
 exports.signupCompletionReminders = onSchedule(
   { schedule: "0 10 * * *", timeZone: "Africa/Cairo", secrets: [RESEND_API_KEY] },
   async () => {
@@ -1907,19 +2054,38 @@ exports.signupCompletionReminders = onSchedule(
     }
 
     let sentCount = 0;
+    let skippedFakeEmail = 0;
+    let cappedEligible = 0;
+    let quotaStopped = false;
     for (const docSnap of candidates) {
       const data = docSnap.data();
       const userType = data.userType === "employer" ? "employer" : "job_seeker";
       const ctaLink = userType === "employer" ? "https://www.elshoghl.com/employer" : "https://www.elshoghl.com/seeker";
 
+      if (!isDeliverableEmail(data.email)) {
+        skippedFakeEmail++;
+        continue;
+      }
+
+      // السقف: منبعتش ومنعلّمش — بنعدّ بس كام مؤهل فضل
+      if (sentCount >= SIGNUP_REMINDERS_MAX_PER_RUN) {
+        cappedEligible++;
+        continue;
+      }
+
       try {
-        await sendViaResend({
+        const delivered = await sendViaResend({
           to: data.email,
           subject: userType === "employer" ? "أكمل بيانات شركتك لنشر أول وظيفة" : "محتاج مساعدة تكمّل بروفايلك؟",
           html: buildSignupReminderEmailHtml({ userType, ctaLink }),
           text: buildSignupReminderEmailText({ userType, ctaLink }),
           logPrefix: "signupCompletionReminders",
         });
+        // الحصة خلصت: منعلّمش التذكير إنه اتبعت عشان يتبعت في يوم تاني، ومنكمّلش للباقيين
+        if (delivered === null) {
+          quotaStopped = true;
+          break;
+        }
         await docSnap.ref.update({
           signupReminderSent: true,
           signupReminderSentAt: FieldValue.serverTimestamp(),
@@ -1930,7 +2096,9 @@ exports.signupCompletionReminders = onSchedule(
       }
     }
 
-    logger.info(`signupCompletionReminders: اتبعت ${sentCount} إيميل تذكير من أصل ${candidates.length} حساب مؤهل`);
+    logger.info(
+      `signupCompletionReminders: اتبعت ${sentCount} إيميل تذكير من أصل ${candidates.length} حساب مؤهل، اتخطّى ${skippedFakeEmail} (إيميل وهمي)${cappedEligible ? `، ${cappedEligible} مؤهل باقي ما اتبعتلوش (سبب التوقف: cap ${SIGNUP_REMINDERS_MAX_PER_RUN})` : ""}${quotaStopped ? "، واتوقف بسبب حصة الإيميلات" : ""}`
+    );
   }
 );
 
@@ -1938,6 +2106,10 @@ exports.signupCompletionReminders = onSchedule(
 // مستند employers/{uid})، بس عدى 3 أيام من إنشاء الحساب ولسه معندوش ولا إعلان وظيفة واحد
 // في job_posts. فلاج الإرسال لمرة واحدة هنا محطوط على مستند employers نفسه (firstJobReminderSent)
 // مش users، لأن الحالة دي مرتبطة بحالة الشركة (نشرت وظيفة ولا لأ) مش بحالة تسجيل الدخول.
+// أقصى عدد إيميلات في التشغيل الواحد. 0 مؤقتًا لنفس سبب SIGNUP_REMINDERS_MAX_PER_RUN (حصة Resend): الدالة
+// بتسجّل كام صاحب عمل مؤهل وسبب التوقف من غير إرسال ومن غير ما تعلّم firstJobReminderSent.
+const FIRST_JOB_REMINDERS_MAX_PER_RUN = 0;
+
 exports.firstJobPostReminders = onSchedule(
   { schedule: "0 11 * * *", timeZone: "Africa/Cairo", secrets: [RESEND_API_KEY] },
   async () => {
@@ -1980,16 +2152,33 @@ exports.firstJobPostReminders = onSchedule(
     const ctaLink = "https://www.elshoghl.com/employer?tab=postjob";
 
     let sentCount = 0;
+    let skippedFakeEmail = 0;
+    let cappedEligible = 0;
+    let quotaStopped = false;
     for (const docSnap of candidates) {
       const email = emailByUid.get(docSnap.id);
+      if (!isDeliverableEmail(email)) {
+        skippedFakeEmail++;
+        continue;
+      }
+      // السقف: منبعتش ومنعلّمش — بنعدّ بس كام مؤهل فضل
+      if (sentCount >= FIRST_JOB_REMINDERS_MAX_PER_RUN) {
+        cappedEligible++;
+        continue;
+      }
       try {
-        await sendViaResend({
+        const delivered = await sendViaResend({
           to: email,
           subject: "انشر وظيفتك الأولى على موقع الشغل",
           html: buildFirstJobReminderEmailHtml({ ctaLink }),
           text: buildFirstJobReminderEmailText({ ctaLink }),
           logPrefix: "firstJobPostReminders",
         });
+        // الحصة خلصت: منعلّمش التذكير إنه اتبعت عشان يتبعت في يوم تاني، ومنكمّلش للباقيين
+        if (delivered === null) {
+          quotaStopped = true;
+          break;
+        }
         await docSnap.ref.update({
           firstJobReminderSent: true,
           firstJobReminderSentAt: FieldValue.serverTimestamp(),
@@ -2000,7 +2189,9 @@ exports.firstJobPostReminders = onSchedule(
       }
     }
 
-    logger.info(`firstJobPostReminders: اتبعت ${sentCount} إيميل تذكير من أصل ${candidates.length} صاحب عمل مؤهل`);
+    logger.info(
+      `firstJobPostReminders: اتبعت ${sentCount} إيميل تذكير من أصل ${candidates.length} صاحب عمل مؤهل، اتخطّى ${skippedFakeEmail} (إيميل وهمي)${cappedEligible ? `، ${cappedEligible} مؤهل باقي ما اتبعتلوش (سبب التوقف: cap ${FIRST_JOB_REMINDERS_MAX_PER_RUN})` : ""}${quotaStopped ? "، واتوقف بسبب حصة الإيميلات" : ""}`
+    );
   }
 );
 
