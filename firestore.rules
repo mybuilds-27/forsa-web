@@ -1,0 +1,169 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin(){
+      return request.auth != null
+             && (request.auth.token.email == 'elshoghl27@gmail.com'
+                 || request.auth.token.email == 'mohamedzakaria2727@gmail.com');
+    }
+    function isBannedEmployer(uid){
+      return exists(/databases/$(database)/documents/employers/$(uid))
+             && get(/databases/$(database)/documents/employers/$(uid)).data.get('banned', false) == true;
+    }
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /users/{uid}/fcmTokens/{tokenId} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == uid;
+    }
+    match /job_seekers/{userId} {
+      allow read: if request.auth != null
+                  && (request.auth.uid == userId
+                      || resource.data.consentToShare == true
+                      || isAdmin());
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /employers/{userId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.uid == userId
+                    && request.resource.data.plan == 'free'
+                    && request.resource.data.get('banned', false) == false;
+      allow update: if request.auth != null && request.auth.uid == userId
+                    && request.resource.data.plan == resource.data.plan
+                    && request.resource.data.get('banned', false) == resource.data.get('banned', false)
+                    && request.resource.data.get('bannedAt', null) == resource.data.get('bannedAt', null);
+      match /private/contact {
+        allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    match /job_posts/{postId} {
+      allow get: if resource.data.isActive == true
+                 || (resource.data.get('expiresAt', null) != null
+                     && resource.data.expiresAt < request.time
+                     && resource.data.get('deactivatedByBan', false) == false)
+                 || isAdmin();
+      allow list: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.employerId == request.auth.uid
+                    && !isBannedEmployer(request.auth.uid)
+                    && (request.resource.data.featured == false
+                        || get(/databases/$(database)/documents/employers/$(request.auth.uid)).data.plan == 'premium');
+      allow update: if request.auth != null
+                    && (
+                         (resource.data.employerId == request.auth.uid
+                          && !isBannedEmployer(request.auth.uid)
+                          && (request.resource.data.featured == false
+                              || get(/databases/$(database)/documents/employers/$(request.auth.uid)).data.plan == 'premium'))
+                         || isAdmin()
+                       );
+      allow delete: if request.auth != null
+                    && (resource.data.employerId == request.auth.uid || isAdmin());
+    }
+    match /applications/{applicationId} {
+      allow create: if request.auth != null
+                    && request.resource.data.seekerId == request.auth.uid;
+      allow get: if request.auth != null
+                    && (!exists(/databases/$(database)/documents/applications/$(applicationId))
+                        || resource.data.seekerId == request.auth.uid
+                        || resource.data.employerId == request.auth.uid
+                        || isAdmin());
+      allow list: if request.auth != null
+                    && (resource.data.seekerId == request.auth.uid
+                        || resource.data.employerId == request.auth.uid
+                        || isAdmin());
+      allow delete: if request.auth != null
+                    && resource.data.seekerId == request.auth.uid;
+      allow update: if request.auth != null
+                    && (resource.data.employerId == request.auth.uid || isAdmin())
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                    && request.resource.data.status in ['submitted', 'shortlisted', 'interview', 'accepted', 'rejected'];
+    }
+    match /saved_jobs/{docId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.seekerId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.seekerId;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.seekerId;
+    }
+    match /invitations/{docId} {
+      allow create: if request.auth != null
+                    && (request.auth.uid == request.resource.data.employerId || isAdmin());
+      allow read: if request.auth != null
+                    && (request.auth.uid == resource.data.employerId || isAdmin());
+    }
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+                    && resource.data.userId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create, delete: if false;
+    }
+    match /error_logs/{logId} {
+      allow create: if true;
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+    match /registration_funnel_events/{eventId} {
+      allow create: if request.resource.data.step in ["role_selected", "method_selected"]
+                    && request.resource.data.role in ["job_seeker", "employer"]
+                    && request.resource.data.keys().hasOnly(["step", "role", "method", "timestamp"]);
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+    match /site_visits/{dayId} {
+      allow create, update: if request.resource.data.keys().hasOnly(['count'])
+                            && request.resource.data.count is int;
+      allow read: if isAdmin();
+    }
+    match /job_views/{jobPostId} {
+      allow create, update: if request.resource.data.keys().hasOnly(['count'])
+                            && request.resource.data.count is int;
+      allow read: if isAdmin() ||
+        (request.auth != null &&
+         exists(/databases/$(database)/documents/job_posts/$(jobPostId)) &&
+         get(/databases/$(database)/documents/job_posts/$(jobPostId)).data.employerId == request.auth.uid);
+    }
+    match /whatsapp_clicks/{jobPostId} {
+      allow create, update: if request.resource.data.keys().hasOnly(['count'])
+                            && request.resource.data.count is int;
+      allow read: if isAdmin() ||
+        (request.auth != null &&
+         exists(/databases/$(database)/documents/job_posts/$(jobPostId)) &&
+         get(/databases/$(database)/documents/job_posts/$(jobPostId)).data.employerId == request.auth.uid);
+    }
+    match /app_installs/{docId} {
+      allow create, update: if request.resource.data.keys().hasOnly(['count'])
+                            && request.resource.data.count is int;
+      allow read: if isAdmin();
+    }
+    match /job_reports/{reportId} {
+      allow create: if true;
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewed']);
+      allow delete: if false;
+    }
+    match /contact_reveals/{revealId} {
+      allow read: if request.auth != null
+                  && (request.auth.uid == resource.data.employerId
+                      || request.auth.uid == resource.data.seekerId);
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.employerId;
+      allow update, delete: if false;
+    }
+    match /stats/keyword_usage {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /job_contact_views/{jobPostId}/viewers/{uid} {
+      allow read: if request.auth != null && (
+        request.auth.uid == get(/databases/$(database)/documents/job_posts/$(jobPostId)).data.employerId ||
+        isAdmin()
+      );
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['viewedAt', 'fullName'])
+        && request.resource.data.fullName == get(/databases/$(database)/documents/job_seekers/$(uid)).data.fullName;
+      allow delete: if false;
+    }
+  }
+}
