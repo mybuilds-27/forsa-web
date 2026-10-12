@@ -25,7 +25,8 @@ import { getActiveJobsSeoData, JobCombo } from "@/lib/publicJobsQuery";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { shouldShowProfileNudge } from "@/lib/profileNudge";
-import JobCard, { JobPost, salaryTeaser } from "./JobCard";
+import JobCard, { JobPost, salaryTeaser, isContactJob, contactWhatsAppNumber } from "./JobCard";
+import ContactReveal from "@/app/jobs/[id]/ContactReveal";
 import { tagStyle, ApplicationStatus, applicationStatusOf } from "@/lib/jobCardStyles";
 import ScreeningQuestionsModal from "@/components/ScreeningQuestionsModal";
 import SpecializationMismatchModal, { MismatchItem } from "@/components/SpecializationMismatchModal";
@@ -334,6 +335,9 @@ export default function JobsTab({ completionPercent, specialization, keywords, j
   async function handleApply(job: JobPost, answers: Record<string, string> = {}) {
     const user = auth.currentUser;
     if (!user) return;
+    // حارس احتياطي: وظيفة بتستقبل التواصل مباشرة (واتساب/إيميل/تليفون) مينفعش يتكتب لها طلب في
+    // applications، حتى لو زرار "قدّم" ظهر بأي شكل (المفروض مبيظهرش — شوف isContactJob في JobCard.tsx).
+    if (isContactJob(job)) return;
     setApplying(true);
     try {
       const seekerDoc = await getDoc(doc(db, "job_seekers", user.uid));
@@ -637,6 +641,15 @@ export default function JobsTab({ completionPercent, specialization, keywords, j
                 >
                   ✕ إلغاء التقديم
                 </button>
+              ) : isContactJob(selectedJob) ? (
+                // نفس شرط ومكوّن صفحة الوظيفة العامة (jobs/[id]/page.tsx): وظيفة تواصل مباشر مفيهاش "قدّم".
+                <ContactReveal
+                  jobId={selectedJob.id}
+                  jobTitle={selectedJob.title}
+                  contactMethod={selectedJob.contactMethod || ""}
+                  contactValue={selectedJob.contactValue || ""}
+                  whatsappNumber={contactWhatsAppNumber(selectedJob)}
+                />
               ) : (
                 <button
                   onClick={() => handleApplyClick(selectedJob)}

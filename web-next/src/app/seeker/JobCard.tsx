@@ -4,6 +4,7 @@ import ShareButton from "@/components/ShareButton";
 import { EXPERIENCE_LEVELS } from "@/lib/constants";
 import { ScreeningQuestion } from "@/components/ScreeningQuestionsModal";
 import { tagStyle, featuredPillStyle, ApplicationStatus, APPLICATION_STATUS_LABELS, APPLICATION_STATUS_STYLES } from "@/lib/jobCardStyles";
+import { toWhatsAppNumber } from "@/lib/phoneAuth";
 
 export type JobPost = {
   id: string;
@@ -27,7 +28,22 @@ export type JobPost = {
   createdAt?: any;
   isActive?: boolean;
   expiresAt?: any;
+  receiveMethod?: string;
+  contactMethod?: string;
+  contactValue?: string;
 };
+
+// نفس شرط صفحة الوظيفة العامة (jobs/[id]/page.tsx): الوظيفة بتستقبل المتقدمين عن طريق وسيلة تواصل
+// مباشرة (واتساب/إيميل/تليفون) مش عن طريق الموقع، فمفيش زرار "قدّم" — بيظهر ContactReveal بداله.
+export function isContactJob(p: JobPost): boolean {
+  return p.receiveMethod === "contact" && !!p.contactValue;
+}
+
+// نفس حساب رقم الواتساب في jobs/[id]/page.tsx: صيغة دولية لو الرقم مصري معروف، وإلا تنضيف الرموز بس.
+export function contactWhatsAppNumber(p: JobPost): string | null {
+  if (p.receiveMethod !== "contact" || p.contactMethod !== "whatsapp" || !p.contactValue) return null;
+  return toWhatsAppNumber(p.contactValue) || p.contactValue.replace(/\D/g, "");
+}
 
 export function salaryTeaser(p: JobPost) {
   if (p.showSalary === false) return "الراتب غير محدد";
@@ -79,7 +95,32 @@ export default function JobCard({ job: p, applicationStatus, saved, onToggleSave
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0, flexWrap: "wrap" }}>
-          {onApply && !applicationStatus && !unavailable && (
+          {/* وظيفة تواصل مباشر: مفيش "قدّم"، والزرار بيفتح تفاصيل الوظيفة اللي فيها ContactReveal (نفس زرار
+              صفحة الوظيفة). ContactReveal نفسه مش هنا عمدًا: بيسجّل "شاف وسيلة التواصل" (job_contact_views)
+              أول ما يتعرض لمستخدم مسجّل، فلو اتحط في كل كارت هيتسجّل لكل وظيفة تواصل ظاهرة في القايمة. */}
+          {onApply && !applicationStatus && !unavailable && isContactJob(p) && onClick && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onClick(); }}
+              title="اعرض وسيلة التواصل مع صاحب الشغل"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 12,
+                padding: "5px 12px",
+                borderRadius: 999,
+                border: "none",
+                background: "#25D366",
+                color: "#fff",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                fontWeight: 700,
+              }}
+            >
+              {p.contactMethod === "whatsapp" ? "تواصل عبر واتساب" : "اعرض وسيلة التواصل"}
+            </button>
+          )}
+          {onApply && !applicationStatus && !unavailable && !isContactJob(p) && (
             <button
               onClick={(e) => { e.stopPropagation(); onApply(); }}
               disabled={applying}
