@@ -1659,7 +1659,9 @@ exports.onNewJobReport = onDocumentCreated(
           // ثابت هنا بدل الثابت المشترك اللي باقي الدوال (زي onNewJobPostNotifyAdmins) بتستخدمه.
           await sendViaResend({
             to: "mohamedzakaria2727@gmail.com",
-            essential: true,
+            // مش أساسي: job_reports بتتنشئ من أي حد (حتى من غير تسجيل)، فلازم يتحسب من حصة Resend
+            // ويتوقف لما تخلص بدل ما سيل بلاغات يستهلكها. البلاغ نفسه بيتسجّل وبيوصل كإشعار داخلي للأدمن.
+            essential: false,
             subject: `🚩 بلاغ عن وظيفة: ${jobTitle}`,
             html: buildJobReportEmailHtml(emailFields),
             text: buildJobReportEmailText(emailFields),
