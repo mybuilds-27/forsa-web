@@ -2256,8 +2256,10 @@ exports.getApplicantProfileForAutoCV = onCall(async (request) => {
 
 // ═══ بيانات تواصل الباحث (المرحلة 2 من فصلها عن مستند job_seekers العام) ═══
 // الهاتف والإيميل والـCV بيتنقلوا لمستند فرعي job_seekers/{uid}/private/contact (قاعدته للباحث
-// نفسه والأدمن بس). لحد ما الترحيل ومسح الحقول القديمة يخلصوا، القيمة من المستند الفرعي لو
-// موجودة ومش فاضية، وإلا من المستند العام.
+// نفسه والأدمن بس). لحد ما الحقول القديمة تتمسح من العام، أي حقل موجود في الفرعي (حتى لو فاضي =
+// الباحث مسحه عمدًا) هو المصدر، والحقل المش موجود فيه خالص بيرجع لقيمة العام — نفس
+// mergeSeekerContact في web-next/src/lib/seekerContact.ts. من المرحلة 5أ الواجهة مبقتش بتكتب
+// الحقول دي في العام، فالقيمة الفاضية في الفرعي لازم متترجعش لقيمة قديمة في العام.
 const SEEKER_CONTACT_FIELDS = ["phone", "email", "cvFileURL"];
 
 // لازم يفضل نفس الرقم اللي في MONTHLY_CONTACT_REVEAL_LIMIT (SeekerDetailModal.tsx) وPREMIUM_PLAN_LIMITS
@@ -2270,8 +2272,8 @@ async function readSeekerContact(db, seekerId, publicData) {
   const privateData = privateSnap.exists ? privateSnap.data() : {};
   const contact = {};
   for (const field of SEEKER_CONTACT_FIELDS) {
-    const fromPrivate = typeof privateData[field] === "string" ? privateData[field].trim() : "";
-    contact[field] = fromPrivate || publicData?.[field] || null;
+    const value = typeof privateData[field] === "string" ? privateData[field] : publicData?.[field];
+    contact[field] = typeof value === "string" && value.trim() !== "" ? value : null;
   }
   return contact;
 }
@@ -2417,8 +2419,8 @@ exports.revealSeekerContact = onCall(async (request) => {
 // بيتنادى من /register قبل ما نبعت كود الـOTP، عشان نمنع حساب مزدوج لو حد اتسجل قبل كده
 // بجوجل أو الإيميل وبعدين حاول يسجل تاني بنفس رقم تليفونه (كل طريقة دخول في فايربيز بتعمل
 // UID منفصل، فمفيش طريقة نكتشف التضارب ده غير بمطابقة رقم التليفون المخزّن في بروفايل
-// الباحث/صاحب العمل). لازم Admin SDK هنا لأن بيانات تواصل صاحب العمل (employers/{uid}/
-// private/contact) محمية بقاعدة Firestore بتسمح لصاحب الحساب بس يقراها.
+// الباحث/صاحب العمل). لازم Admin SDK هنا لأن بيانات التواصل (employers/{uid}/private/contact
+// وjob_seekers/{uid}/private/contact) محمية بقواعد Firestore بتسمح لصاحب الحساب والأدمن بس.
 //
 // بيتنادى من غير مصادقة (المستخدم لسه ما دخلش بالتليفون خالص وقت الفحص ده)، فبيرجع
 // boolean بس من غير أي تفاصيل عن الحساب الموجود، تقليلًا لأي تسريب معلومات.
@@ -2441,11 +2443,14 @@ exports.checkPhoneAlreadyRegistered = onCall(async (request) => {
 
   const db = getFirestore();
   try {
-    const [seekersSnap, employerContactSnap] = await Promise.all([
+    // collectionGroup("private") بيغطي الباحثين وأصحاب العمل مع بعض (job_seekers/{uid}/private/contact
+    // وemployers/{uid}/private/contact). استعلام job_seekers العام للباحثين اللي لسه رقمهم هناك بس
+    // (قبل الترحيل)، وهيتشال بعد مسح الحقول من المستند العام.
+    const [publicSeekersSnap, privateContactSnap] = await Promise.all([
       db.collection("job_seekers").where("phone", "in", [local, e164]).limit(1).get(),
       db.collectionGroup("private").where("phone", "in", [local, e164]).limit(1).get(),
     ]);
-    return { alreadyRegistered: !seekersSnap.empty || !employerContactSnap.empty };
+    return { alreadyRegistered: !publicSeekersSnap.empty || !privateContactSnap.empty };
   } catch (err) {
     logger.error("checkPhoneAlreadyRegistered: فشل فحص تضارب رقم التليفون", err);
     throw new HttpsError("internal", "حصلت مشكلة في التحقق، حاول تاني");
