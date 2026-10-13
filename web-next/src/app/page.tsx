@@ -6,7 +6,6 @@ import { getCompanies } from "@/lib/companiesQuery";
 import { GOVERNORATES, SEO_AREAS, SPECIALIZATION_OPTIONS, slugify } from "@/lib/constants";
 import { JOB_TYPE_LABELS, tagStyle } from "@/lib/jobCardStyles";
 import CompanyLogo from "@/components/CompanyLogo";
-import { PREMIUM_DURATION_MONTHS, PREMIUM_PRICE_EGP } from "@/lib/planLimits";
 
 const COLORS = {
   ink: "#14213D",
@@ -69,7 +68,7 @@ export default async function HomePage() {
               borderRadius: 999,
             }}
           >
-            🎉 مجاني بالكامل — لباحثين الشغل وأصحاب الأعمال
+            🎉 مجاني للباحثين عن عمل، ونشر الوظائف مجاني لأصحاب الأعمال
           </span>
         </div>
 
@@ -140,12 +139,6 @@ export default async function HomePage() {
             >
               سجّل شركتك
             </Link>
-            <p style={{ fontSize: 12.5, color: COLORS.inkSoft, margin: "12px 0 0", textAlign: "center" }}>
-              تتوفر باقة مدفوعة بسعر {PREMIUM_PRICE_EGP} جنيه لمدة {PREMIUM_DURATION_MONTHS} أشهر.{" "}
-              <Link href="/pricing" style={{ color: COLORS.ink }}>
-                الباقات والأسعار
-              </Link>
-            </p>
           </div>
         </div>
 
@@ -388,7 +381,7 @@ export default async function HomePage() {
             كمان تختار تخفي اسم شركتك لو حبيت.
           </p>
           <p style={{ fontSize: 14, color: COLORS.inkSoft, marginBottom: 6, lineHeight: 1.7 }}>
-            انشر لحد 5 وظايف شهريًا مجانًا، وابحث عن كوادر مباشرة — من غير أي مصاريف.
+            انشر لحد 5 وظائف شهريًا مجانًا واستقبل طلبات المتقدمين.
           </p>
           <p style={{ fontSize: 12, color: COLORS.inkSoft, opacity: 0.85, marginBottom: 18 }}>
             بدون بطاقة ائتمان • بدون التزام • انشر في أقل من دقيقتين
