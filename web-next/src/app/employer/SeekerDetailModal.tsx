@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { useEffect, useRef, useState } from "react";
+import { auth } from "@/lib/firebase";
 import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS, EXPERIENCE_LEVELS } from "@/lib/constants";
 import { normalizeEntries, formatEntries } from "@/lib/profileFields";
-import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
+import { revealSeekerContact } from "@/lib/seekerContact";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import UpgradeModal from "./UpgradeModal";
 import InviteToJobModal from "./InviteToJobModal";
@@ -60,71 +59,98 @@ type Props = {
   onClose: () => void;
 };
 
+type ContactState =
+  | "loading"
+  | "allowed"
+  | "limit-reached"
+  | "email-unverified"
+  | "plan-inactive"
+  | "not-found"
+  | "unauthenticated"
+  | "error";
+
+// أكواد Cloud Functions بتوصل للكلاينت بصيغة "functions/<code>"
+function functionErrorCode(err: unknown): string {
+  const code = err && typeof err === "object" && "code" in err ? String((err as { code?: unknown }).code) : "";
+  return code.replace(/^functions\//, "");
+}
+
 export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInviteJobId, whatsappCompanyName, onClose }: Props) {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const isPremium = employerPlan === "premium";
   const isAdmin = ADMIN_EMAILS.includes(auth.currentUser?.email || "");
-  const [contactState, setContactState] = useState<"loading" | "allowed" | "limit-reached" | "email-unverified">(
-    isPremium && !isAdmin ? "loading" : "allowed"
-  );
+  // الكشف للباقة المدفوعة وللأدمن بس — الباقة المجانية بتشوف زرار الترقية من غير أي نداء للدالة
+  const canReveal = isPremium || isAdmin;
+  // النتيجة مربوطة بالباحث اللي اتجابت له (resultSeekerId): لو المودال فضل مفتوح واتغيّر الباحث،
+  // contactState بيرجع "loading" لحد ما نتيجة الباحث الجديد توصل، فبيانات الأول متظهرش تحت اسم التاني.
+  const [rawContactState, setContactState] = useState<ContactState>("loading");
+  const [resultSeekerId, setResultSeekerId] = useState<string | null>(null);
+  const contactState: ContactState = resultSeekerId === s.id ? rawContactState : "loading";
+  const [contact, setContact] = useState<{ phone: string; email: string; cvFileURL: string }>({ phone: "", email: "", cvFileURL: "" });
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
+  const [revealLimit, setRevealLimit] = useState(MONTHLY_CONTACT_REVEAL_LIMIT);
+  const [attempt, setAttempt] = useState(0);
+  // نداء واحد بس لكل (باحث، محاولة) حتى لو الـeffect اتنفذ مرتين (StrictMode في dev بيعمل
+  // mount/unmount/mount)، والنتيجة بتتطبق بس لو لسه هي آخر طلب والمودال لسه مفتوح. الدالة نفسها
+  // بتحسب نفس الباحث مرة واحدة في الشهر كمان، فده بس عشان منبعتش طلبات زيادة.
+  const inFlightRef = useRef<string | null>(null);
+  const latestKeyRef = useRef("");
+  const mountedRef = useRef(false);
 
   useEffect(() => {
-    // الأدمن بيتجاهل منطق الحد الشهري بالكامل — مبيتفحصش العداد ولا بيتسجّل له contact_reveals
-    // خالص، زي ما لو كان دايمًا "allowed" بغض النظر عن employerPlan اللي وصله. الباقة المجانية
-    // كمان مش محتاجة فحص تأكيد الإيميل هنا — بيانات التواصل أصلاً متاحة للمدفوعة بس (فرع
-    // !isPremium تحت في الـrender بيوريها زرار الترقية بغض النظر عن التأكيد)، فمفيش "فيتشر"
-    // فعلي يتمنع هنا لغير الباقة المدفوعة.
-    if (isAdmin || !isPremium) {
-      setContactState("allowed");
-      return;
-    }
-    let cancelled = false;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!canReveal) return;
+    const seekerId = s.id;
+    const requestKey = `${seekerId}:${attempt}`;
+    latestKeyRef.current = requestKey;
+    if (inFlightRef.current === requestKey) return;
+    inFlightRef.current = requestKey;
+    const isCurrent = () => mountedRef.current && latestKeyRef.current === requestKey;
+    // بيانات التواصل من Cloud Function (revealSeekerContact) مش من مستند job_seekers العام: الدالة
+    // بتتحقق من الباقة السارية وتأكيد الإيميل وموافقة الباحث والحد الشهري، وبتسجّل contact_reveals
+    // على السيرفر. الأدمن بيعدّي من الفحوصات دي ومبيتسجّلش له عداد (جوه الدالة).
     (async () => {
-      const user = auth.currentUser;
-      if (!user) return;
-      const gateResult = await checkEmailVerificationGate();
-      if (cancelled) return;
-      if (gateResult.blocked) {
-        setUnverifiedEmail(gateResult.email);
-        setContactState("email-unverified");
-        return;
-      }
       try {
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        startOfMonth.setHours(0, 0, 0, 0);
-
-        const revealsSnap = await getDocs(query(collection(db, "contact_reveals"), where("employerId", "==", user.uid)));
-        const revealsThisMonth = revealsSnap.docs.filter((d) => {
-          const t = d.data().createdAt;
-          return t && t.toMillis() >= startOfMonth.getTime();
-        });
-        const alreadyRevealedThisSeeker = revealsThisMonth.some((d) => d.data().seekerId === s.id);
-
-        if (revealsThisMonth.length >= MONTHLY_CONTACT_REVEAL_LIMIT && !alreadyRevealedThisSeeker) {
-          if (!cancelled) setContactState("limit-reached");
-          return;
+        const result = await revealSeekerContact(seekerId);
+        if (!isCurrent()) return;
+        setResultSeekerId(seekerId);
+        if (result.status === "allowed") {
+          setContact({ phone: result.phone || "", email: result.email || "", cvFileURL: result.cvFileURL || "" });
+          setContactState("allowed");
+        } else if (result.status === "limit-reached") {
+          setRevealLimit(result.limit);
+          setContactState("limit-reached");
+        } else {
+          setUnverifiedEmail(result.email);
+          setContactState("email-unverified");
         }
-
-        if (!alreadyRevealedThisSeeker) {
-          await setDoc(doc(db, "contact_reveals", `${user.uid}_${s.id}`), {
-            employerId: user.uid,
-            seekerId: s.id,
-            createdAt: serverTimestamp(),
-          });
-        }
-        if (!cancelled) setContactState("allowed");
       } catch (err) {
-        console.error("[SeekerDetailModal] فشل التحقق من حد كشف بيانات التواصل الشهري", err);
-        if (!cancelled) setContactState("allowed");
+        if (!isCurrent()) return;
+        setResultSeekerId(seekerId);
+        const code = functionErrorCode(err);
+        console.error("[SeekerDetailModal] فشل كشف بيانات التواصل", code, err);
+        if (code === "permission-denied") setContactState("plan-inactive");
+        else if (code === "not-found") setContactState("not-found");
+        else if (code === "unauthenticated") setContactState("unauthenticated");
+        else setContactState("error");
+      } finally {
+        if (inFlightRef.current === requestKey) inFlightRef.current = null;
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isPremium, isAdmin, s.id]);
+  }, [canReveal, s.id, attempt]);
+
+  function retryReveal() {
+    if (contactState === "loading") return;
+    setContactState("loading");
+    setAttempt((n) => n + 1);
+  }
 
   const skills = normalizeEntries(s.skills);
   const languages = normalizeEntries(s.languages);
@@ -234,32 +260,67 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
 
           <hr style={{ margin: "20px 0", border: "none", borderTop: "1px solid #14213D22" }} />
 
-          {isPremium && contactState === "loading" && (
-            <div style={{ fontSize: 13.5, color: "#4A5568" }}>جارٍ التحقق من بيانات التواصل...</div>
+          {canReveal && contactState === "loading" && (
+            <div style={{ fontSize: 13.5, color: "#4A5568" }}>جارٍ تحميل بيانات التواصل...</div>
           )}
 
-          {isPremium && contactState === "email-unverified" && (
+          {canReveal && contactState === "email-unverified" && (
             <EmailVerificationNotice email={unverifiedEmail} audience="employer" />
           )}
 
-          {isPremium && contactState === "limit-reached" && (
-            <div style={{ background: "#F5EFDE", padding: 16, borderRadius: 8 }}>
-              <p style={{ fontSize: 13.5, color: "#B03A14" }}>
-                وصلت إلى الحد الأقصى لكشف بيانات التواصل في الباقة المدفوعة هذا الشهر ({MONTHLY_CONTACT_REVEAL_LIMIT} عملية).
+          {canReveal && contactState === "limit-reached" && (
+            <div style={noticeBoxStyle}>
+              <p style={{ fontSize: 13.5, color: "#B03A14", margin: 0 }}>
+                لقد بلغت الحد الشهري لكشف بيانات التواصل في الباقة المدفوعة ({revealLimit} مرشحًا). يتجدد الرصيد في بداية الشهر القادم.
               </p>
             </div>
           )}
 
-          {/* الأدمن بيشوف بيانات التواصل دايمًا زي isPremium && contactState === "allowed"،
-              بغض النظر عن employerPlan اللي وصله فعليًا (ممكن يكون "free" لو حسابه الشخصي
-              مش مدفوع) — مستثنى تمامًا من فحص الحد الشهري، مش بس من العداد نفسه. */}
-          {isAdmin || (isPremium && contactState === "allowed") ? (
+          {canReveal && contactState === "plan-inactive" && (
+            <div style={noticeBoxStyle}>
+              <p style={{ fontSize: 13.5, color: "#4A5568", marginBottom: 12 }}>
+                انتهى اشتراك الباقة المدفوعة أو تم إيقاف الحساب، لذا لا يمكن عرض بيانات التواصل حاليًا.
+              </p>
+              <button onClick={() => setShowUpgrade(true)} style={upgradeButtonStyle}>
+                تجديد الباقة المدفوعة
+              </button>
+            </div>
+          )}
+
+          {canReveal && contactState === "not-found" && (
+            <div style={noticeBoxStyle}>
+              <p style={{ fontSize: 13.5, color: "#4A5568", margin: 0 }}>
+                هذا الملف لم يعد متاحًا، وربما أوقف صاحبه ظهوره لأصحاب الأعمال.
+              </p>
+            </div>
+          )}
+
+          {canReveal && contactState === "unauthenticated" && (
+            <div style={noticeBoxStyle}>
+              <p style={{ fontSize: 13.5, color: "#4A5568", margin: 0 }}>
+                يرجى تسجيل الدخول مرة أخرى لعرض بيانات التواصل.
+              </p>
+            </div>
+          )}
+
+          {canReveal && contactState === "error" && (
+            <div style={noticeBoxStyle}>
+              <p style={{ fontSize: 13.5, color: "#4A5568", marginBottom: 12 }}>
+                تعذّر تحميل بيانات التواصل. يرجى المحاولة مرة أخرى.
+              </p>
+              <button onClick={retryReveal} style={upgradeButtonStyle}>
+                إعادة المحاولة
+              </button>
+            </div>
+          )}
+
+          {canReveal && contactState === "allowed" ? (
             <div>
               <h3 style={{ fontSize: 15, marginBottom: 10 }}>بيانات التواصل</h3>
-              <div style={{ fontSize: 14.5, marginBottom: 6 }}>الهاتف: <strong>{s.phone || "—"}</strong></div>
+              <div style={{ fontSize: 14.5, marginBottom: 6 }}>الهاتف: <strong>{contact.phone || "—"}</strong></div>
               {(() => {
                 const whatsappLink = whatsappCompanyName
-                  ? buildWhatsAppLink(s.phone, talentWhatsAppMessage(whatsappCompanyName))
+                  ? buildWhatsAppLink(contact.phone, talentWhatsAppMessage(whatsappCompanyName))
                   : null;
                 return whatsappLink ? (
                   <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{ ...whatsappButtonStyle, marginBottom: 6 }}>
@@ -267,9 +328,9 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
                   </a>
                 ) : null;
               })()}
-              {s.email && <div style={{ fontSize: 14.5, marginBottom: 6 }}>البريد الإلكتروني: {s.email}</div>}
-              {s.cvFileURL && (
-                <a href={s.cvFileURL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 6, color: "#14213D" }}>
+              {contact.email && <div style={{ fontSize: 14.5, marginBottom: 6 }}>البريد الإلكتروني: {contact.email}</div>}
+              {contact.cvFileURL && (
+                <a href={contact.cvFileURL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 6, color: "#14213D" }}>
                   السيرة الذاتية
                 </a>
               )}
@@ -280,7 +341,7 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
                 ادعُه للتقديم على وظيفة
               </button>
             </div>
-          ) : !isAdmin && !isPremium ? (
+          ) : !canReveal ? (
             <div style={{ background: "#F5EFDE", padding: 16, borderRadius: 8 }}>
               <p style={{ fontSize: 13.5, color: "#4A5568", marginBottom: 12 }}>
                 التواصل المباشر مع المرشحين (الهاتف، البريد الإلكتروني، السيرة الذاتية) متاح للباقة المدفوعة فقط.
@@ -319,3 +380,16 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
 }
 
 const tagStyle: React.CSSProperties = { fontSize: 12, background: "#F0EDE3", padding: "3px 10px", borderRadius: 999 };
+
+const noticeBoxStyle: React.CSSProperties = { background: "#F5EFDE", padding: 16, borderRadius: 8 };
+
+const upgradeButtonStyle: React.CSSProperties = {
+  padding: "8px 16px",
+  background: "#E8A33D",
+  color: "#14213D",
+  border: "none",
+  borderRadius: 8,
+  fontWeight: 700,
+  cursor: "pointer",
+  fontSize: 13.5,
+};

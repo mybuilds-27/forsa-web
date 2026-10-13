@@ -3,8 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
+import { readOwnSeekerProfile } from "@/lib/seekerContact";
 import QuickSignupForm from "./QuickSignupForm";
 import JobsTab from "./JobsTab";
 import ProfileTab from "./ProfileTab";
@@ -44,11 +44,11 @@ function SeekerPageInner() {
   async function loadProfile() {
     const user = auth.currentUser;
     if (!user) return;
-    const profileRef = doc(db, "job_seekers", user.uid);
-    const profileSnap = await getDoc(profileRef);
+    // مدموج مع private/contact (الهاتف والإيميل والـCV) — كل التابات وCVPreview ونسبة الاكتمال بتاخده من هنا
+    const profile = await readOwnSeekerProfile(user.uid);
 
-    if (profileSnap.exists()) {
-      setProfileData(profileSnap.data());
+    if (profile.exists) {
+      setProfileData(profile.data);
       setStatus("has-profile");
     } else {
       setStatus("no-profile");

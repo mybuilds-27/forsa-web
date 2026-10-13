@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, db, storage } from "@/lib/firebase";
+import { addSeekerContactWrite } from "@/lib/seekerContact";
 import { SKILL_OPTIONS, LANGUAGE_OPTIONS, SKILL_LEVELS, LANGUAGE_LEVELS } from "@/lib/constants";
 import { SkillEntry, normalizeEntries } from "@/lib/profileFields";
 import SkillLevelPicker from "../SkillLevelPicker";
@@ -59,6 +60,9 @@ export default function SkillsAndCVTab({ initialData, onSaved, isNewProfile, mis
     };
 
     if (cvLink.trim()) data.cvFileURL = cvLink.trim();
+    // الباحث فضّى خانة الرابط ومرفعش ملف جديد وكان عنده CV محفوظ = مسح عمدي، فبنكتب الفاضي في
+    // المستندين (من غيره القراءة الراجعة للمستند العام كانت هترجّع الرابط القديم)
+    else if (!cvFile && initialData.cvFileURL) data.cvFileURL = "";
 
     if (cvFile) {
       if (cvFile.size > 5 * 1024 * 1024) {
@@ -78,7 +82,11 @@ export default function SkillsAndCVTab({ initialData, onSaved, isNewProfile, mis
       }
     }
 
-    await setDoc(doc(db, "job_seekers", user.uid), data, { merge: true });
+    // cvFileURL (لو اتغيّر) في المستند العام وفي private/contact مع بعض (شوف lib/seekerContact.ts)
+    const batch = writeBatch(db);
+    batch.set(doc(db, "job_seekers", user.uid), data, { merge: true });
+    if (typeof data.cvFileURL === "string") addSeekerContactWrite(batch, user.uid, { cvFileURL: data.cvFileURL });
+    await batch.commit();
 
     setSaving(false);
     setSaved(true);

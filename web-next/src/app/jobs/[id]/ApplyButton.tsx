@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { addSeekerContactWrite, readOwnSeekerProfile } from "@/lib/seekerContact";
 import { buildSeekerSnapshot } from "@/lib/seekerSnapshot";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { shouldShowProfileNudge } from "@/lib/profileNudge";
@@ -92,8 +93,8 @@ export default function ApplyButton({
     if (!user) return;
     setBusy(true);
     try {
-      const seekerDoc = await getDoc(doc(db, "job_seekers", user.uid));
-      const s = seekerDoc.exists() ? seekerDoc.data() : {};
+      // مدموج مع private/contact عشان seekerSnapshot (اللي صاحب العمل بيشوفه) فيه الهاتف والإيميل والـCV
+      const { data: s } = await readOwnSeekerProfile(user.uid);
       const appId = `${jobId}_${user.uid}`;
       await setDoc(doc(db, "applications", appId), {
         jobPostId: jobId,
@@ -216,10 +217,10 @@ export default function ApplyButton({
     let existingFullName = "";
     let existingPhone = "";
     try {
-      const seekerSnap = await getDoc(doc(db, "job_seekers", user.uid));
-      if (seekerSnap.exists()) {
-        existingFullName = seekerSnap.data().fullName || "";
-        existingPhone = seekerSnap.data().phone || "";
+      const seekerProfile = await readOwnSeekerProfile(user.uid);
+      if (seekerProfile.exists) {
+        existingFullName = seekerProfile.data.fullName || "";
+        existingPhone = seekerProfile.data.phone || "";
       }
     } catch (err) {
       console.error("[ApplyButton] فشل التحقق من بيانات job_seekers الحالية", err);
@@ -242,11 +243,15 @@ export default function ApplyButton({
     // عشان handleApply يلاقيه لما يقرا المستند تاني. من غير أي خطوة إضافية للمستخدم نفسه.
     if (fullName !== existingFullName || phone !== existingPhone) {
       try {
-        await setDoc(
+        // الهاتف في المستند العام وفي private/contact مع بعض (شوف lib/seekerContact.ts)
+        const batch = writeBatch(db);
+        batch.set(
           doc(db, "job_seekers", user.uid),
           { fullName: fullName.trim(), phone: phone.trim(), updatedAt: serverTimestamp() },
           { merge: true }
         );
+        addSeekerContactWrite(batch, user.uid, { phone: phone.trim() });
+        await batch.commit();
       } catch (err) {
         console.error("[ApplyButton] فشل حفظ الاسم/الموبايل المتاحين من auth", err);
       }
@@ -272,11 +277,15 @@ export default function ApplyButton({
     try {
       // merge:true عشان لو المستند موجود بالفعل (نادر هنا) منمسحش حقول تانية فيه — وده
       // كمان بيسيب البروفايل مكمّل من غير ما يحتاج يمر بـQuickSignupForm تاني في تطبيقات لاحقة.
-      await setDoc(
+      // الهاتف في المستند العام وفي private/contact مع بعض (شوف lib/seekerContact.ts)
+      const batch = writeBatch(db);
+      batch.set(
         doc(db, "job_seekers", user.uid),
         { fullName: missingFullName.trim(), phone: missingPhone.trim(), updatedAt: serverTimestamp() },
         { merge: true }
       );
+      addSeekerContactWrite(batch, user.uid, { phone: missingPhone.trim() });
+      await batch.commit();
       setMissingInfoOpen(false);
       handleApplyClick();
     } catch (err) {

@@ -1,10 +1,14 @@
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, type DocumentData } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import { db } from "@/lib/firebase";
+import { readSeekerContactWithFallback } from "@/lib/seekerContact";
 import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS, EXPERIENCE_LEVELS } from "@/lib/constants";
 import { JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
 import { normalizeEntries, formatEntries } from "@/lib/profileFields";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
+
+// عدد الباحثين اللي بنقرا مستندهم الفرعي private/contact في نفس الوقت وقت التصدير
+const SEEKER_CONTACT_BATCH_SIZE = 20;
 
 // نفس أسلوب exportApplicantsExcel في jobPostActions.ts بالظبط (.xlsx حقيقي بدل CSV،
 // نفس مكتبة xlsx ونفس نمط بناء الشيت).
@@ -115,6 +119,17 @@ export async function exportAllUsersExcel(): Promise<void> {
     })
   );
 
+  // بيانات الباحث مدموجة مع job_seekers/{uid}/private/contact (الهاتف والإيميل والـCV — شوف
+  // lib/seekerContact.ts). القراءة على دفعات (SEEKER_CONTACT_BATCH_SIZE في المرة) بدل كل الباحثين مرة
+  // واحدة، وفشل قراءة باحث واحد بيرجع لقيم المستند العام بتاعه من غير ما يوقف التصدير
+  // (readSeekerContactWithFallback بتمسك الخطأ بنفسها).
+  const seekerDataById = new Map<string, DocumentData>();
+  for (let i = 0; i < seekersSnap.docs.length; i += SEEKER_CONTACT_BATCH_SIZE) {
+    const chunk = seekersSnap.docs.slice(i, i + SEEKER_CONTACT_BATCH_SIZE);
+    const merged = await Promise.all(chunk.map((d) => readSeekerContactWithFallback(d.id, d.data())));
+    chunk.forEach((d, j) => seekerDataById.set(d.id, merged[j]));
+  }
+
   if (seekersSnap.docs.length === 0 && employersSnap.docs.length === 0) {
     alert("لسه مفيش مستخدمين مسجلين.");
     return;
@@ -161,7 +176,7 @@ export async function exportAllUsersExcel(): Promise<void> {
   const cvColumnIndex = seekerHeaders.indexOf("لينك السيرة الذاتية");
 
   const seekerRows = seekersSnap.docs.map((d) => {
-    const s = d.data();
+    const s = seekerDataById.get(d.id) || d.data();
     const u = usersById.get(d.id) || {};
     return [
       s.fullName || u.displayName || "",
@@ -206,7 +221,7 @@ export async function exportAllUsersExcel(): Promise<void> {
     { wch: 16 }, { wch: 14 }, { wch: 20 },
   ];
   seekersSnap.docs.forEach((d, i) => {
-    const s = d.data();
+    const s = seekerDataById.get(d.id) || d.data();
     if (!s.cvFileURL) return;
     const cellAddress = XLSX.utils.encode_cell({ r: i + 1, c: cvColumnIndex });
     const cell = seekerSheet[cellAddress];

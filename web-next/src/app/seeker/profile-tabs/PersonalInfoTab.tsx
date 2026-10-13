@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, db, storage } from "@/lib/firebase";
+import { addSeekerContactWrite } from "@/lib/seekerContact";
 import { GOVERNORATES, GOVERNORATE_CITIES, MILITARY_STATUS_LABELS } from "@/lib/constants";
 import FileUploadButton from "@/components/FileUploadButton";
 import { h3Style, descStyle, gridStyle, labelStyle, inputStyle, saveBtnStyle, savedMsgStyle } from "./sharedStyles";
@@ -104,7 +105,12 @@ export default function PersonalInfoTab({ initialData, onSaved, isNewProfile, mi
       }
     }
 
-    await setDoc(doc(db, "job_seekers", user.uid), data, { merge: true });
+    // الهاتف والإيميل في المستند العام وفي private/contact مع بعض (شوف lib/seekerContact.ts) —
+    // حتى لو فاضيين (الباحث مسحهم عمدًا)
+    const batch = writeBatch(db);
+    batch.set(doc(db, "job_seekers", user.uid), data, { merge: true });
+    addSeekerContactWrite(batch, user.uid, { phone, email });
+    await batch.commit();
 
     setSaving(false);
     setSaved(true);

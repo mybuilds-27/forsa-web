@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { addSeekerContactWrite } from "@/lib/seekerContact";
 import { GOVERNORATES, SPECIALIZATION_OPTIONS } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 import { logClientError } from "@/lib/errorLog";
@@ -45,7 +46,9 @@ export default function QuickSignupForm({ onSaved }: Props) {
     }
 
     try {
-      await setDoc(doc(db, "job_seekers", user.uid), {
+      // الهاتف في المستند العام وفي private/contact مع بعض (شوف lib/seekerContact.ts)
+      const batch = writeBatch(db);
+      batch.set(doc(db, "job_seekers", user.uid), {
         fullName,
         phone,
         jobTitle,
@@ -57,6 +60,8 @@ export default function QuickSignupForm({ onSaved }: Props) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      addSeekerContactWrite(batch, user.uid, { phone });
+      await batch.commit();
       // هنا أول تسجيل مكتمل فعليًا للباحث (بعد ما يكمّل بياناته)، مش عند أول تسجيل دخول —
       // ده مكان حدث CompleteRegistration الصح لـMeta Pixel بدل مكانه القديم في page.tsx
       (window as any).fbq?.("track", "CompleteRegistration");

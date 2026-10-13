@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc, type DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { mergeSeekerContact } from "@/lib/seekerContact";
 
 type ReporterInfoData = {
   kind: "seeker" | "employer" | "unknown";
@@ -40,7 +41,9 @@ async function loadReporter(uid: string): Promise<ReporterInfoData> {
   const user = await readDoc("users", uid);
 
   const isEmployerUser = user?.userType === "employer";
-  const seeker = isEmployerUser ? null : await readDoc("job_seekers", uid);
+  // الهاتف والإيميل من job_seekers/{uid}/private/contact لو موجودين، وإلا من المستند العام (شوف lib/seekerContact.ts)
+  const seekerPublic = isEmployerUser ? null : await readDoc("job_seekers", uid);
+  const seeker = seekerPublic ? mergeSeekerContact(seekerPublic, await readDoc("job_seekers", uid, "private", "contact")) : null;
   let employer: DocumentData | null = null;
   let contact: DocumentData | null = null;
   if (isEmployerUser || (!seeker && !user)) {

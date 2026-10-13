@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp, type DocumentData } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
+import { mergeSeekerContact, seekerContactRef } from "@/lib/seekerContact";
 import NotificationBell from "./NotificationBell";
 import EnableNotificationsButton from "./EnableNotificationsButton";
 import EnablePushNudge from "./EnablePushNudge";
@@ -125,16 +126,41 @@ export default function Navbar() {
           // نفس onSnapshot المشترك اللي بيحدد نوع الحساب — بيضيف قراءة job_seekers/{uid} بس
           // لباحث عن شغل، عشان نحسب نسبة اكتمال البروفايل ونعرض تنبيه استكمال دائم في كل
           // صفحات الموقع (مش مربوط بصفحة /seeker بس)، من غير ما نزوّد useEffect منفصل.
+          // الهاتف والإيميل والـCV (جزء من نسبة الاكتمال) بقوا في private/contact كمان، فبنسمع
+          // للمستندين ونحسب من الدمج (شوف lib/seekerContact.ts). قراءة بس، مفيش أي كتابة هنا.
           if (type === "job_seeker") {
-            unsubscribeSeekerDoc = onSnapshot(
+            let publicData: DocumentData | null = null;
+            let privateData: DocumentData | null = null;
+            let publicLoaded = false;
+            const recompute = () => {
+              if (!publicLoaded) return;
+              setProfileCompletion(calculateProfileCompletion(publicData ? mergeSeekerContact(publicData, privateData) : null));
+            };
+            const unsubscribePublic = onSnapshot(
               doc(db, "job_seekers", user.uid),
               (seekerDoc) => {
-                setProfileCompletion(calculateProfileCompletion(seekerDoc.exists() ? seekerDoc.data() : null));
+                publicData = seekerDoc.exists() ? seekerDoc.data() : null;
+                publicLoaded = true;
+                recompute();
               },
               (err) => {
                 console.error("[Navbar] فشل قراءة job_seekers/{uid} لحساب نسبة اكتمال البروفايل", err);
               }
             );
+            const unsubscribePrivate = onSnapshot(
+              seekerContactRef(user.uid),
+              (contactDoc) => {
+                privateData = contactDoc.exists() ? contactDoc.data() : null;
+                recompute();
+              },
+              (err) => {
+                console.error("[Navbar] فشل قراءة job_seekers/{uid}/private/contact لحساب نسبة اكتمال البروفايل", err);
+              }
+            );
+            unsubscribeSeekerDoc = () => {
+              unsubscribePublic();
+              unsubscribePrivate();
+            };
           } else {
             setProfileCompletion(null);
           }

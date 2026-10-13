@@ -20,6 +20,7 @@ import {
 import { auth, db } from "@/lib/firebase";
 import { GOVERNORATES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS } from "@/lib/constants";
 import { buildSeekerSnapshot } from "@/lib/seekerSnapshot";
+import { readOwnSeekerProfile } from "@/lib/seekerContact";
 import { fetchSavedJobIds, setJobSaved } from "@/lib/savedJobs";
 import { getActiveJobsSeoData, JobCombo } from "@/lib/publicJobsQuery";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
@@ -340,8 +341,8 @@ export default function JobsTab({ completionPercent, specialization, keywords, j
     if (isContactJob(job)) return;
     setApplying(true);
     try {
-      const seekerDoc = await getDoc(doc(db, "job_seekers", user.uid));
-      const s = seekerDoc.exists() ? seekerDoc.data() : {};
+      // مدموج مع private/contact عشان seekerSnapshot (اللي صاحب العمل بيشوفه) فيه الهاتف والإيميل والـCV
+      const { data: s } = await readOwnSeekerProfile(user.uid);
       const appId = `${job.id}_${user.uid}`;
       await setDoc(doc(db, "applications", appId), {
         jobPostId: job.id,
