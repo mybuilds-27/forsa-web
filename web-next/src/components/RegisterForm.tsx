@@ -40,6 +40,9 @@ const ADMIN_EMAILS = ["elshoghl27@gmail.com", "mohamedzakaria2727@gmail.com"];
 // reCAPTCHA + إرسال SMS عادة بياخد وقت أطول من مجرد جلب توكن FCM، وده بالظبط السيناريو
 // اللي بنحاول نديله مهلة كافية قبل ما نعتبره تعليق (شوف sendCodeTimeout تحت).
 const SEND_CODE_TIMEOUT_MS = 20000;
+// كود داخلي لخطأ المهلة (مش من فايربيز) عشان phoneAuthErrorMessage تعرض رسالته العربية بدل
+// الرسالة العامة "حصلت مشكلة غير متوقعة (كود: unknown)".
+const SEND_CODE_TIMEOUT_CODE = "app/send-code-timeout";
 
 const COLORS = {
   ink: "#14213D",
@@ -172,6 +175,9 @@ export default function RegisterForm({
   // في PublicJobsList.tsx)، وكل واحد بيتفتح ويتقفل بشكل مستقل، فمينفعش نعتمد على id string
   // عام ممكن يتكرر لو أكتر من نسخة اتحطت في الصفحة في نفس الوقت.
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
+  // محاولة إرسال كود واحدة في نفس الوقت: phoneLoading (state) مبيتحدّثش لحظيًا، فضغطتين ورا بعض
+  // (أو Enter + ضغطة) كانوا ممكن يدخلوا الاتنين، والتانية تنضّف verifier الأولى وهي لسه شغالة.
+  const sendCodeInFlightRef = useRef(false);
   // true من لحظة ما أي محاولة تسجيل جديدة تبدأ لحد ما routeAfterAuth بتاعتها يخلص أو يفشل.
   const authInProgressRef = useRef(false);
 
@@ -517,6 +523,9 @@ export default function RegisterForm({
   // مفيش كود محدد معروف لهذا الخطأ) وإحنا جوه WebView، الأرجح إنه بسبب reCAPTCHA، فبنوجّه
   // المستخدم لفتح متصفح حقيقي بدل الرسالة العامة.
   function phoneAuthErrorMessage(err: any): string {
+    if (err?.code === SEND_CODE_TIMEOUT_CODE) {
+      return "إرسال كود التحقق اتأخر أكتر من اللازم — اضغط تاني، ولو اتكررت جرب من متصفح تاني أو سجّل بالإيميل";
+    }
     const specific = authErrorMessage(err);
     const isGenericFallback = specific.startsWith("حصلت مشكلة غير متوقعة");
     if (isGenericFallback && isWebView) {
@@ -535,6 +544,9 @@ export default function RegisterForm({
       console.warn("Recaptcha clear failed", err);
     }
     recaptchaVerifierRef.current = null;
+    // clear() مش دايمًا بيشيل كل اللي grecaptcha سابه جوه العنصر (خصوصًا لو التحدي كان لسه معلّق
+    // أو اتقطع بسبب الشبكة/المهلة) — فبنفضّي الحاوية بالكامل، والـverifier الجديد بيترسم على عنصر جديد.
+    recaptchaContainerRef.current?.replaceChildren();
   }
 
   // بننضّف الـverifier القديم (لو فيه) ونعمل واحد جديد في كل نداء — مش بنسيب نفس الـinstance
@@ -543,9 +555,15 @@ export default function RegisterForm({
   // أي محاولة إرسال تانية على نفس العنصر من غير clear() الأول بتطلّع نفس الخطأ. بنستهدف
   // عنصر DOM بالـref مباشرة (recaptchaContainerRef) بدل id string ثابت — آمن حتى لو فيه أكتر
   // من نسخة من الفورم دي متحطة في الصفحة.
+  // كل محاولة بتترسم على عنصر div جديد جوه الحاوية (مش على الحاوية نفسها)، فمفيش أي احتمال إن
+  // grecaptcha يلاقي نفس العنصر "already rendered" من محاولة قبلها اتقطعت ومعرفناش ننضّفها.
   function getRecaptchaVerifier(): RecaptchaVerifier {
     clearRecaptchaVerifier();
-    recaptchaVerifierRef.current = new RecaptchaVerifier(auth, recaptchaContainerRef.current!, {
+    const host = recaptchaContainerRef.current;
+    if (!host) throw new Error("recaptcha container is not mounted");
+    const target = document.createElement("div");
+    host.appendChild(target);
+    recaptchaVerifierRef.current = new RecaptchaVerifier(auth, target, {
       size: "invisible",
     });
     return recaptchaVerifierRef.current;
@@ -555,13 +573,18 @@ export default function RegisterForm({
   // الشبكة علّقت أثناء تحميل/تحقق reCAPTCHA (شائع جوه WebView فيسبوك/إنستجرام أو شبكات بطيئة)،
   // الطلب ممكن يفضل معلّق للأبد، وphoneLoading هيفضل true معاه للأبد (يقفل المودال تمامًا من
   // غير أي رسالة، شوف onBusyChange فوق). نفس نمط getTokenWithTimeout في pushNotifications.ts.
-  function sendCodeTimeout(): Promise<never> {
-    return new Promise((_, reject) => {
-      setTimeout(
-        () => reject(new Error("انتهت مهلة إرسال كود التحقق (20 ثانية) — جرب تاني أو من متصفح تاني")),
-        SEND_CODE_TIMEOUT_MS
-      );
+  // بترجع cancel كمان: لو الإرسال نجح أو فشل قبل المهلة، الـtimer بيتلغي بدل ما يرفض promise
+  // محدش مستنيه بعد 20 ثانية (unhandled rejection في الكونسول).
+  function sendCodeTimeout(): { promise: Promise<never>; cancel: () => void } {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const promise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const err = new Error("انتهت مهلة إرسال كود التحقق (20 ثانية)") as Error & { code?: string };
+        err.code = SEND_CODE_TIMEOUT_CODE;
+        reject(err);
+      }, SEND_CODE_TIMEOUT_MS);
     });
+    return { promise, cancel: () => clearTimeout(timer) };
   }
 
   // لو الكومبوننت اتشال من الشاشة (المستخدم قفل مودال التسجيل/التقديم) وفيه verifier لسه
@@ -596,6 +619,7 @@ export default function RegisterForm({
   // phoneOverride بتتبعت من handleOtpFallback عشان تتفادى قراءة state الـphoneNumber قبل
   // ما يتحدّث فعليًا (setState مش متزامن) — من غيرها هيتبعت الرقم القديم مش الجديد.
   async function handleSendCode(phoneOverride?: string) {
+    if (sendCodeInFlightRef.current) return;
     setError("");
     setErrorColor(COLORS.stamp);
 
@@ -614,8 +638,19 @@ export default function RegisterForm({
       return;
     }
 
+    sendCodeInFlightRef.current = true;
     setPhoneLoading(true);
+    try {
+      await sendCodeAfterValidation(normalized, isSignup);
+    } finally {
+      sendCodeInFlightRef.current = false;
+      setPhoneLoading(false);
+    }
+  }
 
+  // باقي handleSendCode بعد التحقق من الاسم والرقم — اتفصلت بس عشان الـfinally فوق يضمن إن
+  // sendCodeInFlightRef وphoneLoading يرجعوا false في كل الحالات (نجاح، خطأ، رقم متسجل قبل كده).
+  async function sendCodeAfterValidation(normalized: string, isSignup: boolean) {
     // فحص تضارب الحسابات معناه بس وقت التسجيل الجديد — استرجاع دخول حساب قديم غرضه أصلًا
     // إن الرقم ده مرتبط بحساب موجود، فمفيش داعي (ولا معنى) نمنعه هنا.
     if (isSignup) {
@@ -630,7 +665,6 @@ export default function RegisterForm({
           setError(
             "الرقم ده متسجل بحساب موجود بالفعل — سجّل دخولك بنفس الطريقة اللي استخدمتها أول مرة (جوجل أو الإيميل) بدل رقم التليفون."
           );
-          setPhoneLoading(false);
           return;
         }
       } catch (err) {
@@ -642,21 +676,22 @@ export default function RegisterForm({
       logFunnelEvent("method_selected", role, "phone");
     }
 
+    const timeout = sendCodeTimeout();
     try {
       const verifier = getRecaptchaVerifier();
-      const result = await Promise.race([signInWithPhoneNumber(auth, normalized, verifier), sendCodeTimeout()]);
+      const result = await Promise.race([signInWithPhoneNumber(auth, normalized, verifier), timeout.promise]);
       setConfirmationResult(result);
       setPhoneStep("enter-code");
     } catch (err: any) {
       console.error("Send code failed", err);
       logClientError("phone_send_code", err);
       setError(phoneAuthErrorMessage(err));
-      // ننضّف الـverifier فورًا (مش بس نسيبه للمحاولة الجاية تتكفل بيه في getRecaptchaVerifier)
-      // عشان الـwidget المعلّق ده يتشال بأسرع وقت ممكن، مش لازم فعليًا لأن getRecaptchaVerifier
-      // بقى بينضّف قبل أي استخدام جديد على أي حال — بس أوضح وأسرع في التنظيف.
+      // ننضّف الـverifier والحاوية فورًا بعد أي خطأ (بما فيه المهلة)، فالضغطة الجاية بتبدأ على
+      // عنصر جديد تمامًا من غير ريفريش.
       clearRecaptchaVerifier();
+    } finally {
+      timeout.cancel();
     }
-    setPhoneLoading(false);
   }
 
   async function handleVerifyCode() {

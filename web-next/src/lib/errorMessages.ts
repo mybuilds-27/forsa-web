@@ -17,6 +17,10 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   "auth/code-expired": "الكود ده انتهت صلاحيته — اطلب كود جديد",
   "auth/quota-exceeded": "الخدمة مش متاحة دلوقتي — جرب تاني لاحقًا",
   "auth/operation-not-allowed": "تسجيل الدخول برقم التليفون لسه مش مفعّل على الموقع",
+  // فشل التحقق الأمني (reCAPTCHA) نفسه — المحاولة الجاية بتعمل verifier جديد، فإعادة المحاولة كفاية
+  "auth/captcha-check-failed": "التحقق الأمني مكملش — اضغط تاني",
+  "auth/invalid-app-credential": "التحقق الأمني مكملش — اضغط تاني",
+  "auth/missing-app-credential": "التحقق الأمني مكملش — اضغط تاني",
   // 503 من identitytoolkit.googleapis.com — حظر مؤقت متعمّد من Firebase نفسها لشبكة اتصال/منطقة
   // معدل توصيل الـSMS ليها ضعيف باستمرار (مش باج في كودنا، ومش نفس سبب "already been rendered"
   // — reCAPTCHA بتكون خلصت ونجحت قبل ما الخطأ ده يحصل خالص). أكّد ده مهندس دعم Firebase في حالة
@@ -59,7 +63,9 @@ export function authErrorMessage(err: any): string {
 
   const message: string = String(err?.message || "");
   if (message.includes(RECAPTCHA_ALREADY_RENDERED)) {
-    return "حصلت مشكلة تقنية مؤقتة في نظام التحقق — جرب تسجّل بالإيميل بدل التليفون (هياخد نفس الوقت تقريبًا)، أو اقفل الصفحة وافتحها تاني وجرب التليفون من الأول";
+    // من بعد ما كل محاولة بقت بترسم الـverifier على عنصر جديد (RegisterForm.tsx)، الضغط تاني
+    // بيكفي من غير ريفريش — والإيميل بديل لو اتكررت
+    return "حصلت مشكلة مؤقتة في التحقق الأمني — اضغط تاني، ولو اتكررت سجّل بالإيميل بدل التليفون";
   }
 
   return `حصلت مشكلة غير متوقعة (كود: ${code || "unknown"})، جرب تاني أو تواصل معانا لو استمرت`;
