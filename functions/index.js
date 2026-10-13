@@ -2276,13 +2276,32 @@ async function readSeekerContact(db, seekerId, publicData) {
   return contact;
 }
 
-// بداية الشهر الحالي بتوقيت القاهرة — الكلاينت كان بيحسبها بتوقيت جهاز صاحب العمل (مصر عمليًا)
-function startOfCairoMonth() {
-  const now = new Date();
-  const cairoNow = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
-  const utcNow = new Date(now.toLocaleString("en-US", { timeZone: "UTC" }));
-  const offsetMs = cairoNow.getTime() - utcNow.getTime();
-  return new Date(Date.UTC(cairoNow.getFullYear(), cairoNow.getMonth(), 1) - offsetMs);
+// فرق توقيت القاهرة عن UTC (بالمللي ثانية) عند لحظة معيّنة — بيتغيّر مع التوقيت الصيفي
+function cairoOffsetMs(date) {
+  const cairo = new Date(date.toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+  const utc = new Date(date.toLocaleString("en-US", { timeZone: "UTC" }));
+  return cairo.getTime() - utc.getTime();
+}
+
+// بداية الشهر الحالي بتوقيت القاهرة — الكلاينت كان بيحسبها بتوقيت جهاز صاحب العمل (مصر عمليًا).
+// فرق التوقيت لازم يتحسب عند بداية الشهر نفسها مش دلوقتي: التوقيت الصيفي بيتغيّر آخر أبريل وآخر
+// أكتوبر، فبعد التغيير فرق اللحظة الحالية بيبعد ساعة عن فرق أول الشهر. التغيير عمره ما بيقع يوم 1،
+// فخطوة تصحيح واحدة كفاية.
+function startOfCairoMonth(now = new Date()) {
+  const cairoNow = new Date(now.getTime() + cairoOffsetMs(now));
+  const monthStartAsUtc = Date.UTC(cairoNow.getUTCFullYear(), cairoNow.getUTCMonth(), 1);
+  const firstGuess = monthStartAsUtc - cairoOffsetMs(now);
+  return new Date(monthStartAsUtc - cairoOffsetMs(new Date(firstGuess)));
+}
+
+// تاريخ انتهاء الباقة بالمللي ثانية: null = مفيش تاريخ (القيمة مش موجودة أو فاضية) يعني من غير
+// انتهاء، وNaN = قيمة موجودة بس ملهاش معنى (مش Timestamp ولا Date ولا رقم صالح) فبتتعامل كمنتهية.
+function planExpiryMillis(value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return NaN;
 }
 
 // كشف بيانات تواصل باحث من البحث عن الكوادر (SeekerDetailModal) — بدل ما الكلاينت يقرا الحقول من
@@ -2323,9 +2342,9 @@ exports.revealSeekerContact = onCall(async (request) => {
       throw new HttpsError("internal", "حصلت مشكلة، حاول تاني");
     }
     const employer = employerSnap.exists ? employerSnap.data() : null;
-    const expiresAt = employer?.planExpiresAt;
-    const planActive =
-      employer?.plan === "premium" && (!expiresAt || !expiresAt.toMillis || expiresAt.toMillis() > Date.now());
+    // planExpiryMillis: NaN (قيمة ملهاش معنى) بيفشل المقارنة، فالباقة بتتعامل كمنتهية
+    const expiresAtMs = planExpiryMillis(employer?.planExpiresAt);
+    const planActive = employer?.plan === "premium" && (expiresAtMs === null || expiresAtMs > Date.now());
     if (!planActive || employer?.banned === true) {
       throw new HttpsError("permission-denied", "التواصل المباشر مع المرشحين متاح للباقة المدفوعة فقط");
     }
