@@ -46,11 +46,10 @@ export default function QuickSignupForm({ onSaved }: Props) {
     }
 
     try {
-      // الهاتف في المستند العام وفي private/contact مع بعض (شوف lib/seekerContact.ts)
+      // الهاتف في private/contact بس (شوف lib/seekerContact.ts)، وباقي البيانات في المستند العام، في batch واحد
       const batch = writeBatch(db);
       batch.set(doc(db, "job_seekers", user.uid), {
         fullName,
-        phone,
         jobTitle,
         governorate,
         specialization,

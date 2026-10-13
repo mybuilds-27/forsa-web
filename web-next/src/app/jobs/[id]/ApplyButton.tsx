@@ -243,13 +243,9 @@ export default function ApplyButton({
     // عشان handleApply يلاقيه لما يقرا المستند تاني. من غير أي خطوة إضافية للمستخدم نفسه.
     if (fullName !== existingFullName || phone !== existingPhone) {
       try {
-        // الهاتف في المستند العام وفي private/contact مع بعض (شوف lib/seekerContact.ts)
+        // الهاتف في private/contact بس (شوف lib/seekerContact.ts)، والاسم في المستند العام، في batch واحد
         const batch = writeBatch(db);
-        batch.set(
-          doc(db, "job_seekers", user.uid),
-          { fullName: fullName.trim(), phone: phone.trim(), updatedAt: serverTimestamp() },
-          { merge: true }
-        );
+        batch.set(doc(db, "job_seekers", user.uid), { fullName: fullName.trim(), updatedAt: serverTimestamp() }, { merge: true });
         addSeekerContactWrite(batch, user.uid, { phone: phone.trim() });
         await batch.commit();
       } catch (err) {
@@ -277,11 +273,11 @@ export default function ApplyButton({
     try {
       // merge:true عشان لو المستند موجود بالفعل (نادر هنا) منمسحش حقول تانية فيه — وده
       // كمان بيسيب البروفايل مكمّل من غير ما يحتاج يمر بـQuickSignupForm تاني في تطبيقات لاحقة.
-      // الهاتف في المستند العام وفي private/contact مع بعض (شوف lib/seekerContact.ts)
+      // الهاتف في private/contact بس (شوف lib/seekerContact.ts)، والاسم في المستند العام، في batch واحد
       const batch = writeBatch(db);
       batch.set(
         doc(db, "job_seekers", user.uid),
-        { fullName: missingFullName.trim(), phone: missingPhone.trim(), updatedAt: serverTimestamp() },
+        { fullName: missingFullName.trim(), updatedAt: serverTimestamp() },
         { merge: true }
       );
       addSeekerContactWrite(batch, user.uid, { phone: missingPhone.trim() });

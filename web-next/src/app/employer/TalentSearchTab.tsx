@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { collection, getDocs, limit, query, startAfter, where, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { withoutSeekerContact } from "@/lib/seekerContact";
 import {
   GOVERNORATES,
   SPECIALIZATION_OPTIONS,
@@ -101,8 +102,11 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
       if (!reset && lastDoc) constraints.push(startAfter(lastDoc));
 
       const snap = await getDocs(query(collection(db, "job_seekers"), ...constraints));
+      // الهاتف والإيميل والـCV بيتشالوا من النتايج هنا — صاحب العمل بيشوفهم بس عن طريق
+      // revealSeekerContact (SeekerDetailModal). Firestore من المتصفح مبيقدرش يستبعد حقول من
+      // الاستعلام نفسه، فلحد ما تتمسح من المستند العام (5ب) لسه بتوصل في الرد، بس مبتتخزنش ولا بتتعرض.
       const newResults = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() } as any))
+        .map((d) => ({ id: d.id, ...withoutSeekerContact(d.data()) } as any))
         .sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
 
       setResults((prev) => (reset ? newResults : [...prev, ...newResults]));

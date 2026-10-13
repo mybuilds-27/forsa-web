@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { withoutSeekerContact } from "@/lib/seekerContact";
 import { fetchContactRevealViewers, ContactRevealViewer } from "@/lib/contactReveal";
 import { calculateMatchPercent, MatchJob } from "@/lib/applicantMatch";
 import { buildSeekerSnapshot } from "@/lib/seekerSnapshot";
@@ -69,7 +70,8 @@ export default function ContactRevealViewers({ jobPostId, job, employerPlan, isA
         if (result.status !== "fulfilled" || !result.value.exists()) return { viewer, profile: null, match: null };
         const data = result.value.data();
         if (data.consentToShare === false) return { viewer, profile: null, match: null };
-        const profile: Profile = { id: viewer.uid, ...data };
+        // من غير الهاتف والإيميل والـCV (شوف TalentSearchTab.tsx) — الكشف عن طريق SeekerDetailModal بس
+        const profile: Profile = { id: viewer.uid, ...withoutSeekerContact(data) };
         return { viewer, profile, match: calculateMatchPercent(job, buildSeekerSnapshot(profile)) };
       });
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, db, storage } from "@/lib/firebase";
-import { addSeekerContactWrite } from "@/lib/seekerContact";
+import { addSeekerContactWrite, withoutSeekerContact } from "@/lib/seekerContact";
 import { SKILL_OPTIONS, LANGUAGE_OPTIONS, SKILL_LEVELS, LANGUAGE_LEVELS } from "@/lib/constants";
 import { SkillEntry, normalizeEntries } from "@/lib/profileFields";
 import SkillLevelPicker from "../SkillLevelPicker";
@@ -61,7 +61,7 @@ export default function SkillsAndCVTab({ initialData, onSaved, isNewProfile, mis
 
     if (cvLink.trim()) data.cvFileURL = cvLink.trim();
     // الباحث فضّى خانة الرابط ومرفعش ملف جديد وكان عنده CV محفوظ = مسح عمدي، فبنكتب الفاضي في
-    // المستندين (من غيره القراءة الراجعة للمستند العام كانت هترجّع الرابط القديم)
+    // private/contact (من غيره القراءة الراجعة للمستند العام كانت هترجّع الرابط القديم)
     else if (!cvFile && initialData.cvFileURL) data.cvFileURL = "";
 
     if (cvFile) {
@@ -82,9 +82,10 @@ export default function SkillsAndCVTab({ initialData, onSaved, isNewProfile, mis
       }
     }
 
-    // cvFileURL (لو اتغيّر) في المستند العام وفي private/contact مع بعض (شوف lib/seekerContact.ts)
+    // cvFileURL (لو اتغيّر) في private/contact بس (شوف lib/seekerContact.ts)، وباقي البيانات في المستند
+    // العام، في batch واحد. data نفسها (بـcvFileURL) بتروح لـonSaved عشان الحالة المحلية تفضل كاملة.
     const batch = writeBatch(db);
-    batch.set(doc(db, "job_seekers", user.uid), data, { merge: true });
+    batch.set(doc(db, "job_seekers", user.uid), withoutSeekerContact(data), { merge: true });
     if (typeof data.cvFileURL === "string") addSeekerContactWrite(batch, user.uid, { cvFileURL: data.cvFileURL });
     await batch.commit();
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, db, storage } from "@/lib/firebase";
-import { addSeekerContactWrite } from "@/lib/seekerContact";
+import { addSeekerContactWrite, withoutSeekerContact } from "@/lib/seekerContact";
 import { GOVERNORATES, GOVERNORATE_CITIES, MILITARY_STATUS_LABELS } from "@/lib/constants";
 import FileUploadButton from "@/components/FileUploadButton";
 import { h3Style, descStyle, gridStyle, labelStyle, inputStyle, saveBtnStyle, savedMsgStyle } from "./sharedStyles";
@@ -105,10 +105,11 @@ export default function PersonalInfoTab({ initialData, onSaved, isNewProfile, mi
       }
     }
 
-    // الهاتف والإيميل في المستند العام وفي private/contact مع بعض (شوف lib/seekerContact.ts) —
-    // حتى لو فاضيين (الباحث مسحهم عمدًا)
+    // الهاتف والإيميل في private/contact بس (شوف lib/seekerContact.ts) — حتى لو فاضيين (الباحث
+    // مسحهم عمدًا) — وباقي البيانات في المستند العام، في batch واحد. data نفسها (بالحقلين) بتروح
+    // لـonSaved عشان الحالة المحلية تفضل كاملة.
     const batch = writeBatch(db);
-    batch.set(doc(db, "job_seekers", user.uid), data, { merge: true });
+    batch.set(doc(db, "job_seekers", user.uid), withoutSeekerContact(data), { merge: true });
     addSeekerContactWrite(batch, user.uid, { phone, email });
     await batch.commit();
 

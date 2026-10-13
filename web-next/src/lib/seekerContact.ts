@@ -4,8 +4,8 @@ import { db, functions } from "./firebase";
 
 // بيانات تواصل الباحث (الهاتف والإيميل والـCV) بتتنقل من مستند job_seekers/{uid} العام (اللي أي صاحب
 // عمل بيقدر يقراه لو consentToShare) لمستند فرعي job_seekers/{uid}/private/contact، قاعدته للباحث
-// نفسه والأدمن بس. في المرحلة دي الكتابة في الاتنين مع بعض (batch واحد)، والقراءة من الفرعي ولو
-// الحقل مش موجود فيه بترجع للعام — لحد ما الترحيل ومسح الحقول من العام يخلصوا.
+// نفسه والأدمن بس. الكتابة في الفرعي بس (المرحلة 5أ — المستند العام مبقاش بيتكتب فيه الحقول دي)،
+// والقراءة من الفرعي ولو الحقل مش موجود فيه بترجع للعام — لحد ما الحقول تتمسح من العام (5ب).
 export const SEEKER_CONTACT_FIELDS = ["phone", "email", "cvFileURL"] as const;
 export type SeekerContactField = (typeof SEEKER_CONTACT_FIELDS)[number];
 export type SeekerContact = Partial<Record<SeekerContactField, string>>;
@@ -24,6 +24,15 @@ export function mergeSeekerContact(publicData: DocumentData | null | undefined, 
     }
   }
   return merged;
+}
+
+// نسخة من غير الحقول التلاتة — للكتابة في المستند العام (من المرحلة 5أ الحقول دي بتتكتب في
+// private/contact بس)، ولبيانات باحثين بتوصل لصاحب عمل من المستند العام (البحث عن الكوادر ومين
+// شاف الوظيفة) عشان محدش يستخدمها من هناك بالغلط لحد ما تتمسح من العام فعليًا (5ب).
+export function withoutSeekerContact<T extends DocumentData>(data: T): T {
+  const copy: DocumentData = { ...data };
+  for (const field of SEEKER_CONTACT_FIELDS) delete copy[field];
+  return copy as T;
 }
 
 async function readPrivateContact(uid: string): Promise<DocumentData | null> {
@@ -51,8 +60,8 @@ export async function readSeekerContactWithFallback(uid: string, publicData: Doc
   return mergeSeekerContact(publicData, privateData);
 }
 
-// بيضيف كتابة الحقول دي في المستند الفرعي على نفس الـbatch اللي بيكتب المستند العام، فالاتنين
-// بيتحفظوا مع بعض أو بيفشلوا مع بعض. القيمة الفاضية بتتكتب زي ما هي (مسح عمدي).
+// بيضيف كتابة الحقول دي في المستند الفرعي على نفس الـbatch اللي بيكتب باقي البروفايل في المستند
+// العام، فالاتنين بيتحفظوا مع بعض أو بيفشلوا مع بعض. القيمة الفاضية بتتكتب زي ما هي (مسح عمدي).
 export function addSeekerContactWrite(batch: WriteBatch, uid: string, contact: SeekerContact) {
   const fields: SeekerContact = {};
   for (const field of SEEKER_CONTACT_FIELDS) {
