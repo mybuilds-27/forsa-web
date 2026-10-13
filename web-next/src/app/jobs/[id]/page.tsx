@@ -115,6 +115,12 @@ function buildJobPostingJsonLd(job: any) {
 
   const hasSalary = job.showSalary !== false && !job.salaryNegotiable && (job.salaryFrom || job.salaryTo);
   const employmentType = EMPLOYMENT_TYPE_SCHEMA[job.jobType];
+  // addressLocality عمره ما يتبعت فاضي (Search Console بيعترض عليه): المدينة لو موجودة، وإلا
+  // المحافظة، وإلا الحقل بيتشال. المدينة ممكن تبقى فاضية لوظايف قديمة، أو "أخرى" من غير ما تتكتب،
+  // أو محافظة مالهاش قايمة مدن، أو وظيفة عن بعد.
+  const city = typeof job.city === "string" ? job.city.trim() : "";
+  const governorate = typeof job.governorate === "string" ? job.governorate.trim() : "";
+  const addressLocality = city || governorate;
 
   return {
     "@context": "https://schema.org/",
@@ -133,8 +139,8 @@ function buildJobPostingJsonLd(job: any) {
       "@type": "Place",
       address: {
         "@type": "PostalAddress",
-        addressLocality: job.city,
-        addressRegion: job.governorate,
+        ...(addressLocality ? { addressLocality } : {}),
+        ...(governorate ? { addressRegion: governorate } : {}),
         addressCountry: "EG",
       },
     },
