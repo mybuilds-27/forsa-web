@@ -2243,12 +2243,154 @@ exports.getApplicantProfileForAutoCV = onCall(async (request) => {
       throw new HttpsError("not-found", "بيانات الباحث مش موجودة");
     }
     // بيانات البروفايل كاملة — نفس اللي CVPreview.tsx وcalculateProfileCompletion كانوا
-    // بيستخدموها أصلًا لما القراءة كانت مباشرة من الكلاينت، من غير انتقاء حقول معينة.
-    return seekerSnap.data();
+    // بيستخدموها أصلًا لما القراءة كانت مباشرة من الكلاينت، من غير انتقاء حقول معينة. الهاتف
+    // والإيميل والـCV من المستند الفرعي private/contact لو موجودة (readSeekerContact).
+    const data = seekerSnap.data();
+    return { ...data, ...(await readSeekerContact(db, seekerId, data)) };
   } catch (err) {
     if (err instanceof HttpsError) throw err;
     logger.error("getApplicantProfileForAutoCV: فشل جلب بيانات الباحث", err);
     throw new HttpsError("internal", "حصلت مشكلة في جلب البيانات، حاول تاني");
+  }
+});
+
+// ═══ بيانات تواصل الباحث (المرحلة 2 من فصلها عن مستند job_seekers العام) ═══
+// الهاتف والإيميل والـCV بيتنقلوا لمستند فرعي job_seekers/{uid}/private/contact (قاعدته للباحث
+// نفسه والأدمن بس). لحد ما الترحيل ومسح الحقول القديمة يخلصوا، القيمة من المستند الفرعي لو
+// موجودة ومش فاضية، وإلا من المستند العام.
+const SEEKER_CONTACT_FIELDS = ["phone", "email", "cvFileURL"];
+
+// لازم يفضل نفس الرقم اللي في MONTHLY_CONTACT_REVEAL_LIMIT (SeekerDetailModal.tsx) وPREMIUM_PLAN_LIMITS
+// (web-next/src/lib/planLimits.ts)
+const MONTHLY_CONTACT_REVEAL_LIMIT = 30;
+
+// بيرجع الحقول التلاتة بس (مش باقي المستند)
+async function readSeekerContact(db, seekerId, publicData) {
+  const privateSnap = await db.collection("job_seekers").doc(seekerId).collection("private").doc("contact").get();
+  const privateData = privateSnap.exists ? privateSnap.data() : {};
+  const contact = {};
+  for (const field of SEEKER_CONTACT_FIELDS) {
+    const fromPrivate = typeof privateData[field] === "string" ? privateData[field].trim() : "";
+    contact[field] = fromPrivate || publicData?.[field] || null;
+  }
+  return contact;
+}
+
+// بداية الشهر الحالي بتوقيت القاهرة — الكلاينت كان بيحسبها بتوقيت جهاز صاحب العمل (مصر عمليًا)
+function startOfCairoMonth() {
+  const now = new Date();
+  const cairoNow = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+  const utcNow = new Date(now.toLocaleString("en-US", { timeZone: "UTC" }));
+  const offsetMs = cairoNow.getTime() - utcNow.getTime();
+  return new Date(Date.UTC(cairoNow.getFullYear(), cairoNow.getMonth(), 1) - offsetMs);
+}
+
+// كشف بيانات تواصل باحث من البحث عن الكوادر (SeekerDetailModal) — بدل ما الكلاينت يقرا الحقول من
+// مستند job_seekers العام ويخفيها في العرض بس. نفس شروط الكلاينت الحالية، بس على السيرفر:
+// - الأدمن: من غير أي فحص ومن غير تسجيل في contact_reveals (زي الكلاينت بالظبط)
+// - غيره: باقة مدفوعة (ولو planExpiresAt متسجّل يبقى لسه مجاش) ومش محظور — بيتفحص قبل أي قراءة
+//   للباحث، وإيميله متأكد لو حسابه عليه requiresEmailVerification (نفس checkEmailVerificationGate)
+// - الباحث لازم consentToShare === true (نفس قاعدة job_seekers ونفس فلتر TalentSearchTab). باحث مش
+//   موجود وباحث مش موافق بيرجعوا نفس الخطأ، عشان محدش يعرف من الدالة مين موجود ومين مخفي.
+// - الحد الشهري بنفس منطق العد: كشف نفس الباحث تاني في نفس الشهر مبيتحسبش ومبيتمنعش حتى لو
+//   الحد خلص، والمستند بنفس المعرّف {employerId}_{seekerId} (set بيكتب فوق createdAt القديم لو
+//   الكشف السابق كان في شهر فات، فبيتحسب في الشهر الجديد — زي setDoc في الكلاينت).
+// - العد والكتابة جوه transaction بتقرا وتكتب contact_reveal_locks/{employerId}: أي طلبين متزامنين
+//   لنفس صاحب العمل بيتعارضوا على المستند ده، فواحد منهم بيتعاد من الأول ويشوف عدّ الأول، ومينفعش
+//   الاتنين يعدّوا الحد. المجموعة دي مالهاش قاعدة، فالكلاينت مبيقدرش يقراها أو يكتبها.
+// بترجع { status: "allowed", phone, email, cvFileURL } أو { status: "limit-reached", limit } أو
+// { status: "email-unverified", email } (إيميل صاحب العمل نفسه، مش الباحث).
+exports.revealSeekerContact = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "لازم تسجل دخول الأول");
+  }
+  const seekerId = typeof request.data?.seekerId === "string" ? request.data.seekerId.trim() : "";
+  if (!seekerId) {
+    throw new HttpsError("invalid-argument", "seekerId ناقص");
+  }
+
+  const db = getFirestore();
+  const uid = request.auth.uid;
+  const isAdmin = ADMIN_EMAILS.includes(request.auth.token.email || "");
+
+  if (!isAdmin) {
+    let employerSnap;
+    let userSnap;
+    try {
+      [employerSnap, userSnap] = await db.getAll(db.collection("employers").doc(uid), db.collection("users").doc(uid));
+    } catch (err) {
+      logger.error("revealSeekerContact: فشل جلب حساب صاحب العمل", err);
+      throw new HttpsError("internal", "حصلت مشكلة، حاول تاني");
+    }
+    const employer = employerSnap.exists ? employerSnap.data() : null;
+    const expiresAt = employer?.planExpiresAt;
+    const planActive =
+      employer?.plan === "premium" && (!expiresAt || !expiresAt.toMillis || expiresAt.toMillis() > Date.now());
+    if (!planActive || employer?.banned === true) {
+      throw new HttpsError("permission-denied", "التواصل المباشر مع المرشحين متاح للباقة المدفوعة فقط");
+    }
+
+    if (userSnap.exists && userSnap.get("requiresEmailVerification") === true) {
+      // emailVerified من Auth مباشرة مش من التوكن، عشان لو أكد من تاب تاني والتوكن لسه قديم
+      let authUser;
+      try {
+        authUser = await getAuth().getUser(uid);
+      } catch (err) {
+        logger.error("revealSeekerContact: فشل جلب حالة تأكيد الإيميل", err);
+        throw new HttpsError("internal", "حصلت مشكلة، حاول تاني");
+      }
+      if (!authUser.emailVerified) {
+        return { status: "email-unverified", email: authUser.email || "" };
+      }
+    }
+  }
+
+  let seekerSnap;
+  try {
+    seekerSnap = await db.collection("job_seekers").doc(seekerId).get();
+  } catch (err) {
+    logger.error("revealSeekerContact: فشل جلب بيانات الباحث", err);
+    throw new HttpsError("internal", "حصلت مشكلة، حاول تاني");
+  }
+  if (!seekerSnap.exists || (!isAdmin && seekerSnap.get("consentToShare") !== true)) {
+    throw new HttpsError("not-found", "الملف ده مش متاح");
+  }
+
+  if (!isAdmin) {
+    let limitReached = false;
+    try {
+      const lockRef = db.collection("contact_reveal_locks").doc(uid);
+      const revealRef = db.collection("contact_reveals").doc(`${uid}_${seekerId}`);
+      const revealsQuery = db.collection("contact_reveals").where("employerId", "==", uid);
+      limitReached = await db.runTransaction(async (tx) => {
+        await tx.get(lockRef);
+        const revealsSnap = await tx.get(revealsQuery);
+        const monthStart = startOfCairoMonth().getTime();
+        const revealsThisMonth = revealsSnap.docs.filter((d) => {
+          const t = d.get("createdAt");
+          return t && t.toMillis() >= monthStart;
+        });
+        if (revealsThisMonth.some((d) => d.get("seekerId") === seekerId)) return false;
+        if (revealsThisMonth.length >= MONTHLY_CONTACT_REVEAL_LIMIT) return true;
+        tx.set(revealRef, { employerId: uid, seekerId, createdAt: FieldValue.serverTimestamp() });
+        tx.set(lockRef, { updatedAt: FieldValue.serverTimestamp() });
+        return false;
+      });
+    } catch (err) {
+      logger.error("revealSeekerContact: فشل التحقق من حد الكشف الشهري", err);
+      throw new HttpsError("internal", "حصلت مشكلة، حاول تاني");
+    }
+    if (limitReached) {
+      return { status: "limit-reached", limit: MONTHLY_CONTACT_REVEAL_LIMIT };
+    }
+  }
+
+  try {
+    const contact = await readSeekerContact(db, seekerId, seekerSnap.data());
+    return { status: "allowed", phone: contact.phone, email: contact.email, cvFileURL: contact.cvFileURL };
+  } catch (err) {
+    logger.error("revealSeekerContact: فشل جلب بيانات التواصل", err);
+    throw new HttpsError("internal", "حصلت مشكلة، حاول تاني");
   }
 });
 
