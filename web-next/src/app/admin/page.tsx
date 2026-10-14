@@ -32,6 +32,7 @@ import { getActiveJobsSeoData, type JobCombo } from "@/lib/publicJobsQuery";
 import ApplicantCard from "@/components/ApplicantCard";
 import AdminTabBar, { type AdminTab } from "./AdminTabBar";
 import EmployersAdminTab from "./EmployersAdminTab";
+import ReferralRewardsAdminSection from "./ReferralRewardsAdminSection";
 import ReporterInfo from "./ReporterInfo";
 import ContactRevealViewers from "@/components/ContactRevealViewers";
 import FacebookPostModal from "@/components/FacebookPostModal";
@@ -984,6 +985,7 @@ export default function AdminPage() {
         <h1 style={{ fontSize: 22, marginBottom: 14 }}>لوحة الإدارة</h1>
         <AdminTabBar tab={adminTab} onChange={setAdminTab} />
         <EmployersAdminTab />
+        <ReferralRewardsAdminSection />
       </div>
     );
   }

@@ -40,6 +40,52 @@ export async function adminDeleteEmployer(employerId: string, confirmCompanyName
   return res.data;
 }
 
+// مكافآت الإحالة (adminListReferralCandidates وadminGrantReferralReward في functions/index.js)
+export type ReferralReferred = {
+  employerId: string;
+  companyName: string;
+  createdAtMillis: number | null;
+  referredAtMillis: number | null;
+  verified: boolean;
+  jobCount: number;
+  banned: boolean;
+  exists: boolean;
+  suspicious: string[];
+  qualified: boolean;
+  used: boolean;
+};
+
+export type ReferralCandidate = {
+  referrerId: string;
+  companyName: string;
+  plan: string;
+  planExpiresAtMillis: number | null;
+  banned: boolean;
+  qualifiedAvailable: number;
+  rewardsGranted: number;
+  referred: ReferralReferred[];
+};
+
+export type ReferralCandidatesResult = { candidates: ReferralCandidate[]; rewardSize: number; rewardMonths: number };
+
+export async function adminListReferralCandidates(): Promise<ReferralCandidatesResult> {
+  const res = await callable<Record<string, never>, ReferralCandidatesResult>("adminListReferralCandidates")({});
+  return res.data;
+}
+
+export type ReferralRewardResult = { status: "granted" | "rejected"; rewardId: string; planExpiresAtMillis: number | null };
+
+export async function adminGrantReferralReward(
+  referrerId: string,
+  action: "grant" | "reject",
+  reason?: string
+): Promise<ReferralRewardResult> {
+  const res = await callable<{ referrerId: string; action: "grant" | "reject"; reason?: string }, ReferralRewardResult>(
+    "adminGrantReferralReward"
+  )({ referrerId, action, reason });
+  return res.data;
+}
+
 // رسالة الخطأ اللي بتظهر للأدمن — HttpsError من السيرفر بتوصل هنا بنص عربي جاهز في message.
 export function adminActionErrorMessage(err: unknown): string {
   if (err instanceof Error && err.message) return err.message;
