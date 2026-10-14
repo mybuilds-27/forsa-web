@@ -52,7 +52,8 @@ export default async function HomePage() {
 
   return (
     <div dir="rtl">
-      <main style={{ maxWidth: 900, margin: "0 auto", padding: "40px 20px 60px" }}>
+      {/* العرض والـpadding في .home-main (globals.css): 900px زي ما كان، و1180px من 1024px لشبكة العمودين */}
+      <main className="home-main">
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <h1 style={{ fontSize: 30, color: COLORS.ink, marginBottom: 12, fontFamily: "var(--font-cairo)" }}>
             الشغل - موقع توظيف مصري
@@ -212,111 +213,129 @@ export default async function HomePage() {
           </button>
         </form>
 
-        {topCompanies.length > 0 && (
-          <div style={{ marginBottom: 40 }}>
-            <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 4 }}>شركات بتوظف عندنا دلوقتي</h2>
-            <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 16 }}>
-              أحدث الشركات اللي بتوظف عندنا
-            </p>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: HOME_COMPANY_GAP,
-                justifyContent: "center",
-                alignItems: "center",
-                maxWidth:
-                  HOME_COMPANIES_PER_ROW * HOME_COMPANY_ITEM_WIDTH + (HOME_COMPANIES_PER_ROW - 1) * HOME_COMPANY_GAP,
-                margin: "0 auto",
-              }}
-            >
-              {topCompanies.map((c) => (
-                <Link
-                  key={c.employerId}
-                  href={`/companies/${c.employerId}`}
-                  title={c.companyName}
-                  style={{ display: "flex", textDecoration: "none" }}
+        {/* قسم التخصصات نسخة واحدة بس في الـDOM بعد الشركات والوظائف (ده ترتيبه على الموبايل والتابلت)،
+            ومن 1024px الـgrid بيحطه عمود جانبي يمين (شوف .home-browse-grid في globals.css). */}
+        <div className={seoData.combos.length > 0 ? "home-browse-grid" : undefined}>
+          <div className="home-browse-content">
+            {topCompanies.length > 0 && (
+              <div style={{ marginBottom: 40 }}>
+                <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 4 }}>شركات بتوظف عندنا دلوقتي</h2>
+                <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 16 }}>
+                  أحدث الشركات اللي بتوظف عندنا
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: HOME_COMPANY_GAP,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    maxWidth:
+                      HOME_COMPANIES_PER_ROW * HOME_COMPANY_ITEM_WIDTH + (HOME_COMPANIES_PER_ROW - 1) * HOME_COMPANY_GAP,
+                    margin: "0 auto",
+                  }}
                 >
-                  {c.logoURL ? (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: HOME_COMPANY_ITEM_WIDTH }}>
-                      <CompanyLogo src={c.logoURL} alt={c.companyName} />
-                      <span style={{ fontSize: 11.5, color: COLORS.inkSoft, textAlign: "center" }}>{c.companyName}</span>
-                    </div>
-                  ) : (
-                    <span style={{ ...tagStyle, padding: "10px 18px", fontSize: 14, color: COLORS.ink }}>
-                      {c.companyName}
-                    </span>
-                  )}
-                </Link>
-              ))}
-            </div>
-            <div style={{ textAlign: "center", marginTop: 20 }}>
-              <Link
-                href="/companies"
-                style={{
-                  display: "inline-block",
-                  padding: "10px 22px",
-                  borderRadius: 8,
-                  border: `1.5px solid ${COLORS.ink}`,
-                  color: COLORS.ink,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                }}
-              >
-                تصفح كل الشركات ←
-              </Link>
-            </div>
-          </div>
-        )}
+                  {topCompanies.map((c) => (
+                    <Link
+                      key={c.employerId}
+                      href={`/companies/${c.employerId}`}
+                      title={c.companyName}
+                      style={{ display: "flex", textDecoration: "none" }}
+                    >
+                      {c.logoURL ? (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: HOME_COMPANY_ITEM_WIDTH }}>
+                          <CompanyLogo src={c.logoURL} alt={c.companyName} />
+                          <span style={{ fontSize: 11.5, color: COLORS.inkSoft, textAlign: "center" }}>{c.companyName}</span>
+                        </div>
+                      ) : (
+                        <span style={{ ...tagStyle, padding: "10px 18px", fontSize: 14, color: COLORS.ink }}>
+                          {c.companyName}
+                        </span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+                <div style={{ textAlign: "center", marginTop: 20 }}>
+                  <Link
+                    href="/companies"
+                    style={{
+                      display: "inline-block",
+                      padding: "10px 22px",
+                      borderRadius: 8,
+                      border: `1.5px solid ${COLORS.ink}`,
+                      color: COLORS.ink,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                    }}
+                  >
+                    تصفح كل الشركات ←
+                  </Link>
+                </div>
+              </div>
+            )}
 
-        {featuredJobs.length > 0 && (
-          <div style={{ marginBottom: 40 }}>
-            <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>⭐ وظائف مميزة</h2>
-            <PublicJobsList jobs={featuredJobs} layout="grid" />
-            <div style={{ textAlign: "center", marginTop: 20 }}>
-              <Link
-                href="/jobs"
-                style={{
-                  display: "inline-block",
-                  padding: "10px 22px",
-                  borderRadius: 8,
-                  border: `1.5px solid ${COLORS.ink}`,
-                  color: COLORS.ink,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                }}
-              >
-                تصفح كل الوظائف ←
-              </Link>
-            </div>
-          </div>
-        )}
+            {featuredJobs.length > 0 && (
+              <div style={{ marginBottom: 40 }}>
+                <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>⭐ وظائف مميزة</h2>
+                <PublicJobsList jobs={featuredJobs} layout="grid" />
+                <div style={{ textAlign: "center", marginTop: 20 }}>
+                  <Link
+                    href="/jobs"
+                    style={{
+                      display: "inline-block",
+                      padding: "10px 22px",
+                      borderRadius: 8,
+                      border: `1.5px solid ${COLORS.ink}`,
+                      color: COLORS.ink,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                    }}
+                  >
+                    تصفح كل الوظائف ←
+                  </Link>
+                </div>
+              </div>
+            )}
 
-        {latestJobs.length > 0 && (
-          <div style={{ marginBottom: 40 }}>
-            <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>أحدث الوظائف</h2>
-            <PublicJobsList jobs={latestJobs} layout="grid" />
-            <div style={{ textAlign: "center", marginTop: 20 }}>
-              <Link
-                href="/jobs"
-                style={{
-                  display: "inline-block",
-                  padding: "10px 22px",
-                  borderRadius: 8,
-                  border: `1.5px solid ${COLORS.ink}`,
-                  color: COLORS.ink,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                }}
-              >
-                تصفح كل الوظائف ←
-              </Link>
-            </div>
+            {latestJobs.length > 0 && (
+              <div style={{ marginBottom: 40 }}>
+                <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>أحدث الوظائف</h2>
+                <PublicJobsList jobs={latestJobs} layout="grid" />
+                <div style={{ textAlign: "center", marginTop: 20 }}>
+                  <Link
+                    href="/jobs"
+                    style={{
+                      display: "inline-block",
+                      padding: "10px 22px",
+                      borderRadius: 8,
+                      border: `1.5px solid ${COLORS.ink}`,
+                      color: COLORS.ink,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                    }}
+                  >
+                    تصفح كل الوظائف ←
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+
+          {seoData.combos.length > 0 && (
+            <div className="home-browse-side" style={{ marginBottom: 40 }}>
+              <h3 style={{ fontSize: 15, color: COLORS.ink, marginBottom: 4 }}>
+                تصفح حسب المحافظة والتخصص:
+              </h3>
+              <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 12 }}>
+                كل الوظائف المتاحة حاليًا مقسّمة حسب المحافظة والتخصص.
+              </p>
+              <BrowseBySpecialization combos={seoData.combos} linkSpecializationPage />
+            </div>
+          )}
+        </div>
 
         <div style={{ marginBottom: 40 }}>
           <h3 style={{ fontSize: 15, color: COLORS.ink, marginBottom: 4 }}>
@@ -337,18 +356,6 @@ export default async function HomePage() {
             ))}
           </div>
         </div>
-
-        {seoData.combos.length > 0 && (
-          <div style={{ marginBottom: 40 }}>
-            <h3 style={{ fontSize: 15, color: COLORS.ink, marginBottom: 4 }}>
-              تصفح حسب المحافظة والتخصص:
-            </h3>
-            <p style={{ fontSize: 12.5, color: COLORS.inkSoft, marginBottom: 12 }}>
-              كل الوظائف المتاحة حاليًا مقسّمة حسب المحافظة والتخصص.
-            </p>
-            <BrowseBySpecialization combos={seoData.combos} linkSpecializationPage />
-          </div>
-        )}
 
         <div style={{ marginBottom: 40 }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, marginBottom: 14 }}>
@@ -373,6 +380,8 @@ export default async function HomePage() {
             borderRadius: 14,
             padding: 24,
             textAlign: "center",
+            maxWidth: 900,
+            margin: "0 auto",
           }}
         >
           <h3 style={{ fontSize: 18, color: COLORS.ink, marginBottom: 8 }}>سجّل بشركتك</h3>

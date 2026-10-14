@@ -81,6 +81,47 @@ a {
   }
 }
 
+/* حاوية الصفحة الرئيسية: 900px زي ما كانت، ومن 1024px بتوسع لـ1180px عشان شبكة العمودين. width 100%
+   + border-box لأن main فلكس آيتم جوه body (flex-col)، ومن غيرهم ممكن يكبر لعرض محتواه بدل عرض الشاشة.
+   الجزء العلوي (العنوان، كارتي الدور، البحث) ليه maxWidth خاص بيه في المنتصف، فعرضه مبيتغيرش. */
+.home-main {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 20px 60px;
+  box-sizing: border-box;
+}
+
+/* شبكة الرئيسية من 1024px: "تصفح حسب المحافظة والتخصص" عمود جانبي في العمود الأول (يمين في RTL)،
+   والشركات والوظائف في التاني. القسم نسخة واحدة في الـDOM بعد المحتوى، فتحت 1024px بيظهر تحته عادي.
+   العمود الجانبي لاصق بارتفاع أقصى وسكرول داخلي، فلما تخصص يتفتح القايمة بتتسكرول جوه نفسها. */
+@media (min-width: 1024px) {
+  .home-main {
+    max-width: 1180px;
+  }
+  .home-browse-grid {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    column-gap: 32px;
+    align-items: start;
+  }
+  .home-browse-content {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+  .home-browse-side {
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-inline-end: 6px;
+  }
+}
+
 /* كارتي اختيار الدور (باحث عن شغل / صاحب عمل) في الصفحة الرئيسية — جنب بعض على الديسكتوب،
    وتحت بعض تلقائيًا على الشاشات الضيقة عشان بوكس المزايا مايتزنقش. stretch: على الديسكتوب الكارتين
    بنفس الارتفاع، وعلى الموبايل (عمود) كل كارت بعرض الصف كامل بدل ما ياخد عرض محتواه بس */
