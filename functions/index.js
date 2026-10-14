@@ -2425,7 +2425,7 @@ exports.revealSeekerContact = onCall(async (request) => {
 // بيتنادى من غير مصادقة (المستخدم لسه ما دخلش بالتليفون خالص وقت الفحص ده)، فبيرجع
 // boolean بس من غير أي تفاصيل عن الحساب الموجود، تقليلًا لأي تسريب معلومات.
 //
-// ملحوظة: أرقام التليفونات في job_seekers وemployers/private/contact اتكتبت يدويًا في
+// ملحوظة: أرقام التليفونات في job_seekers/private/contact وemployers/private/contact اتكتبت يدويًا في
 // حقل نص عادي من غير توحيد صيغة، فالمطابقة هنا بتغطي الصيغتين الأكتر شيوعًا (E.164 زي
 // +201012345678، والصيغة المحلية زي 01012345678) بس مش أي صيغة تانية (مسافات/شرطات).
 // هدف الميزة الحالي منع حسابات مزدوجة جديدة من دلوقتي، مش تنضيف بيانات قديمة.
@@ -2443,14 +2443,11 @@ exports.checkPhoneAlreadyRegistered = onCall(async (request) => {
 
   const db = getFirestore();
   try {
-    // collectionGroup("private") بيغطي الباحثين وأصحاب العمل مع بعض (job_seekers/{uid}/private/contact
-    // وemployers/{uid}/private/contact). استعلام job_seekers العام للباحثين اللي لسه رقمهم هناك بس
-    // (قبل الترحيل)، وهيتشال بعد مسح الحقول من المستند العام.
-    const [publicSeekersSnap, privateContactSnap] = await Promise.all([
-      db.collection("job_seekers").where("phone", "in", [local, e164]).limit(1).get(),
-      db.collectionGroup("private").where("phone", "in", [local, e164]).limit(1).get(),
-    ]);
-    return { alreadyRegistered: !publicSeekersSnap.empty || !privateContactSnap.empty };
+    // استعلام واحد بيغطي الباحثين وأصحاب العمل مع بعض (job_seekers/{uid}/private/contact
+    // وemployers/{uid}/private/contact). حقل phone اتمسح من مستند job_seekers العام (المرحلة 5ب)،
+    // فمبقاش فيه استعلام عليه. محتاج فهرس single-field بنطاق COLLECTION_GROUP لـprivate.phone.
+    const privateContactSnap = await db.collectionGroup("private").where("phone", "in", [local, e164]).limit(1).get();
+    return { alreadyRegistered: !privateContactSnap.empty };
   } catch (err) {
     logger.error("checkPhoneAlreadyRegistered: فشل فحص تضارب رقم التليفون", err);
     throw new HttpsError("internal", "حصلت مشكلة في التحقق، حاول تاني");
