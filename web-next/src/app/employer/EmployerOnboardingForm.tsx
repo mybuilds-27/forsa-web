@@ -9,6 +9,7 @@ import { friendlyErrorMessage } from "@/lib/errorMessages";
 import { logClientError } from "@/lib/errorLog";
 import { withGracePeriod, getConnectionDiagnostics } from "@/lib/withGracePeriod";
 import { verifyEmployerProfileSaved } from "@/lib/serverWriteVerify";
+import { claimStoredReferral } from "@/lib/employerReferral";
 import FileUploadButton from "@/components/FileUploadButton";
 
 type Props = {
@@ -144,6 +145,8 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
         // تسجيل دخول — ده مكان حدث CompleteRegistration الصح لـMeta Pixel بدل مكانه القديم
         // في page.tsx
         (window as any).fbq?.("track", "CompleteRegistration");
+        // لو الشركة اتسجلت من رابط إحالة: تسجيل الإحالة في الخلفية (مبيأخرش الحفظ ومبيعرضش أي رسالة)
+        void claimStoredReferral();
       }
 
       setSaving(false);

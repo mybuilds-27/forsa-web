@@ -7,6 +7,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import RegisterForm, { Role } from "@/components/RegisterForm";
 import { logFunnelEvent } from "@/lib/registrationFunnel";
+import { saveReferralFromUrl } from "@/lib/employerReferral";
 
 // نفس المفتاح المستخدم جوه RegisterForm.tsx وقت signInWithRedirect — لو موجود، معناه
 // المستخدم راجع لتوّه من ريدايركت جوجل، فـRegisterForm هو المسؤول عن استكمال التسجيل
@@ -46,6 +47,11 @@ function RegisterPageInner() {
     searchParams.get("role") === "employer" ? "employer" : "job_seeker"
   );
   const [checkingSession, setCheckingSession] = useState(true);
+
+  // رابط إحالة صاحب عمل (?ref=<uid>) — بيتحفظ بس هنا، والتسجيل الفعلي بعد إنشاء الشركة (EmployerOnboardingForm)
+  useEffect(() => {
+    saveReferralFromUrl(searchParams.get("ref"));
+  }, [searchParams]);
 
   // بيحدّث الـURL (من غير navigation كاملة) كل ما المستخدم يدوس على التوجل، عشان اللينك
   // فوق يفضل عاكس الاختيار الفعلي دايمًا — التسجيل نفسه بيعتمد على state role مش على
