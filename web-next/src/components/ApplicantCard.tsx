@@ -7,7 +7,7 @@ import { db, functions } from "@/lib/firebase";
 import { normalizeEntries, SkillEntry } from "@/lib/profileFields";
 import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS, EDUCATION_LEVEL_LABELS } from "@/lib/constants";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
-import { applicantWhatsAppMessage, buildWhatsAppLink, whatsappButtonStyle } from "@/lib/whatsappLink";
+import { applicantWhatsAppMessage, buildWhatsAppChatLink, buildWhatsAppLink, whatsappButtonStyle } from "@/lib/whatsappLink";
 import CVPreview from "./CVPreview";
 import {
   jobCardContainerStyle,
@@ -80,10 +80,14 @@ export default function ApplicantCard({
   whatsappJobTitle,
 }: Props) {
   const s = a.seekerSnapshot || {};
-  const whatsappLink =
-    !viewerMode && whatsappCompanyName && whatsappJobTitle
+  // صاحب العمل: رابط برسالة جاهزة (اسم الشركة والوظيفة). الأدمن (لوحة الإدارة): رابط من غير رسالة.
+  const whatsappLink = viewerMode
+    ? null
+    : whatsappCompanyName && whatsappJobTitle
       ? buildWhatsAppLink(s.phone, applicantWhatsAppMessage(whatsappCompanyName, whatsappJobTitle))
-      : null;
+      : isAdmin
+        ? buildWhatsAppChatLink(s.phone)
+        : null;
   const skills = normalizeEntries(s.skills);
   const languages = normalizeEntries(s.languages);
 
@@ -241,7 +245,7 @@ export default function ApplicantCard({
         <div style={{ fontSize: 16 }}>الهاتف: <strong>{s.phone || "—"}</strong></div>
         {whatsappLink && (
           <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={whatsappButtonStyle}>
-            واتساب
+            مراسلة عبر واتساب
           </a>
         )}
         {s.email && <div style={{ fontSize: 16 }}>البريد الإلكتروني: {s.email}</div>}

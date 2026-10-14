@@ -8,7 +8,7 @@ import { revealSeekerContact } from "@/lib/seekerContact";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import UpgradeModal from "./UpgradeModal";
 import InviteToJobModal from "./InviteToJobModal";
-import { buildWhatsAppLink, talentWhatsAppMessage, whatsappButtonStyle } from "@/lib/whatsappLink";
+import { buildWhatsAppChatLink, buildWhatsAppLink, talentWhatsAppMessage, whatsappButtonStyle } from "@/lib/whatsappLink";
 
 // نفس حد الدعوات الشهري (30 للباقة المدفوعة) لكن على كشف بيانات التواصل — بنعتبر كشف
 // بيانات نفس الباحث أكتر من مرة في نفس الشهر عملية واحدة بس (زي الدعوات بالظبط: doc id
@@ -319,12 +319,13 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
               <h3 style={{ fontSize: 15, marginBottom: 10 }}>بيانات التواصل</h3>
               <div style={{ fontSize: 14.5, marginBottom: 6 }}>الهاتف: <strong>{contact.phone || "—"}</strong></div>
               {(() => {
+                // من البحث عن كوادر (اسم الشركة متبعت): برسالة جاهزة؛ من "مين شاف الوظيفة": من غير رسالة
                 const whatsappLink = whatsappCompanyName
                   ? buildWhatsAppLink(contact.phone, talentWhatsAppMessage(whatsappCompanyName))
-                  : null;
+                  : buildWhatsAppChatLink(contact.phone);
                 return whatsappLink ? (
                   <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{ ...whatsappButtonStyle, marginBottom: 6 }}>
-                    واتساب
+                    مراسلة عبر واتساب
                   </a>
                 ) : null;
               })()}

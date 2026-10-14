@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, type DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { mergeSeekerContact } from "@/lib/seekerContact";
+import { buildWhatsAppChatLink, whatsappButtonStyle } from "@/lib/whatsappLink";
 
 type ReporterInfoData = {
   kind: "seeker" | "employer" | "unknown";
@@ -147,6 +148,7 @@ export default function ReporterInfo({ reporterId, autoLoad }: { reporterId?: st
   }
 
   const { kind, name, phone, email } = state.info;
+  const whatsappLink = buildWhatsAppChatLink(phone);
   if (!name && !phone && !email) {
     return <div style={boxStyle}>👤 المبلّغ: حساب غير موجود أو محذوف</div>;
   }
@@ -156,6 +158,13 @@ export default function ReporterInfo({ reporterId, autoLoad }: { reporterId?: st
       👤 المبلّغ ({KIND_LABELS[kind]}): <strong>{name || "—"}</strong>
       {" • "}📞 <span dir="ltr">{phone || "—"}</span>
       {" • "}✉️ <span dir="ltr">{email || "—"}</span>
+      {whatsappLink && (
+        <div style={{ marginTop: 6 }}>
+          <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={whatsappButtonStyle}>
+            مراسلة عبر واتساب
+          </a>
+        </div>
+      )}
     </div>
   );
 }

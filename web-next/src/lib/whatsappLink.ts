@@ -5,12 +5,23 @@ import { toWhatsAppNumber } from "@/lib/phoneAuth";
 // إيميل داخلي وهمي @elshoghl.internal اتحط بالغلط مكان الرقم). toWhatsAppNumber (phoneAuth.ts)
 // بتعتمد على normalizeEgyptianPhone وبتشيل الـ"+"، والرقم الدولي بيطلع من غير صفر أول
 // (20XXXXXXXXXX). الرسالة بتتعمل لها encodeURIComponent هنا — مفيش بيانات حساسة فيها.
-export function buildWhatsAppLink(rawPhone: unknown, message: string): string | null {
+function whatsAppNumberOf(rawPhone: unknown): string | null {
   if (typeof rawPhone !== "string" || !rawPhone.trim()) return null;
   if (rawPhone.includes("@elshoghl.internal")) return null;
-  const number = toWhatsAppNumber(rawPhone);
+  return toWhatsAppNumber(rawPhone);
+}
+
+export function buildWhatsAppLink(rawPhone: unknown, message: string): string | null {
+  const number = whatsAppNumberOf(rawPhone);
   if (!number) return null;
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+}
+
+// نفس التحقق والتطبيع بالظبط، بس من غير رسالة جاهزة — للأماكن اللي مفيهاش سياق (اسم شركة/وظيفة):
+// الأدمن، و"مين شاف الوظيفة"، وبيانات المُبلِّغ.
+export function buildWhatsAppChatLink(rawPhone: unknown): string | null {
+  const number = whatsAppNumberOf(rawPhone);
+  return number ? `https://wa.me/${number}` : null;
 }
 
 // رسالة كارت المتقدم على وظيفة صاحب العمل (ApplicantCard).
