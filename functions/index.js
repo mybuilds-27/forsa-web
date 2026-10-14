@@ -2648,6 +2648,11 @@ exports.adminSetEmployerPlan = onCall({ timeoutSeconds: 120 }, async (request) =
       if (!Number.isInteger(months) || months < 1 || months > 36) {
         throw new HttpsError("invalid-argument", "المدة لازم تكون من 1 لـ36 شهر");
       }
+      // باقة مدفوعة من غير تاريخ انتهاء (مفتوحة): مفيش تاريخ نمدّ عليه، فبنرفض قبل أي كتابة بدل ما
+      // تتحول بالغلط لباقة بتنتهي بعد months من النهارده — نفس تعامل adminGrantReferralReward.
+      if (data.plan === "premium" && !data.planExpiresAt) {
+        throw new HttpsError("failed-precondition", "باقة هذا الحساب غير محددة المدة، لا يمكن إضافة مدة عليها");
+      }
       const nowMs = Date.now();
       let base = new Date(nowMs);
       if (data.plan === "premium" && data.planExpiresAt && data.planExpiresAt.toMillis() > nowMs) {
