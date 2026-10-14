@@ -54,7 +54,9 @@ const faq: { q: string; a: string }[] = [
 
 export default function PricingPage() {
   return (
-    <div dir="rtl" style={{ maxWidth: 760, margin: "0 auto", padding: "40px 20px" }}>
+    // width 100% + border-box: الحاوية فلكس آيتم جوه body، ومن غيرهم كانت بتكبر لعرض الجدول (minWidth 480)
+    // بدل ما تلتزم بعرض الشاشة، فالجدول كان بيتقص على الموبايل بدل ما يتسكرول جوه حاويته.
+    <div dir="rtl" style={{ width: "100%", boxSizing: "border-box", maxWidth: 760, margin: "0 auto", padding: "40px 20px" }}>
       <h1 style={{ fontSize: 24, marginBottom: 16 }}>الباقات والأسعار</h1>
       <p style={{ color: "#4A5568", lineHeight: 1.8, marginBottom: 24 }}>
         يتيح موقع الشغل لأصحاب الأعمال نشر الوظائف دون رسوم ضمن حدود الباقة المجانية، مع باقة مدفوعة
