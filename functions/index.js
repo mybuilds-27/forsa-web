@@ -2737,3 +2737,291 @@ exports.adminDeleteEmployer = onCall({ timeoutSeconds: 540 }, async (request) =>
     return { deleted: true, counts };
   });
 });
+
+// ═══ إحالات أصحاب الأعمال (رابط ?ref=<uid>) ═══
+// الإحالة بتتسجل في referrals/{referredUid} = { referrerId, referredAt, suspicious } بالـAdmin SDK بس
+// (مفيش قاعدة Firestore للمجموعة دي، فالكلاينت مبيقدرش يقراها أو يكتبها). "مؤهلة" = الحساب المُحال
+// مش محظور، وإيميله متأكد أو مسجّل بالتليفون (provider تليفون في Auth)، ونشر وظيفة واحدة على الأقل —
+// بتتحسب وقت الطلب مش بتتخزن. كل 5 إحالات مؤهلة ومش مستخدمة = 3 أشهر من الباقة المدفوعة، بموافقة
+// يدوية من الأدمن بس (adminGrantReferralReward)، والقرار (منح أو رفض) بيتسجل في referral_rewards
+// والإحالات اللي فيه متتحسبش تاني.
+const REFERRAL_REWARD_SIZE = 5;
+const REFERRAL_REWARD_MONTHS = 3;
+const REFERRAL_CLAIM_WINDOW_MS = 24 * 60 * 60 * 1000;
+const REFERRAL_MAX_PER_REFERRER = 500;
+const REFERRAL_UID_PATTERN = /^[A-Za-z0-9]{20,40}$/;
+
+const normalizePhoneDigits = (value) => (typeof value === "string" ? value.replace(/\D/g, "").replace(/^20/, "0") : "");
+
+// حالة Auth لمجموعة uids (getUsers بيقبل 100 في النداء): verified = إيميل متأكد أو provider تليفون
+async function loadReferralAuthInfo(uids) {
+  const info = new Map();
+  for (let i = 0; i < uids.length; i += 100) {
+    const result = await getAuth().getUsers(uids.slice(i, i + 100).map((uid) => ({ uid })));
+    for (const user of result.users) {
+      const hasPhoneProvider = (user.providerData || []).some((p) => p.providerId === "phone");
+      info.set(user.uid, { verified: user.emailVerified === true || hasPhoneProvider, phoneNumber: user.phoneNumber || "" });
+    }
+  }
+  return info;
+}
+
+// الإحالات المستخدمة قبل كده (منح أو رفض) لصاحب إحالة واحد
+function usedReferralIds(rewardDocs) {
+  const used = new Set();
+  for (const d of rewardDocs) for (const id of d.get("referredIds") || []) used.add(id);
+  return used;
+}
+
+// تقييم الإحالات: لكل حساب مُحال (بترتيب referredAt) هل هو مؤهل. tx اختياري (القراءة جوه transaction).
+async function evaluateReferrals(db, tx, referralDocs, authInfo, { stopAfterQualified } = {}) {
+  const read = (refOrQuery) => (tx ? tx.get(refOrQuery) : refOrQuery.get());
+  const sorted = [...referralDocs].sort(
+    (a, b) => (a.get("referredAt")?.toMillis?.() || 0) - (b.get("referredAt")?.toMillis?.() || 0)
+  );
+  const results = [];
+  let qualifiedCount = 0;
+  for (const d of sorted) {
+    if (stopAfterQualified && qualifiedCount >= stopAfterQualified) break;
+    const referredId = d.id;
+    const employerSnap = await read(db.collection("employers").doc(referredId));
+    const jobsSnap = await read(db.collection("job_posts").where("employerId", "==", referredId).limit(1));
+    const exists = employerSnap.exists;
+    const banned = exists && employerSnap.get("banned") === true;
+    const verified = authInfo.get(referredId)?.verified === true;
+    const hasJob = !jobsSnap.empty;
+    const qualified = exists && !banned && verified && hasJob;
+    if (qualified) qualifiedCount++;
+    results.push({ referredId, referral: d, employerSnap, exists, banned, verified, hasJob, qualified });
+  }
+  return results;
+}
+
+// بيتنادى من EmployerOnboardingForm بعد إنشاء الشركة لأول مرة، لو فيه ref محفوظ. الرد حالة بس
+// (recorded / already-claimed / rejected + سبب) عشان الكلاينت يمسح الـref المحفوظ في كل الحالات.
+exports.claimEmployerReferral = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "لازم تسجل دخول الأول");
+  }
+  const uid = request.auth.uid;
+  const referrerId = typeof request.data?.ref === "string" ? request.data.ref.trim() : "";
+  if (!REFERRAL_UID_PATTERN.test(referrerId)) return { status: "rejected", reason: "invalid-ref" };
+  if (referrerId === uid) return { status: "rejected", reason: "self-referral" };
+
+  const db = getFirestore();
+  try {
+    const [referredSnap, referrerSnap, referredContactSnap, referrerContactSnap] = await db.getAll(
+      db.collection("employers").doc(uid),
+      db.collection("employers").doc(referrerId),
+      db.collection("employers").doc(uid).collection("private").doc("contact"),
+      db.collection("employers").doc(referrerId).collection("private").doc("contact")
+    );
+    if (!referredSnap.exists) return { status: "rejected", reason: "no-company" };
+    const createdAtMs = referredSnap.get("createdAt")?.toMillis?.();
+    if (!createdAtMs || Date.now() - createdAtMs > REFERRAL_CLAIM_WINDOW_MS) {
+      return { status: "rejected", reason: "too-late" };
+    }
+    if (!referrerSnap.exists || referrerSnap.get("banned") === true) {
+      return { status: "rejected", reason: "referrer-unavailable" };
+    }
+
+    // علامة للأدمن بس (مش رفض): نفس رقم التليفون في بيانات تواصل الشركتين
+    // (employers/{uid}/private/contact.phone)، أو نفس رقم الدخول بالتليفون في Auth
+    const suspicious = [];
+    const referredContactPhone = normalizePhoneDigits(referredContactSnap.exists ? referredContactSnap.get("phone") : "");
+    const referrerContactPhone = normalizePhoneDigits(referrerContactSnap.exists ? referrerContactSnap.get("phone") : "");
+    if (referredContactPhone && referredContactPhone === referrerContactPhone) suspicious.push("same_contact_phone");
+    const authInfo = await loadReferralAuthInfo([uid, referrerId]);
+    const referredAuthPhone = normalizePhoneDigits(authInfo.get(uid)?.phoneNumber);
+    const referrerAuthPhone = normalizePhoneDigits(authInfo.get(referrerId)?.phoneNumber);
+    if (referredAuthPhone && referredAuthPhone === referrerAuthPhone) suspicious.push("same_auth_phone");
+
+    try {
+      // create: أول إحالة صالحة بس هي اللي بتتسجل، ونداءين في نفس الوقت التاني بيفشل
+      await db.collection("referrals").doc(uid).create({
+        referrerId,
+        referredAt: FieldValue.serverTimestamp(),
+        suspicious,
+      });
+    } catch (err) {
+      if (err.code === 6) return { status: "already-claimed" };
+      throw err;
+    }
+    return { status: "recorded" };
+  } catch (err) {
+    logger.error("claimEmployerReferral: فشل تسجيل الإحالة", err);
+    throw new HttpsError("internal", "حصلت مشكلة، حاول تاني");
+  }
+});
+
+// عدّاد CompanyTab: أعداد بس، من غير أي اسم أو id للشركات المُحالة
+exports.getMyReferralStats = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "لازم تسجل دخول الأول");
+  }
+  const uid = request.auth.uid;
+  const db = getFirestore();
+  try {
+    const [referralsSnap, rewardsSnap] = await Promise.all([
+      db.collection("referrals").where("referrerId", "==", uid).limit(REFERRAL_MAX_PER_REFERRER).get(),
+      db.collection("referral_rewards").where("referrerId", "==", uid).get(),
+    ]);
+    const used = usedReferralIds(rewardsSnap.docs);
+    const authInfo = await loadReferralAuthInfo(referralsSnap.docs.map((d) => d.id));
+    const evaluated = await evaluateReferrals(db, null, referralsSnap.docs, authInfo);
+    const qualifiedTotal = evaluated.filter((r) => r.qualified).length;
+    const qualifiedAvailable = evaluated.filter((r) => r.qualified && !used.has(r.referredId)).length;
+    return {
+      referred: evaluated.length,
+      qualifiedTotal,
+      qualifiedAvailable,
+      pending: evaluated.length - qualifiedTotal,
+      rewardsGranted: rewardsSnap.docs.filter((d) => d.get("status") === "granted").length,
+      rewardSize: REFERRAL_REWARD_SIZE,
+      rewardMonths: REFERRAL_REWARD_MONTHS,
+    };
+  } catch (err) {
+    logger.error("getMyReferralStats: فشل حساب الإحالات", err);
+    throw new HttpsError("internal", "حصلت مشكلة، حاول تاني");
+  }
+});
+
+// لوحة الأدمن: أصحاب الإحالة اللي عندهم 5 إحالات مؤهلة ومش مستخدمة أو أكتر، ومعاهم تفاصيل كل
+// حساب مُحال (للمراجعة اليدوية ضد الحسابات الوهمية)
+exports.adminListReferralCandidates = onCall({ timeoutSeconds: 300 }, async (request) => {
+  assertAdminCaller(request);
+  return guardedAdminAction("adminListReferralCandidates", async () => {
+    const db = getFirestore();
+    const [referralsSnap, rewardsSnap] = await Promise.all([
+      db.collection("referrals").get(),
+      db.collection("referral_rewards").get(),
+    ]);
+    const byReferrer = new Map();
+    for (const d of referralsSnap.docs) {
+      const referrerId = d.get("referrerId");
+      if (!byReferrer.has(referrerId)) byReferrer.set(referrerId, []);
+      byReferrer.get(referrerId).push(d);
+    }
+    const rewardsByReferrer = new Map();
+    for (const d of rewardsSnap.docs) {
+      const referrerId = d.get("referrerId");
+      if (!rewardsByReferrer.has(referrerId)) rewardsByReferrer.set(referrerId, []);
+      rewardsByReferrer.get(referrerId).push(d);
+    }
+    const authInfo = await loadReferralAuthInfo(referralsSnap.docs.map((d) => d.id));
+
+    const candidates = [];
+    for (const [referrerId, docs] of byReferrer) {
+      const used = usedReferralIds(rewardsByReferrer.get(referrerId) || []);
+      // لو الإحالات غير المستخدمة أقل من 5 أصلًا، مفيش داعي لأي قراءة (الوظايف وحالة الحسابات)
+      const unusedCount = docs.filter((d) => !used.has(d.id)).length;
+      if (unusedCount < REFERRAL_REWARD_SIZE) continue;
+      const evaluated = await evaluateReferrals(db, null, docs, authInfo);
+      const available = evaluated.filter((r) => r.qualified && !used.has(r.referredId));
+      if (available.length < REFERRAL_REWARD_SIZE) continue;
+      const referrerSnap = await db.collection("employers").doc(referrerId).get();
+      const referred = [];
+      for (const r of evaluated) {
+        const jobCount = r.exists
+          ? (await db.collection("job_posts").where("employerId", "==", r.referredId).count().get()).data().count
+          : 0;
+        referred.push({
+          employerId: r.referredId,
+          companyName: r.exists ? r.employerSnap.get("companyName") || "" : "",
+          createdAtMillis: r.exists ? r.employerSnap.get("createdAt")?.toMillis?.() || null : null,
+          referredAtMillis: r.referral.get("referredAt")?.toMillis?.() || null,
+          verified: r.verified,
+          jobCount,
+          banned: r.banned,
+          exists: r.exists,
+          suspicious: r.referral.get("suspicious") || [],
+          qualified: r.qualified,
+          used: used.has(r.referredId),
+        });
+      }
+      candidates.push({
+        referrerId,
+        companyName: referrerSnap.exists ? referrerSnap.get("companyName") || "" : "",
+        plan: referrerSnap.exists ? referrerSnap.get("plan") || "free" : "",
+        planExpiresAtMillis: referrerSnap.exists ? referrerSnap.get("planExpiresAt")?.toMillis?.() || null : null,
+        banned: referrerSnap.exists && referrerSnap.get("banned") === true,
+        qualifiedAvailable: available.length,
+        rewardsGranted: (rewardsByReferrer.get(referrerId) || []).filter((d) => d.get("status") === "granted").length,
+        referred,
+      });
+    }
+    return { candidates, rewardSize: REFERRAL_REWARD_SIZE, rewardMonths: REFERRAL_REWARD_MONTHS };
+  });
+});
+
+// منح أو رفض مكافأة إحالة: الدالة بتختار بنفسها أول 5 إحالات مؤهلة ومش مستخدمة (مش بتقبل ids من
+// الكلاينت)، جوه transaction. المعرّف {referrerId}_{رقم القرار} + create بيمنع أي قرارين متزامنين
+// على نفس الإحالات. المنح بيمد الباقة 3 أشهر بنفس منطق adminSetEmployerPlan (من آخر تاريخ انتهاء
+// لو الباقة لسه سارية).
+exports.adminGrantReferralReward = onCall({ timeoutSeconds: 120 }, async (request) => {
+  assertAdminCaller(request);
+  const action = request.data?.action === "reject" ? "reject" : request.data?.action === "grant" ? "grant" : "";
+  if (!action) {
+    throw new HttpsError("invalid-argument", "action لازم يكون grant أو reject");
+  }
+  const reason = typeof request.data?.reason === "string" ? request.data.reason.trim().slice(0, 500) : "";
+
+  return guardedAdminAction("adminGrantReferralReward", async () => {
+    const db = getFirestore();
+    const { employerId: referrerId, ref: referrerRef } = await loadEmployerForAdminAction(db, request.data?.referrerId);
+
+    // حالة Auth (تأكيد الإيميل/التليفون) قبل الـtransaction — Auth مش جزء من Firestore
+    const preSnap = await db.collection("referrals").where("referrerId", "==", referrerId).limit(REFERRAL_MAX_PER_REFERRER).get();
+    const authInfo = await loadReferralAuthInfo(preSnap.docs.map((d) => d.id));
+
+    return db.runTransaction(async (tx) => {
+      const referrerSnap = await tx.get(referrerRef);
+      const referralsSnap = await tx.get(
+        db.collection("referrals").where("referrerId", "==", referrerId).limit(REFERRAL_MAX_PER_REFERRER)
+      );
+      const rewardsSnap = await tx.get(db.collection("referral_rewards").where("referrerId", "==", referrerId));
+      const used = usedReferralIds(rewardsSnap.docs);
+      const unusedDocs = referralsSnap.docs.filter((d) => !used.has(d.id));
+      const evaluated = await evaluateReferrals(db, tx, unusedDocs, authInfo, { stopAfterQualified: REFERRAL_REWARD_SIZE });
+      const chosen = evaluated.filter((r) => r.qualified).slice(0, REFERRAL_REWARD_SIZE).map((r) => r.referredId);
+      if (chosen.length < REFERRAL_REWARD_SIZE) {
+        throw new HttpsError("failed-precondition", `مفيش ${REFERRAL_REWARD_SIZE} إحالات مؤهلة ومش مستخدمة دلوقتي`);
+      }
+
+      const rewardRef = db.collection("referral_rewards").doc(`${referrerId}_${rewardsSnap.size + 1}`);
+      const existing = await tx.get(rewardRef);
+      if (existing.exists) {
+        throw new HttpsError("aborted", "فيه قرار تاني اتسجل لنفس صاحب الإحالة في نفس اللحظة — حدّث الصفحة");
+      }
+
+      let planExpiresAtMillis = null;
+      if (action === "grant") {
+        const data = referrerSnap.data() || {};
+        // باقة مدفوعة من غير تاريخ انتهاء (مفتوحة): المكافأة مينفعش تحطلها تاريخ انتهاء بالغلط
+        if (data.plan === "premium" && !data.planExpiresAt) {
+          throw new HttpsError("failed-precondition", "باقة هذا الحساب غير محددة المدة، لا يمكن إضافة مدة عليها");
+        }
+        const nowMs = Date.now();
+        let base = new Date(nowMs);
+        if (data.plan === "premium" && data.planExpiresAt && data.planExpiresAt.toMillis() > nowMs) {
+          base = data.planExpiresAt.toDate();
+        }
+        const expiresAt = new Date(base.getTime());
+        expiresAt.setMonth(expiresAt.getMonth() + REFERRAL_REWARD_MONTHS);
+        planExpiresAtMillis = expiresAt.getTime();
+        tx.update(referrerRef, { plan: "premium", planExpiresAt: Timestamp.fromDate(expiresAt), expiryReminderSent: false });
+      }
+
+      tx.create(rewardRef, {
+        referrerId,
+        referredIds: chosen,
+        status: action === "grant" ? "granted" : "rejected",
+        reason,
+        months: action === "grant" ? REFERRAL_REWARD_MONTHS : 0,
+        decidedAt: FieldValue.serverTimestamp(),
+        decidedBy: request.auth.token.email || request.auth.uid,
+      });
+      return { status: action === "grant" ? "granted" : "rejected", rewardId: rewardRef.id, planExpiresAtMillis };
+    });
+  });
+});
