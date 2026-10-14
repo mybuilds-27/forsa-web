@@ -981,7 +981,9 @@ export default function AdminPage() {
   // AdminPage نفسها فالرجوع لتاب "الإحصائيات" فوري من غير إعادة جلب.
   if (adminTab === "employers") {
     return (
-      <div dir="rtl" style={{ maxWidth: 900, margin: "0 auto", padding: "30px 20px" }}>
+      // width 100% + border-box (نفس إصلاح /pricing): الحاوية فلكس آيتم جوه body، ومن غيرهم كانت بتكبر لعرض
+      // جدول مكافآت الإحالة (minWidth 720) بدل ما تلتزم بعرض الشاشة، فالصفحة كانت بتتقص على الموبايل.
+      <div dir="rtl" style={{ width: "100%", boxSizing: "border-box", maxWidth: 900, margin: "0 auto", padding: "30px 20px" }}>
         <h1 style={{ fontSize: 22, marginBottom: 14 }}>لوحة الإدارة</h1>
         <AdminTabBar tab={adminTab} onChange={setAdminTab} />
         <EmployersAdminTab />
