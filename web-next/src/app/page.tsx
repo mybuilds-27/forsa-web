@@ -54,169 +54,170 @@ export default async function HomePage() {
     <div dir="rtl">
       {/* العرض والـpadding في .home-main (globals.css): 900px زي ما كان، و1180px من 1024px لشبكة العمودين */}
       <main className="home-main">
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <h1 style={{ fontSize: 30, color: COLORS.ink, marginBottom: 12, fontFamily: "var(--font-cairo)" }}>
-            الشغل - موقع توظيف مصري
-          </h1>
-          <span
-            style={{
-              display: "inline-block",
-              background: "rgba(47,111,78,0.12)",
-              color: COLORS.success,
-              fontWeight: 700,
-              fontSize: 13,
-              padding: "7px 16px",
-              borderRadius: 999,
-            }}
-          >
-            🎉 مجاني للباحثين عن عمل، ونشر الوظائف مجاني لأصحاب الأعمال
-          </span>
-        </div>
-
-        <div className="role-options-row" style={{ display: "flex", gap: 16, maxWidth: 820, margin: "0 auto 48px" }}>
-          <div
-            style={{
-              flex: "1 1 0",
-              minWidth: 0,
-              border: `2px solid ${COLORS.success}`,
-              borderRadius: 14,
-              padding: 24,
-              background: "#fff",
-            }}
-          >
-            <h3 style={{ fontSize: 18, color: COLORS.ink, marginBottom: 14 }}>دوّر على شغلك دلوقتي</h3>
-            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", display: "flex", flexDirection: "column", gap: 8 }}>
-              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ تصفح آلاف الوظائف مجانًا</li>
-              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ قدّم بضغطة واحدة</li>
-              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ سيرة ذاتية تلقائية من بروفايلك</li>
-            </ul>
-            <Link
-              href="/register?role=job_seeker"
-              style={{
-                display: "block",
-                textAlign: "center",
-                padding: "13px 20px",
-                borderRadius: 8,
-                background: COLORS.success,
-                color: "#fff",
-                fontSize: 15,
-                fontWeight: 700,
-                textDecoration: "none",
-              }}
-            >
-              سجّل كباحث عن عمل ←
-            </Link>
-          </div>
-
-          <div
-            style={{
-              flex: "1 1 0",
-              minWidth: 0,
-              border: `2px solid ${COLORS.ink}`,
-              borderRadius: 14,
-              padding: 24,
-              background: "#fff",
-            }}
-          >
-            <h3 style={{ fontSize: 18, color: COLORS.ink, marginBottom: 14 }}>وظّف الكوادر المناسبة لشركتك</h3>
-            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", display: "flex", flexDirection: "column", gap: 8 }}>
-              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>• انشر 5 وظائف شهريًا دون رسوم</li>
-              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>• ادعُ المرشحين المناسبين مباشرة</li>
-              <li style={{ fontSize: 14, color: COLORS.inkSoft }}>• تسجيل سريع دون مستندات</li>
-            </ul>
-            <Link
-              href="/register?role=employer"
-              style={{
-                display: "block",
-                textAlign: "center",
-                padding: "13px 20px",
-                borderRadius: 8,
-                background: COLORS.ink,
-                color: "#fff",
-                fontSize: 15,
-                fontWeight: 700,
-                textDecoration: "none",
-              }}
-            >
-              سجّل شركتك
-            </Link>
-          </div>
-        </div>
-
-        <form
-          action="/jobs"
-          method="GET"
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 10,
-            maxWidth: 720,
-            margin: "0 auto 48px",
-            padding: 16,
-            background: "#fff",
-            border: "1px solid #14213D22",
-            borderRadius: 14,
-          }}
-        >
-          <input
-            type="text"
-            name="q"
-            placeholder="دوّر عن وظيفة (مثال: محاسب، مبيعات...)"
-            style={{ flex: "2 1 220px", padding: 10, border: "1px solid #ccc", borderRadius: 8, fontSize: 14, fontFamily: "inherit" }}
-          />
-          <select
-            name="governorate"
-            defaultValue=""
-            style={{ flex: "1 1 150px", padding: 10, border: "1px solid #ccc", borderRadius: 8, fontSize: 14, fontFamily: "inherit" }}
-          >
-            <option value="">كل المحافظات</option>
-            {GOVERNORATES.map((g) => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
-          <select
-            name="specialization"
-            defaultValue=""
-            style={{ flex: "1 1 150px", padding: 10, border: "1px solid #ccc", borderRadius: 8, fontSize: 14, fontFamily: "inherit" }}
-          >
-            <option value="">كل التخصصات</option>
-            {SPECIALIZATION_OPTIONS.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          <select
-            name="jobType"
-            defaultValue=""
-            style={{ flex: "1 1 150px", padding: 10, border: "1px solid #ccc", borderRadius: 8, fontSize: 14, fontFamily: "inherit" }}
-          >
-            <option value="">كل أنواع الدوام</option>
-            {Object.entries(JOB_TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            style={{
-              flex: "1 1 100px",
-              padding: 10,
-              border: "none",
-              borderRadius: 8,
-              background: COLORS.ink,
-              color: "#fff",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            🔍 بحث
-          </button>
-        </form>
-
-        {/* قسم التخصصات نسخة واحدة بس في الـDOM بعد الشركات والوظائف (ده ترتيبه على الموبايل والتابلت)،
-            ومن 1024px الـgrid بيحطه عمود جانبي يمين (شوف .home-browse-grid في globals.css). */}
+        {/* الشبكة بتبدأ من أول المحتوى: العمود الرئيسي فيه العنوان وكارتي الدور والبحث ثم الشركات والوظائف،
+            وقسم التخصصات نسخة واحدة بس في الـDOM بعده (ده ترتيبه على الموبايل والتابلت). من 1024px الـgrid
+            بيحطه عمود جانبي يمين من أعلى الصفحة (شوف .home-browse-grid في globals.css). */}
         <div className={seoData.combos.length > 0 ? "home-browse-grid" : undefined}>
           <div className="home-browse-content">
+            <div style={{ textAlign: "center", marginBottom: 32 }}>
+              <h1 style={{ fontSize: 30, color: COLORS.ink, marginBottom: 12, fontFamily: "var(--font-cairo)" }}>
+                الشغل - موقع توظيف مصري
+              </h1>
+              <span
+                style={{
+                  display: "inline-block",
+                  background: "rgba(47,111,78,0.12)",
+                  color: COLORS.success,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  padding: "7px 16px",
+                  borderRadius: 999,
+                }}
+              >
+                🎉 مجاني للباحثين عن عمل، ونشر الوظائف مجاني لأصحاب الأعمال
+              </span>
+            </div>
+
+            <div className="role-options-row" style={{ display: "flex", gap: 16, maxWidth: 820, margin: "0 auto 48px" }}>
+              <div
+                style={{
+                  flex: "1 1 0",
+                  minWidth: 0,
+                  border: `2px solid ${COLORS.success}`,
+                  borderRadius: 14,
+                  padding: 24,
+                  background: "#fff",
+                }}
+              >
+                <h3 style={{ fontSize: 18, color: COLORS.ink, marginBottom: 14 }}>دوّر على شغلك دلوقتي</h3>
+                <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ تصفح آلاف الوظائف مجانًا</li>
+                  <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ قدّم بضغطة واحدة</li>
+                  <li style={{ fontSize: 14, color: COLORS.inkSoft }}>✅ سيرة ذاتية تلقائية من بروفايلك</li>
+                </ul>
+                <Link
+                  href="/register?role=job_seeker"
+                  style={{
+                    display: "block",
+                    textAlign: "center",
+                    padding: "13px 20px",
+                    borderRadius: 8,
+                    background: COLORS.success,
+                    color: "#fff",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                  }}
+                >
+                  سجّل كباحث عن عمل ←
+                </Link>
+              </div>
+
+              <div
+                style={{
+                  flex: "1 1 0",
+                  minWidth: 0,
+                  border: `2px solid ${COLORS.ink}`,
+                  borderRadius: 14,
+                  padding: 24,
+                  background: "#fff",
+                }}
+              >
+                <h3 style={{ fontSize: 18, color: COLORS.ink, marginBottom: 14 }}>وظّف الكوادر المناسبة لشركتك</h3>
+                <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <li style={{ fontSize: 14, color: COLORS.inkSoft }}>• انشر 5 وظائف شهريًا دون رسوم</li>
+                  <li style={{ fontSize: 14, color: COLORS.inkSoft }}>• ادعُ المرشحين المناسبين مباشرة</li>
+                  <li style={{ fontSize: 14, color: COLORS.inkSoft }}>• تسجيل سريع دون مستندات</li>
+                </ul>
+                <Link
+                  href="/register?role=employer"
+                  style={{
+                    display: "block",
+                    textAlign: "center",
+                    padding: "13px 20px",
+                    borderRadius: 8,
+                    background: COLORS.ink,
+                    color: "#fff",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                  }}
+                >
+                  سجّل شركتك
+                </Link>
+              </div>
+            </div>
+
+            <form
+              action="/jobs"
+              method="GET"
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 10,
+                maxWidth: 720,
+                margin: "0 auto 48px",
+                padding: 16,
+                background: "#fff",
+                border: "1px solid #14213D22",
+                borderRadius: 14,
+              }}
+            >
+              <input
+                type="text"
+                name="q"
+                placeholder="دوّر عن وظيفة (مثال: محاسب، مبيعات...)"
+                style={{ flex: "2 1 220px", padding: 10, border: "1px solid #ccc", borderRadius: 8, fontSize: 14, fontFamily: "inherit" }}
+              />
+              <select
+                name="governorate"
+                defaultValue=""
+                style={{ flex: "1 1 150px", padding: 10, border: "1px solid #ccc", borderRadius: 8, fontSize: 14, fontFamily: "inherit" }}
+              >
+                <option value="">كل المحافظات</option>
+                {GOVERNORATES.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+              <select
+                name="specialization"
+                defaultValue=""
+                style={{ flex: "1 1 150px", padding: 10, border: "1px solid #ccc", borderRadius: 8, fontSize: 14, fontFamily: "inherit" }}
+              >
+                <option value="">كل التخصصات</option>
+                {SPECIALIZATION_OPTIONS.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <select
+                name="jobType"
+                defaultValue=""
+                style={{ flex: "1 1 150px", padding: 10, border: "1px solid #ccc", borderRadius: 8, fontSize: 14, fontFamily: "inherit" }}
+              >
+                <option value="">كل أنواع الدوام</option>
+                {Object.entries(JOB_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                style={{
+                  flex: "1 1 100px",
+                  padding: 10,
+                  border: "none",
+                  borderRadius: 8,
+                  background: COLORS.ink,
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                🔍 بحث
+              </button>
+            </form>
+
             {topCompanies.length > 0 && (
               <div style={{ marginBottom: 40 }}>
                 <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 4 }}>شركات بتوظف عندنا دلوقتي</h2>
