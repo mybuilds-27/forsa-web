@@ -15,6 +15,7 @@ import {
 import { auth, db } from "@/lib/firebase";
 import EmployerOnboardingForm from "./EmployerOnboardingForm";
 import UpgradeModal, { PremiumFeaturesList } from "./UpgradeModal";
+import EmployerReferralSection from "./EmployerReferralSection";
 import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
 import { calculateMatchPercent } from "@/lib/applicantMatch";
 import {
@@ -444,6 +445,9 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
       </div>
 
       {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} />}
+
+      {/* رابط الإحالة: لشركة موجودة وغير محظورة بس */}
+      {companyData && companyData.banned !== true && <EmployerReferralSection />}
 
       <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20, marginBottom: 30 }}>
         <h3 style={{ marginBottom: 16, fontSize: 17 }}>الإحصائيات</h3>
