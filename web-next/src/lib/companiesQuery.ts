@@ -1,5 +1,6 @@
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "./firebase";
+import { isPublicCompanyJob } from "./companyVisibility";
 
 export type CompanyCard = {
   employerId: string;
@@ -24,7 +25,7 @@ async function aggregateCompanies(): Promise<CompanyCard[]> {
   const now = Date.now();
   const activeJobs = snap.docs
     .map((d) => ({ id: d.id, ...d.data() } as any))
-    .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now);
+    .filter((p) => isPublicCompanyJob(p, now));
 
   const byEmployer = new Map<string, CompanyCard>();
   for (const job of activeJobs) {

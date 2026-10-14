@@ -4,6 +4,7 @@ import { collection, doc, getDoc, getDocs, query, where } from "firebase/firesto
 import { db } from "@/lib/firebase";
 import JobListItem from "@/app/jobs/JobListItem";
 import CompanyLogo from "@/components/CompanyLogo";
+import { isPublicCompanyJob } from "@/lib/companyVisibility";
 
 // cache() عشان generateMetadata والصفحة يشاركوا نفس القراءتين في نفس الطلب بدل ما كل واحد يقرا لوحده.
 const getCompany = cache(async (employerId: string): Promise<any> => {
@@ -12,7 +13,7 @@ const getCompany = cache(async (employerId: string): Promise<any> => {
   return { id: snap.id, ...snap.data() };
 });
 
-// نفس شرط ظهور الشركة في /companies والرئيسية (aggregateCompanies في lib/companiesQuery.ts): وظيفة نشطة
+// نفس شرط ظهور الشركة في /companies والرئيسية (isPublicCompanyJob في lib/companyVisibility.ts): وظيفة نشطة
 // غير منتهية وفيها showCompanyName == true. الصفحة بتتفتح بس لو القايمة دي مش فاضية — غير كده
 // الشركة يا إما مخفية الاسم يا إما معندهاش وظايف معلنة، فمينفعش اسمها ونبذتها يبانوا لأي حد معاه الرابط.
 const getCompanyJobs = cache(async (employerId: string) => {
@@ -26,7 +27,7 @@ const getCompanyJobs = cache(async (employerId: string) => {
   const now = Date.now();
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() } as any))
-    .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now)
+    .filter((p) => isPublicCompanyJob(p, now))
     .sort((a, b) => Number(!!b.featured) - Number(!!a.featured));
 });
 

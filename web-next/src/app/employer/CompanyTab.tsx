@@ -16,6 +16,7 @@ import { auth, db } from "@/lib/firebase";
 import EmployerOnboardingForm from "./EmployerOnboardingForm";
 import UpgradeModal, { PremiumFeaturesList } from "./UpgradeModal";
 import EmployerReferralSection from "./EmployerReferralSection";
+import CompanyVisibilitySection from "./CompanyVisibilitySection";
 import { toggleJobActive, deleteJobPost, fetchApplicants, exportApplicantsExcel } from "@/lib/jobPostActions";
 import { calculateMatchPercent } from "@/lib/applicantMatch";
 import {
@@ -185,6 +186,8 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
   const [editing, setEditing] = useState(false);
   const [posts, setPosts] = useState<JobPost[]>([]);
   const [loading, setLoading] = useState(true);
+  // فشل استعلام job_posts نفسه — قسم "حالة الظهور" بيعرض "تعذّر التحقق" بدل ما يقول إن الصفحة العامة غير متاحة
+  const [postsError, setPostsError] = useState(false);
   const [applicantCounts, setApplicantCounts] = useState<Record<string, number>>({});
   const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
   // عدد اللي شافوا وسيلة التواصل، لوظايف التواصل المباشر بس (job_contact_views). مفتاح ناقص =
@@ -207,6 +210,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
     const user = auth.currentUser;
     if (!user) return;
     setLoading(true);
+    setPostsError(false);
 
     try {
       const snap = await getDocs(query(collection(db, "job_posts"), where("employerId", "==", user.uid)));
@@ -260,6 +264,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
       }
     } catch (err) {
       console.error("[loadMyJobPosts] فشل استعلام job_posts", err);
+      setPostsError(true);
     }
 
     try {
@@ -392,6 +397,13 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
         <p style={{ color: "#4A5568", fontSize: 14 }}>
           مسؤول التواصل: {companyData.contactPerson || "—"} · {companyData.phone || "—"}
         </p>
+        <CompanyVisibilitySection
+          employerId={auth.currentUser?.uid || null}
+          companyData={companyData}
+          posts={posts}
+          loading={loading}
+          loadError={postsError}
+        />
       </div>
 
       <button
@@ -437,11 +449,27 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
           </button>
         )}
 
-        <div style={{ marginTop: 12 }}>
-          <Link href="/pricing" style={{ fontSize: 13, color: "#14213D" }}>
-            تفاصيل الباقات
-          </Link>
-        </div>
+        {/* width 100% مع maxWidth: عرض كامل على الموبايل (الكارت أضيق من 360)، وعرض ثابت على الديسكتوب */}
+        <Link
+          href="/pricing"
+          style={{
+            display: "block",
+            width: "100%",
+            maxWidth: 360,
+            boxSizing: "border-box",
+            marginTop: 16,
+            padding: "14px 20px",
+            background: "#14213D",
+            color: "#fff",
+            borderRadius: 8,
+            fontSize: 16,
+            fontWeight: 700,
+            textAlign: "center",
+            textDecoration: "none",
+          }}
+        >
+          تفاصيل الباقات
+        </Link>
       </div>
 
       {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} />}

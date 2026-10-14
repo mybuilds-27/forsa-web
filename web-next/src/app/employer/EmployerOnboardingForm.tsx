@@ -54,7 +54,7 @@ export default function EmployerOnboardingForm({ initialData, onSaved }: Props) 
     }
 
     setCompanySize(initialData.companySize || "");
-    setShowCompanyNameDefault(!!initialData.showCompanyNameDefault);
+    setShowCompanyNameDefault(initialData.showCompanyNameDefault ?? true);
     setLogoURL(initialData.logoURL || "");
   }, [initialData]);
 
