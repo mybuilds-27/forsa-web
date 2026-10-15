@@ -55,7 +55,7 @@ type Props = {
 };
 
 export default function JobCardBase({ job, actions, ctaLabel = "التفاصيل والتقديم" }: Props) {
-  const salary = salaryDisplay(job);
+  const salary = salaryDisplay(job, "short");
   const benefits = benefitLabels(job);
   const age = ageText(job.ageFrom, job.ageTo);
   const location = [job.city, job.governorate].filter(Boolean).join(" - ");
@@ -65,14 +65,15 @@ export default function JobCardBase({ job, actions, ctaLabel = "التفاصيل
   return (
     <div style={containerStyle}>
       <div style={{ background: NAVY, color: "#fff", padding: "12px 16px 14px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", minHeight: 44 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        {/* سطر واحد دايمًا: الشارة والوقت بيلفّوا جوه مكانهم لو ضاق، والأزرار ثابتة جنبهم */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, minHeight: 44 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: "1 1 auto", minWidth: 0 }}>
             {job.featured && <span style={featuredPillStyle}>مميزة</span>}
             {job.createdAtMs !== null && (
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}>{formatRelativeTime(job.createdAtMs)}</span>
             )}
           </div>
-          {actions && <div style={{ display: "flex", alignItems: "center", gap: 6 }}>{actions}</div>}
+          {actions && <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>{actions}</div>}
         </div>
         <h3 style={{ margin: "6px 0 4px", fontSize: 17, fontWeight: 800, color: "#fff", lineHeight: 1.4 }}>{job.title}</h3>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>{job.companyName ?? "شركة غير معلنة"}</div>
@@ -91,9 +92,8 @@ export default function JobCardBase({ job, actions, ctaLabel = "التفاصيل
           <div style={{ fontSize: salary.specified ? 16 : 14.5, fontWeight: salary.specified ? 800 : 600 }}>{salary.text}</div>
         </div>
 
-        {(experience || benefits.length > 0) && (
+        {benefits.length > 0 && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {experience && <span style={experienceStyle}>الخبرة المطلوبة: {experience}</span>}
             {benefits.map((b) => (
               <span key={b} style={benefitStyle}>{b}</span>
             ))}
@@ -103,6 +103,7 @@ export default function JobCardBase({ job, actions, ctaLabel = "التفاصيل
         <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13.5, color: "#37414F" }}>
           {location && <div>الموقع: {location}</div>}
           {jobType && <div>نوع الدوام: {jobType}</div>}
+          {experience && <div>الخبرة المطلوبة: {experience}</div>}
           {age && <div>{age}</div>}
         </div>
 
@@ -139,16 +140,6 @@ const benefitStyle: CSSProperties = {
   fontSize: 12.5,
   fontWeight: 600,
   background: BENEFIT_BG,
-  color: NAVY,
-  padding: "4px 10px",
-  borderRadius: 999,
-};
-
-// شارة الخبرة بلون محايد عشان تتميز عن شارات المزايا الصفرا
-const experienceStyle: CSSProperties = {
-  fontSize: 12.5,
-  fontWeight: 600,
-  background: "#F0EDE3",
   color: NAVY,
   padding: "4px 10px",
   borderRadius: 999,

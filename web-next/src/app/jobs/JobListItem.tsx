@@ -41,7 +41,7 @@ export default function JobListItem({ job, saved, onToggleSave }: Props) {
           {saved ? "★" : "☆"}
         </button>
       )}
-      <ShareButton jobId={job.id} title={job.title} style={headerButtonStyle} />
+      <ShareButton jobId={job.id} title={job.title} iconOnly style={{ ...headerButtonStyle, width: 44, padding: 0 }} />
     </span>
   );
 

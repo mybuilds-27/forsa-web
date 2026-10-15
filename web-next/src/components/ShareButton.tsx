@@ -6,9 +6,11 @@ type ShareButtonProps = {
   jobId: string;
   title?: string;
   style?: React.CSSProperties;
+  // أيقونة بس من غير كلمة "مشاركة" الظاهرة (كارت الوظيفة) — النص بيتحول لـaria-label
+  iconOnly?: boolean;
 };
 
-export default function ShareButton({ jobId, title, style }: ShareButtonProps) {
+export default function ShareButton({ jobId, title, style, iconOnly = false }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleShare(e: React.MouseEvent) {
@@ -45,6 +47,7 @@ export default function ShareButton({ jobId, title, style }: ShareButtonProps) {
       <button
         onClick={handleShare}
         title="مشاركة الوظيفة"
+        aria-label={iconOnly ? "مشاركة الوظيفة" : undefined}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -60,23 +63,24 @@ export default function ShareButton({ jobId, title, style }: ShareButtonProps) {
           ...style,
         }}
       >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width={iconOnly ? 18 : 13} height={iconOnly ? 18 : 13} aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="18" cy="5" r="3" />
           <circle cx="6" cy="12" r="3" />
           <circle cx="18" cy="19" r="3" />
           <line x1="8.6" y1="10.6" x2="15.4" y2="6.4" />
           <line x1="8.6" y1="13.4" x2="15.4" y2="17.6" />
         </svg>
-        مشاركة
+        {!iconOnly && "مشاركة"}
       </button>
       {copied && (
         <span
           style={{
             position: "absolute",
-            bottom: "calc(100% + 6px)",
-            right: 0,
-            background: "#14213D",
-            color: "#fff",
+            // iconOnly (رأس كارت الوظيفة): الكارت عليه overflow:hidden والزرار في أوله، فالرسالة فوق الزرار كانت
+            // بتتقص من فوق ومن الشمال — بتظهر تحته وممدودة لجوه الكارت، وبلون فاتح عشان تبان على الرأس الكحلي.
+            ...(iconOnly
+              ? { top: "calc(100% + 6px)", left: 0, background: "#fff", color: "#14213D", boxShadow: "0 2px 8px rgba(20,33,61,0.25)" }
+              : { bottom: "calc(100% + 6px)", right: 0, background: "#14213D", color: "#fff" }),
             fontSize: 11,
             padding: "4px 10px",
             borderRadius: 6,
