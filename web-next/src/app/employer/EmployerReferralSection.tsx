@@ -62,9 +62,9 @@ export default function EmployerReferralSection() {
 
   return (
     <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20, marginBottom: 30 }}>
-      <h3 style={{ marginBottom: 10, fontSize: 17 }}>رابط الإحالة</h3>
+      <h3 style={{ marginBottom: 10, fontSize: 17 }}>ادعُ أصحاب الأعمال واحصل على باقة مدفوعة مجانًا</h3>
       <p style={{ fontSize: 13.5, color: "#4A5568", marginBottom: 12, lineHeight: 1.7 }}>
-        شارك هذا الرابط مع أصحاب الأعمال الآخرين لتسجيل شركاتهم على الموقع.
+        كل 5 شركات تسجّل عبر رابطك وتوثّق حسابها وتنشر وظيفة واحدة على الأقل تمنحك 3 أشهر في الباقة المدفوعة بعد المراجعة، تشمل نشر وظائف أكثر والتواصل المباشر مع المرشحين. شارك الرابط مع شركات تعرفها.
       </p>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 6 }}>
