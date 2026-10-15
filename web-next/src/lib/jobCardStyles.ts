@@ -23,15 +23,27 @@ export type SalaryFields = {
   salaryTo?: number | null;
 };
 
+// فواصل الآلاف بأرقام لاتينية (9,000) — نفس الشكل في الكارت وصفحة الوظيفة وتاب الباحث
+const salaryNumber = new Intl.NumberFormat("en-US");
+
 export function salaryDisplay(p: SalaryFields, mode: "full" | "short" = "full"): { text: string; specified: boolean } {
   if (p.showSalary === false) return { text: "غير معلن", specified: false };
   if (p.salaryNegotiable) return { text: mode === "full" ? "قابل للتفاوض / حسب الخبرة" : "قابل للتفاوض", specified: true };
-  const from = p.salaryFrom && p.salaryFrom > 0 ? p.salaryFrom : null;
-  const to = p.salaryTo && p.salaryTo > 0 ? p.salaryTo : null;
+  const from = p.salaryFrom && p.salaryFrom > 0 ? salaryNumber.format(p.salaryFrom) : null;
+  const to = p.salaryTo && p.salaryTo > 0 ? salaryNumber.format(p.salaryTo) : null;
   if (from && to) return { text: `${from} - ${to} جنيه`, specified: true };
   if (from) return { text: mode === "full" ? `يبدأ من ${from} جنيه` : `${from}+ جنيه`, specified: true };
   if (to) return { text: `حتى ${to} جنيه`, specified: true };
   return { text: "غير محدد", specified: false };
+}
+
+// رقم واحد بصيغة العدد العربية: سنة واحدة / سنتان / 3-10 سنوات / 11+ سنة (و0 = بدون خبرة)
+function yearsCountText(n: number): string {
+  if (n === 0) return "بدون خبرة";
+  if (n === 1) return "سنة واحدة";
+  if (n === 2) return "سنتان";
+  if (n >= 3 && n <= 10) return `${n} سنوات`;
+  return `${n} سنة`;
 }
 
 // null لو الوظيفة من غير minExperience/maxExperience خالص — القسم اللي بيستخدمها لازم
@@ -40,8 +52,10 @@ export function salaryDisplay(p: SalaryFields, mode: "full" | "short" = "full"):
 export function experienceRangeText(p: { minExperience?: number | null; maxExperience?: number | null }): string | null {
   const { minExperience, maxExperience } = p;
   if (minExperience == null && maxExperience == null) return null;
+  if (minExperience != null && minExperience === maxExperience) return yearsCountText(minExperience);
   if (minExperience != null && maxExperience != null) return `${minExperience}-${maxExperience} سنوات`;
-  if (minExperience != null) return `${minExperience}+ سنوات`;
+  // من 0 ومفيش حد أقصى = الوظيفة مش طالبة خبرة (بدل "0+ سنوات")
+  if (minExperience != null) return minExperience === 0 ? "بدون خبرة" : `${minExperience}+ سنوات`;
   return `حتى ${maxExperience} سنوات`;
 }
 
