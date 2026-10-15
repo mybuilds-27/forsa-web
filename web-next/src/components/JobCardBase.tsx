@@ -52,10 +52,17 @@ type Props = {
   actions?: ReactNode;
   // نص زرار الإجراء الأساسي في آخر الكارت. في الكارت الرابط ده span شكله زرار (الكارت كله هو الرابط).
   ctaLabel?: string;
+  // اختياريين (كارت الباحث JobCard.tsx): شارة جنب "مميزة" والوقت (حالة الطلب)، وفوتر بدل زرار ctaLabel
+  // (أزرار حقيقية). من غيرهم الكارت زي ما هو بالظبط.
+  statusBadge?: ReactNode;
+  footer?: ReactNode;
+  // وظيفة مبقتش متاحة: تنبيه فوق المحتوى والكارت كله رمادي (الضغط نفسه بيقفله اللي بيغلّف الكارت)
+  unavailable?: boolean;
 };
 
-export default function JobCardBase({ job, actions, ctaLabel = "التفاصيل والتقديم" }: Props) {
+export default function JobCardBase({ job, actions, ctaLabel = "التفاصيل والتقديم", statusBadge, footer, unavailable = false }: Props) {
   const salary = salaryDisplay(job, "short");
+  const salaryHighlighted = salary.specified && !unavailable;
   const benefits = benefitLabels(job);
   const age = ageText(job.ageFrom, job.ageTo);
   const location = [job.city, job.governorate].filter(Boolean).join(" - ");
@@ -63,8 +70,8 @@ export default function JobCardBase({ job, actions, ctaLabel = "التفاصيل
   const experience = experienceRangeText(job);
 
   return (
-    <div style={containerStyle}>
-      <div style={{ background: NAVY, color: "#fff", padding: "12px 16px 14px" }}>
+    <div style={unavailable ? unavailableContainerStyle : containerStyle}>
+      <div style={{ background: unavailable ? UNAVAILABLE_HEADER : NAVY, color: "#fff", padding: "12px 16px 14px" }}>
         {/* سطر واحد دايمًا: الشارة والوقت بيلفّوا جوه مكانهم لو ضاق، والأزرار ثابتة جنبهم */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, minHeight: 44 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: "1 1 auto", minWidth: 0 }}>
@@ -72,6 +79,7 @@ export default function JobCardBase({ job, actions, ctaLabel = "التفاصيل
             {job.createdAtMs !== null && (
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}>{formatRelativeTime(job.createdAtMs)}</span>
             )}
+            {statusBadge}
           </div>
           {actions && <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>{actions}</div>}
         </div>
@@ -80,10 +88,12 @@ export default function JobCardBase({ job, actions, ctaLabel = "التفاصيل
       </div>
 
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+        {unavailable && <div style={unavailableNoticeStyle}>⚠️ الوظيفة دي لم تعد متاحة</div>}
+
         <div
           style={{
-            background: salary.specified ? SALARY_YELLOW : "#F0EDE3",
-            color: salary.specified ? NAVY : "#4A5568",
+            background: salaryHighlighted ? SALARY_YELLOW : "#F0EDE3",
+            color: salaryHighlighted ? NAVY : "#4A5568",
             borderRadius: 10,
             padding: "10px 14px",
           }}
@@ -95,7 +105,7 @@ export default function JobCardBase({ job, actions, ctaLabel = "التفاصيل
         {benefits.length > 0 && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {benefits.map((b) => (
-              <span key={b} style={benefitStyle}>{b}</span>
+              <span key={b} style={unavailable ? { ...benefitStyle, background: "#E5E1D6", color: "#4A5568" } : benefitStyle}>{b}</span>
             ))}
           </div>
         )}
@@ -107,9 +117,15 @@ export default function JobCardBase({ job, actions, ctaLabel = "التفاصيل
           {age && <div>{age}</div>}
         </div>
 
-        <div style={{ marginTop: "auto", display: "flex" }}>
-          <span style={ctaStyle}>{ctaLabel}</span>
-        </div>
+        {footer !== undefined ? (
+          <div style={{ marginTop: "auto" }}>{footer}</div>
+        ) : (
+          !unavailable && (
+            <div style={{ marginTop: "auto", display: "flex" }}>
+              <span style={ctaStyle}>{ctaLabel}</span>
+            </div>
+          )
+        )}
       </div>
     </div>
   );
@@ -125,6 +141,24 @@ const containerStyle: CSSProperties = {
   background: "#fff",
   boxShadow: "0 1px 3px rgba(20,33,61,0.06)",
   overflow: "hidden",
+};
+
+const UNAVAILABLE_HEADER = "#6B7280";
+
+const unavailableContainerStyle: CSSProperties = {
+  ...containerStyle,
+  background: "#F0EDE3",
+  boxShadow: "none",
+};
+
+const unavailableNoticeStyle: CSSProperties = {
+  alignSelf: "flex-start",
+  fontSize: 12.5,
+  fontWeight: 700,
+  color: "#B03A14",
+  background: "#FBEAE3",
+  padding: "4px 12px",
+  borderRadius: 999,
 };
 
 const featuredPillStyle: CSSProperties = {
