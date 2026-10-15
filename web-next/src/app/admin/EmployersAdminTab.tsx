@@ -21,6 +21,7 @@ import { db } from "@/lib/firebase";
 import {
   adminActionErrorMessage,
   adminDeleteEmployer,
+  adminListReferralCounts,
   adminSetEmployerBanned,
   adminSetEmployerJobsActive,
   adminSetEmployerPlan,
@@ -168,6 +169,27 @@ export default function EmployersAdminTab() {
   const [pagingError, setPagingError] = useState(false);
   const [counts, setCounts] = useState<Record<string, EmployerCounts>>({});
   const requestedCountsRef = useRef<Set<string>>(new Set());
+  // عدد الإحالات لكل صاحب عمل — نداء واحد للتاب كله (مش قراءة لكل كارت)، متخزّن ومشترك مع جدول قسم
+  // الإحالات. key = refreshToken اللي اتجاب عنده: زرار "تحديث" بيعيد الجلب. map: null = فشل الجلب.
+  const [referralCounts, setReferralCounts] = useState<{ key: number; map: Map<string, number> | null; truncated: boolean } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    adminListReferralCounts(refreshToken > 0)
+      .then((res) => {
+        if (!cancelled) {
+          setReferralCounts({ key: refreshToken, map: new Map(res.counts.map((c) => [c.referrerId, c.total])), truncated: res.truncated });
+        }
+      })
+      .catch((err) => {
+        console.error("adminListReferralCounts failed", err);
+        if (!cancelled) setReferralCounts({ key: refreshToken, map: null, truncated: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshToken]);
+  const referralCountsReady = referralCounts?.key === refreshToken ? referralCounts : null;
 
   // في الفلاتر المحلية (محظور/عليه بلاغات) البحث بيتطبق على المجموعة المحمّلة في الكلاينت،
   // فمش بيدخل في المفتاح عشان تغيير البحث ما يعيدش الجلب.
@@ -345,6 +367,12 @@ export default function EmployersAdminTab() {
         </div>
       )}
 
+      {referralCountsReady?.truncated && (
+        <div style={{ fontSize: 12.5, color: "#8A570D", marginBottom: 12 }}>
+          عدد الإحالات في الكروت محسوب من جزء من الإحالات بس (المجموعة أكبر من حد القراءة).
+        </div>
+      )}
+
       {loading && <p style={{ textAlign: "center", padding: 30 }}>جاري التحميل...</p>}
 
       {!loading && loaded?.error && (
@@ -360,7 +388,14 @@ export default function EmployersAdminTab() {
       {!loading && !loaded?.error && visibleRows.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {visibleRows.map((row) => (
-            <EmployerCard key={row.id} row={row} counts={counts[row.id]} onRowChange={patchRow} onDeleted={removeRow} />
+            <EmployerCard
+              key={row.id}
+              row={row}
+              counts={counts[row.id]}
+              referrals={referralCountsReady ? (referralCountsReady.map ? referralCountsReady.map.get(row.id) ?? 0 : null) : undefined}
+              onRowChange={patchRow}
+              onDeleted={removeRow}
+            />
           ))}
         </div>
       )}
@@ -407,11 +442,14 @@ function CountBox({ label, value, danger }: { label: string; value: number | nul
 function EmployerCard({
   row,
   counts,
+  referrals,
   onRowChange,
   onDeleted,
 }: {
   row: EmployerRow;
   counts: EmployerCounts | undefined;
+  // undefined = لسه بيتحمّل، null = فشل الجلب
+  referrals: number | null | undefined;
   onRowChange: (row: EmployerRow) => void;
   onDeleted: (id: string) => void;
 }) {
@@ -578,6 +616,7 @@ function EmployerCard({
         <CountBox label="الوظايف" value={counts?.jobs} />
         <CountBox label="المتقدمين" value={counts?.applicants} />
         <CountBox label="البلاغات" value={counts?.reports} danger />
+        <CountBox label="الإحالات" value={referrals} />
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>

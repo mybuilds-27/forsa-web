@@ -2956,6 +2956,36 @@ exports.adminListReferralCandidates = onCall({ timeoutSeconds: 300 }, async (req
   });
 });
 
+// لوحة الأدمن (تاب أصحاب الأعمال): عدد الإحالات لكل صاحب إحالة، وعدد اللي عليها مؤشرات شك منهم. أعداد بس:
+// من غير أي قراءة Auth، ومن غير أي بيانات عن الحسابات المُحالة (ids/تليفونات/إيميلات). بتقرا لحد
+// REFERRAL_COUNTS_READ_LIMIT إحالة (حقلين بس بـselect)، ولو المجموعة أكبر بترجّع truncated: true.
+const REFERRAL_COUNTS_READ_LIMIT = 2000;
+
+exports.adminListReferralCounts = onCall(async (request) => {
+  assertAdminCaller(request);
+  return guardedAdminAction("adminListReferralCounts", async () => {
+    const snap = await getFirestore()
+      .collection("referrals")
+      .select("referrerId", "suspicious")
+      .limit(REFERRAL_COUNTS_READ_LIMIT + 1)
+      .get();
+    const truncated = snap.size > REFERRAL_COUNTS_READ_LIMIT;
+    const docs = truncated ? snap.docs.slice(0, REFERRAL_COUNTS_READ_LIMIT) : snap.docs;
+    const byReferrer = new Map();
+    for (const d of docs) {
+      const referrerId = d.get("referrerId");
+      if (typeof referrerId !== "string" || !referrerId) continue;
+      const entry = byReferrer.get(referrerId) || { referrerId, total: 0, suspicious: 0 };
+      entry.total += 1;
+      const suspicious = d.get("suspicious");
+      if (Array.isArray(suspicious) && suspicious.length > 0) entry.suspicious += 1;
+      byReferrer.set(referrerId, entry);
+    }
+    const counts = [...byReferrer.values()].sort((a, b) => b.total - a.total || b.suspicious - a.suspicious);
+    return { counts, truncated, readLimit: REFERRAL_COUNTS_READ_LIMIT };
+  });
+});
+
 // منح أو رفض مكافأة إحالة: الدالة بتختار بنفسها أول 5 إحالات مؤهلة ومش مستخدمة (مش بتقبل ids من
 // الكلاينت)، جوه transaction. المعرّف {referrerId}_{رقم القرار} + create بيمنع أي قرارين متزامنين
 // على نفس الإحالات. المنح بيمد الباقة 3 أشهر بنفس منطق adminSetEmployerPlan (من آخر تاريخ انتهاء

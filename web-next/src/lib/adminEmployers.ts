@@ -86,6 +86,25 @@ export async function adminGrantReferralReward(
   return res.data;
 }
 
+// عدد الإحالات لكل صاحب إحالة (adminListReferralCounts) — نداء واحد مشترك بين جدول قسم الإحالات وخانة
+// "الإحالات" في كروت أصحاب الأعمال (الاتنين في نفس التاب). force: true بيعيد الجلب (زرار التحديث).
+export type ReferralCount = { referrerId: string; total: number; suspicious: number };
+export type ReferralCountsResult = { counts: ReferralCount[]; truncated: boolean; readLimit: number };
+
+let referralCountsPromise: Promise<ReferralCountsResult> | null = null;
+
+export function adminListReferralCounts(force = false): Promise<ReferralCountsResult> {
+  if (force || !referralCountsPromise) {
+    const promise = callable<Record<string, never>, ReferralCountsResult>("adminListReferralCounts")({}).then((res) => res.data);
+    referralCountsPromise = promise;
+    // فشل النداء ميتخزنش — المحاولة الجاية تجيب من جديد
+    promise.catch(() => {
+      if (referralCountsPromise === promise) referralCountsPromise = null;
+    });
+  }
+  return referralCountsPromise;
+}
+
 // رسالة الخطأ اللي بتظهر للأدمن — HttpsError من السيرفر بتوصل هنا بنص عربي جاهز في message.
 export function adminActionErrorMessage(err: unknown): string {
   if (err instanceof Error && err.message) return err.message;

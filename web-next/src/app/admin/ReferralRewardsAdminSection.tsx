@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { collection, documentId, getDocs, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import {
   adminActionErrorMessage,
   adminGrantReferralReward,
   adminListReferralCandidates,
+  adminListReferralCounts,
   type ReferralCandidate,
   type ReferralCandidatesResult,
+  type ReferralCountsResult,
 } from "@/lib/adminEmployers";
 import { toolBtnStyle, dangerToolBtnStyle } from "@/lib/jobCardStyles";
 
@@ -175,6 +179,92 @@ export default function ReferralRewardsAdminSection() {
           </div>
         );
       })}
+
+      <ReferralCountsTable />
+    </div>
+  );
+}
+
+// اسم الشركة لكل صاحب إحالة — قراءة employers بدفعات 30 (documentId in)، نفس نمط تاب أصحاب الأعمال
+async function loadCompanyNames(ids: string[]): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  for (let i = 0; i < ids.length; i += 30) {
+    const snap = await getDocs(query(collection(db, "employers"), where(documentId(), "in", ids.slice(i, i + 30))));
+    snap.docs.forEach((d) => names.set(d.id, typeof d.data().companyName === "string" ? d.data().companyName : ""));
+  }
+  return names;
+}
+
+// "عدد الإحالات لكل صاحب عمل": كل صاحب إحالة عنده إحالة واحدة أو أكتر، من الأكبر للأصغر. البيانات
+// بتتحمّل بزرار (مش تلقائي)، ونفس النداء متخزّن ومشترك مع خانة "الإحالات" في كروت أصحاب الأعمال.
+function ReferralCountsTable() {
+  const [result, setResult] = useState<(ReferralCountsResult & { names: Map<string, string> }) | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function load(force: boolean) {
+    setLoading(true);
+    setError("");
+    try {
+      const counts = await adminListReferralCounts(force);
+      const names = await loadCompanyNames(counts.counts.map((c) => c.referrerId));
+      setResult({ ...counts, names });
+    } catch (err) {
+      console.error("adminListReferralCounts failed", err);
+      setError(adminActionErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={{ width: "100%", boxSizing: "border-box", marginTop: 16, paddingTop: 14, borderTop: "1px solid #14213D1A" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <h3 style={{ fontSize: 15.5, margin: 0 }}>عدد الإحالات لكل صاحب عمل</h3>
+        <button type="button" onClick={() => void load(result !== null)} disabled={loading} style={toolBtnStyle}>
+          {loading ? "جاري التحميل..." : result ? "تحديث" : "عرض"}
+        </button>
+      </div>
+
+      {error && <div style={{ marginTop: 10, color: "#B03A14", fontSize: 13.5 }}>{error}</div>}
+
+      {result?.truncated && (
+        <div style={{ marginTop: 10, fontSize: 13, color: "#8A570D" }}>
+          الأعداد محسوبة من أول {result.readLimit} إحالة بس — المجموعة أكبر من كده، فالأرقام ممكن تكون أقل من الحقيقية.
+        </div>
+      )}
+
+      {result && result.counts.length === 0 && (
+        <div style={{ marginTop: 10, color: "#4A5568", fontSize: 13.5 }}>مفيش إحالات لسه.</div>
+      )}
+
+      {result && result.counts.length > 0 && (
+        <div style={{ width: "100%", overflowX: "auto", marginTop: 10 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "#F8F6F0" }}>
+                {["الشركة", "إجمالي الإحالات", "المشبوهة"].map((h) => (
+                  <th key={h} style={thStyle}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {result.counts.map((c) => {
+                const name = result.names.has(c.referrerId) ? result.names.get(c.referrerId) || "(من غير اسم)" : "(الشركة اتمسحت)";
+                return (
+                  <tr key={c.referrerId}>
+                    <td style={{ ...tdStyle, overflowWrap: "anywhere" }}>{name}</td>
+                    <td style={tdStyle}>{c.total}</td>
+                    <td style={{ ...tdStyle, color: c.suspicious > 0 ? "#B03A14" : undefined, fontWeight: c.suspicious > 0 ? 700 : 400 }}>
+                      {c.suspicious}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
