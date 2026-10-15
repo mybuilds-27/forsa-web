@@ -7,6 +7,7 @@ import { SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SPECIALIZATION_KEYWORD_MAP }
 import KeywordsPicker, { MAX_KEYWORDS } from "@/components/KeywordsPicker";
 import { h3Style, descStyle, gridStyle, labelStyle, inputStyle, saveBtnStyle, savedMsgStyle } from "./sharedStyles";
 import { MISSING_BORDER_COLOR, MissingTag, useScrollToField, type ScrollTarget } from "./missingFieldUI";
+import { FIELD_OF_STUDY_MAX_LENGTH, fieldOfStudyLooksLikeContact, normalizeFieldOfStudy } from "@/lib/profileFields";
 
 type Props = {
   initialData: any;
@@ -22,6 +23,7 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile, 
   const [specOther, setSpecOther] = useState("");
   const [yearsOfExperience, setYearsOfExperience] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
+  const [fieldOfStudy, setFieldOfStudy] = useState("");
   const [jobType, setJobType] = useState("");
   const [jobLevel, setJobLevel] = useState("");
   const [expectedSalary, setExpectedSalary] = useState("");
@@ -43,6 +45,7 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile, 
     }
     setYearsOfExperience(initialData.yearsOfExperience?.toString() || "");
     setEducationLevel(initialData.educationLevel || "");
+    setFieldOfStudy(normalizeFieldOfStudy(initialData.fieldOfStudy));
     setJobType(initialData.jobType || "");
     setJobLevel(initialData.jobLevel || "");
     setExpectedSalary(initialData.expectedSalary?.toString() || "");
@@ -82,6 +85,12 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile, 
       return;
     }
 
+    const cleanFieldOfStudy = normalizeFieldOfStudy(fieldOfStudy);
+    if (fieldOfStudyLooksLikeContact(cleanFieldOfStudy)) {
+      setError("اكتب اسم الكلية أو التخصص بس، من غير أرقام تليفون أو إيميل");
+      return;
+    }
+
     setSaving(true);
 
     const data: any = {
@@ -89,6 +98,7 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile, 
       specialization: finalSpecialization,
       yearsOfExperience: Number(yearsOfExperience || 0),
       educationLevel,
+      fieldOfStudy: cleanFieldOfStudy,
       jobType,
       jobLevel,
       expectedSalary: expectedSalary ? Number(expectedSalary) : null,
@@ -197,6 +207,17 @@ export default function JobPreferencesTab({ initialData, onSaved, isNewProfile, 
             <option value="master">ماجستير</option>
             <option value="phd">دكتوراه</option>
           </select>
+        </div>
+        <div>
+          <label style={labelStyle}>الكلية أو التخصص الدراسي (اختياري)</label>
+          <input
+            type="text"
+            value={fieldOfStudy}
+            onChange={(e) => setFieldOfStudy(e.target.value)}
+            maxLength={FIELD_OF_STUDY_MAX_LENGTH}
+            placeholder="مثال: تجارة، هندسة، حاسبات"
+            style={inputStyle}
+          />
         </div>
         <div id="field-jobType">
           <label style={labelStyle}>نوع الدوام المطلوب (اختياري){missingKeys?.has("jobType") && <MissingTag />}</label>

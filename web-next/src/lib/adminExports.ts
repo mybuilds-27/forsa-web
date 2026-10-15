@@ -4,7 +4,7 @@ import { db } from "@/lib/firebase";
 import { readSeekerContactWithFallback } from "@/lib/seekerContact";
 import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS, EXPERIENCE_LEVELS } from "@/lib/constants";
 import { JOB_TYPE_LABELS } from "@/lib/jobCardStyles";
-import { normalizeEntries, formatEntries } from "@/lib/profileFields";
+import { normalizeEntries, formatEntries, normalizeFieldOfStudy } from "@/lib/profileFields";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 
 // عدد الباحثين اللي بنقرا مستندهم الفرعي private/contact في نفس الوقت وقت التصدير
@@ -155,6 +155,7 @@ export async function exportAllUsersExcel(): Promise<void> {
     "سنوات الخبرة",
     "مستوى الوظيفة المطلوب",
     "المؤهل الدراسي",
+    "الكلية أو التخصص الدراسي",
     "نوع الدوام المطلوب",
     "الراتب المتوقع",
     "إظهار الراتب لأصحاب العمل؟",
@@ -190,6 +191,7 @@ export async function exportAllUsersExcel(): Promise<void> {
       s.yearsOfExperience || 0,
       EXPERIENCE_LEVELS[s.jobLevel] || s.jobLevel || "",
       EDUCATION_LABELS[s.educationLevel] || s.educationLevel || "",
+      normalizeFieldOfStudy(s.fieldOfStudy),
       JOB_TYPE_LABELS[s.jobType] || s.jobType || "",
       s.expectedSalary || "",
       yesNo(s.showSalaryToEmployers),

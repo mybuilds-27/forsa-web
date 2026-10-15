@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { auth } from "@/lib/firebase";
 import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS, EXPERIENCE_LEVELS } from "@/lib/constants";
-import { normalizeEntries, formatEntries } from "@/lib/profileFields";
+import { educationDisplay, normalizeEntries, formatEntries } from "@/lib/profileFields";
 import { revealSeekerContact } from "@/lib/seekerContact";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import UpgradeModal from "./UpgradeModal";
@@ -79,6 +79,7 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const isPremium = employerPlan === "premium";
+  const education = educationDisplay(EDUCATION_LABELS[s.educationLevel] || s.educationLevel || "", s.fieldOfStudy);
   const isAdmin = ADMIN_EMAILS.includes(auth.currentUser?.email || "");
   // الكشف للباقة المدفوعة وللأدمن بس — الباقة المجانية بتشوف زرار الترقية من غير أي نداء للدالة
   const canReveal = isPremium || isAdmin;
@@ -216,7 +217,9 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
             <span style={tagStyle}>{s.yearsOfExperience || 0} سنوات خبرة</span>
             {s.jobLevel && <span style={tagStyle}>{EXPERIENCE_LEVELS[s.jobLevel] || s.jobLevel}</span>}
             {s.jobType && <span style={tagStyle}>{JOB_TYPE_LABELS[s.jobType] || s.jobType}</span>}
-            {s.educationLevel && <span style={tagStyle}>{EDUCATION_LABELS[s.educationLevel] || s.educationLevel}</span>}
+            {education && (
+              <span style={tagStyle}>{education.label === "المؤهل" ? education.value : `${education.label}: ${education.value}`}</span>
+            )}
           </div>
 
           {s.bio && <p style={{ lineHeight: 1.7, marginBottom: 12 }}>{s.bio}</p>}

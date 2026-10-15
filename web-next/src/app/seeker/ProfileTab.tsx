@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import OnboardingForm from "./OnboardingForm";
 import SeekerStats from "./SeekerStats";
 import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS } from "@/lib/constants";
-import { normalizeEntries, formatEntries } from "@/lib/profileFields";
+import { educationDisplay, normalizeEntries, formatEntries } from "@/lib/profileFields";
 import ProfileCompletionBar from "@/components/ProfileCompletionBar";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import CVPreview from "@/components/CVPreview";
@@ -72,6 +72,7 @@ export default function ProfileTab({ data, onUpdated, openEditNonce }: Props) {
   const skills = normalizeEntries(data.skills);
   const languages = normalizeEntries(data.languages);
   const completion = calculateProfileCompletion(data);
+  const education = educationDisplay(EDUCATION_LABELS[data.educationLevel] || data.educationLevel || "", data.fieldOfStudy);
 
   return (
     <div dir="rtl" style={{ maxWidth: 700, margin: "0 auto", padding: "30px 20px" }}>
@@ -93,7 +94,9 @@ export default function ProfileTab({ data, onUpdated, openEditNonce }: Props) {
         <Row label="المسمى الوظيفي" value={data.jobTitle} />
         <Row label="التخصص" value={data.specialization} />
         <Row label="سنوات الخبرة" value={data.yearsOfExperience?.toString()} />
-        <Row label="المؤهل الدراسي" value={EDUCATION_LABELS[data.educationLevel] || data.educationLevel} />
+        {education && (
+          <Row label={education.label === "المؤهل" ? "المؤهل الدراسي" : education.label} value={education.value} />
+        )}
         <Row label="نوع الدوام" value={JOB_TYPE_LABELS[data.jobType] || data.jobType} />
         {data.showSalaryToEmployers && data.expectedSalary && (
           <Row label="الراتب المتوقع" value={`${data.expectedSalary} جنيه`} />

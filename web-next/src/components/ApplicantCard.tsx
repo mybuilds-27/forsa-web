@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
-import { normalizeEntries, SkillEntry } from "@/lib/profileFields";
+import { educationDisplay, normalizeEntries, SkillEntry } from "@/lib/profileFields";
 import { MILITARY_STATUS_LABELS, SKILL_LEVELS, LANGUAGE_LEVELS, EDUCATION_LEVEL_LABELS } from "@/lib/constants";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { applicantWhatsAppMessage, buildWhatsAppChatLink, buildWhatsAppLink, whatsappButtonStyle } from "@/lib/whatsappLink";
@@ -80,6 +80,7 @@ export default function ApplicantCard({
   whatsappJobTitle,
 }: Props) {
   const s = a.seekerSnapshot || {};
+  const education = educationDisplay(EDUCATION_LEVEL_LABELS[s.educationLevel] || s.educationLevel || "", s.fieldOfStudy);
   // صاحب العمل: رابط برسالة جاهزة (اسم الشركة والوظيفة). الأدمن (لوحة الإدارة): رابط من غير رسالة.
   const whatsappLink = viewerMode
     ? null
@@ -195,7 +196,7 @@ export default function ApplicantCard({
         {s.specialization && <span style={bigTagStyle}><TagIcon size={15} /> التخصص: {s.specialization}</span>}
         <span style={bigTagStyle}><PinIcon size={15} /> المحافظة: {s.city || ""} - {s.governorate || ""}</span>
         <span style={bigTagStyle}><BriefcaseIcon size={15} /> سنوات الخبرة: {s.yearsOfExperience || 0} سنوات</span>
-        {s.educationLevel && <span style={bigTagStyle}>المؤهل: {EDUCATION_LEVEL_LABELS[s.educationLevel] || s.educationLevel}</span>}
+        {education && <span style={bigTagStyle}>{education.label}: {education.value}</span>}
         {s.militaryStatus && <span style={bigTagStyle}><ShieldIcon size={15} /> موقف التجنيد: {MILITARY_STATUS_LABELS[s.militaryStatus] || s.militaryStatus}</span>}
       </div>
 

@@ -1,4 +1,4 @@
-import { normalizeEntries } from "@/lib/profileFields";
+import { normalizeEntries, normalizeFieldOfStudy } from "@/lib/profileFields";
 
 export function buildSeekerSnapshot(s: any) {
   return {
@@ -23,5 +23,7 @@ export function buildSeekerSnapshot(s: any) {
     // المؤهل الدراسي — بيتعرض في ApplicantCard.tsx. تقديمات قديمة قبل الإضافة دي هتفضل من غيره
     // (الـtag بيختفي عندها، مفيش backfill).
     educationLevel: s.educationLevel || "",
+    // الكلية أو التخصص الدراسي — تقديمات قديمة من غيره (الـtag بيختفي، مفيش backfill).
+    fieldOfStudy: normalizeFieldOfStudy(s.fieldOfStudy),
   };
 }

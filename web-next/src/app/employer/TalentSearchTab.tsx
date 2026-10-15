@@ -12,7 +12,7 @@ import {
   LANGUAGE_LEVELS,
   MILITARY_STATUS_LABELS,
 } from "@/lib/constants";
-import { normalizeEntries } from "@/lib/profileFields";
+import { educationDisplay, normalizeEntries } from "@/lib/profileFields";
 import { activePillStyle, pausedPillStyle } from "@/lib/jobCardStyles";
 import SeekerDetailModal from "./SeekerDetailModal";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
@@ -245,10 +245,10 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {displayedResults.map((s) => {
               const activity = getActivityLabel(s.updatedAt);
-              const educationLabel = s.educationLevel ? EDUCATION_LEVEL_LABELS[s.educationLevel] : undefined;
+              const education = educationDisplay(s.educationLevel ? EDUCATION_LEVEL_LABELS[s.educationLevel] || "" : "", s.fieldOfStudy);
               const languageEntries = normalizeEntries(s.languages);
               const keywordList: string[] = Array.isArray(s.keywords) ? s.keywords : [];
-              const hasExtraTags = !!educationLabel || languageEntries.length > 0 || keywordList.length > 0;
+              const hasExtraTags = !!education || languageEntries.length > 0 || keywordList.length > 0;
               // نفس شرطي الخصوصية بالظبط المستخدمين في SeekerDetailModal.tsx — حالة التجنيد
               // بس لو رجّالة (السؤال أصلًا مش مطروح على الستات)، والراتب بس لو الباحث سامح
               // بعرضه لأصحاب الأعمال (showSalaryToEmployers)، مش أي راتب متسجّل في البروفايل.
@@ -288,7 +288,7 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
                   </div>
                   {hasExtraTags && (
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-                      {educationLabel && <span style={tagStyle}>المؤهل: {educationLabel}</span>}
+                      {education && <span style={tagStyle}>{education.label}: {education.value}</span>}
                       {languageEntries.map((l) => (
                         <span key={l.name} style={tagStyle}>
                           اللغة: {l.name}
