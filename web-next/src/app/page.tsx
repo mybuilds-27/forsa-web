@@ -44,7 +44,7 @@ export default async function HomePage() {
   // الوظائف" في نفس الصفحة.
   const latestJobs = [...jobs]
     .filter((j) => !j.featured)
-    .sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0))
+    .sort((a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0))
     .slice(0, LATEST_JOBS_COUNT);
   // getCompanies() بترجع الشركات مرتبة: بلوجو حقيقي مرفوع الأول، وبعدين تعادل بالأحدث
   // (آخر وظيفة نشطة نشرتها الشركة) — الشرط الأساسي (وظيفة نشطة واحدة على الأقل) زي ما هو.

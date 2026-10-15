@@ -13,14 +13,25 @@ export function sanitizeJobDescription(text: string): string {
     .replace(/\*/g, "");
 }
 
-// نفس منطق salaryText اللي كان مكرر كـfunction محلية في jobs/[id]/page.tsx — مستخرجة هنا
-// عشان تتستخدم كمان في JobListItem.tsx (كارت الوظيفة في الصفحة الرئيسية و/jobs) من غير تكرار.
-export function salaryText(p: any): string {
-  if (p.showSalary === false) return "غير محدد";
-  if (p.salaryNegotiable) return "قابل للتفاوض / حسب الخبرة";
-  if (p.salaryFrom && p.salaryTo) return `${p.salaryFrom} - ${p.salaryTo} جنيه`;
-  if (p.salaryFrom) return `يبدأ من ${p.salaryFrom} جنيه`;
-  return "غير محدد";
+// دالة المرتب الموحّدة (بدل salaryText وsalaryTeaser القديمتين) لكارت الوظيفة وصفحتها وتاب الباحث.
+// "full" للصفحة والكارت، "short" للأماكن الضيقة. specified: false لما مفيش رقم ولا تفاوض — الكارت
+// بيعرضها بلون هادي. showSalary === false: "غير معلن" (صاحب العمل اختار يخفيه)، ومفيش بيانات: "غير محدد".
+export type SalaryFields = {
+  showSalary?: boolean | null;
+  salaryNegotiable?: boolean | null;
+  salaryFrom?: number | null;
+  salaryTo?: number | null;
+};
+
+export function salaryDisplay(p: SalaryFields, mode: "full" | "short" = "full"): { text: string; specified: boolean } {
+  if (p.showSalary === false) return { text: "غير معلن", specified: false };
+  if (p.salaryNegotiable) return { text: mode === "full" ? "قابل للتفاوض / حسب الخبرة" : "قابل للتفاوض", specified: true };
+  const from = p.salaryFrom && p.salaryFrom > 0 ? p.salaryFrom : null;
+  const to = p.salaryTo && p.salaryTo > 0 ? p.salaryTo : null;
+  if (from && to) return { text: `${from} - ${to} جنيه`, specified: true };
+  if (from) return { text: mode === "full" ? `يبدأ من ${from} جنيه` : `${from}+ جنيه`, specified: true };
+  if (to) return { text: `حتى ${to} جنيه`, specified: true };
+  return { text: "غير محدد", specified: false };
 }
 
 // null لو الوظيفة من غير minExperience/maxExperience خالص — القسم اللي بيستخدمها لازم

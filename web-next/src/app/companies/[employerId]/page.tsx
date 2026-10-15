@@ -5,6 +5,7 @@ import { db } from "@/lib/firebase";
 import JobListItem from "@/app/jobs/JobListItem";
 import CompanyLogo from "@/components/CompanyLogo";
 import { isPublicCompanyJob } from "@/lib/companyVisibility";
+import { toJobCardData } from "@/lib/jobCardData";
 
 // cache() عشان generateMetadata والصفحة يشاركوا نفس القراءتين في نفس الطلب بدل ما كل واحد يقرا لوحده.
 const getCompany = cache(async (employerId: string): Promise<any> => {
@@ -28,7 +29,8 @@ const getCompanyJobs = cache(async (employerId: string) => {
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() } as any))
     .filter((p) => isPublicCompanyJob(p, now))
-    .sort((a, b) => Number(!!b.featured) - Number(!!a.featured));
+    .sort((a, b) => Number(!!b.featured) - Number(!!a.featured))
+    .map(toJobCardData);
 });
 
 async function getPublicCompany(employerId: string) {

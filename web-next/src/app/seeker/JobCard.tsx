@@ -3,7 +3,7 @@
 import ShareButton from "@/components/ShareButton";
 import { EXPERIENCE_LEVELS } from "@/lib/constants";
 import { ScreeningQuestion } from "@/components/ScreeningQuestionsModal";
-import { tagStyle, featuredPillStyle, ApplicationStatus, APPLICATION_STATUS_LABELS, APPLICATION_STATUS_STYLES } from "@/lib/jobCardStyles";
+import { tagStyle, featuredPillStyle, ApplicationStatus, APPLICATION_STATUS_LABELS, APPLICATION_STATUS_STYLES, salaryDisplay } from "@/lib/jobCardStyles";
 import { toWhatsAppNumber } from "@/lib/phoneAuth";
 
 export type JobPost = {
@@ -43,13 +43,6 @@ export function isContactJob(p: JobPost): boolean {
 export function contactWhatsAppNumber(p: JobPost): string | null {
   if (p.receiveMethod !== "contact" || p.contactMethod !== "whatsapp" || !p.contactValue) return null;
   return toWhatsAppNumber(p.contactValue) || p.contactValue.replace(/\D/g, "");
-}
-
-export function salaryTeaser(p: JobPost) {
-  if (p.showSalary === false) return "الراتب غير محدد";
-  if (p.salaryNegotiable) return "قابل للتفاوض";
-  if (p.salaryFrom) return `${p.salaryFrom}${p.salaryTo ? " - " + p.salaryTo : "+"} جنيه`;
-  return "الراتب غير محدد";
 }
 
 type Props = {
@@ -194,7 +187,7 @@ export default function JobCard({ job: p, applicationStatus, saved, onToggleSave
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid #14213D14" }}>
         <span style={tagStyle}>{p.specialization}</span>
         {p.jobLevel && <span style={tagStyle}>🎯 {EXPERIENCE_LEVELS[p.jobLevel] || p.jobLevel}</span>}
-        <span style={tagStyle}>💰 {salaryTeaser(p)}</span>
+        <span style={tagStyle}>💰 {salaryDisplay(p, "short").text}</span>
       </div>
     </div>
   );

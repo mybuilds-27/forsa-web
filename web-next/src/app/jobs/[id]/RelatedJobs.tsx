@@ -1,6 +1,7 @@
 import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import JobListItem from "@/app/jobs/JobListItem";
+import { toJobCardData } from "@/lib/jobCardData";
 
 const RESULT_COUNT = 4;
 
@@ -117,7 +118,7 @@ export default async function RelatedJobs({
       <h2 style={{ fontSize: 18, marginBottom: 16 }}>وظائف ذات صلة</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
         {jobs.map((job) => (
-          <JobListItem key={job.id} job={job} />
+          <JobListItem key={job.id} job={toJobCardData(job)} />
         ))}
       </div>
     </div>

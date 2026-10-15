@@ -5,10 +5,11 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { fetchSavedJobIds, setJobSaved } from "@/lib/savedJobs";
 import JobListItem from "@/app/jobs/JobListItem";
+import type { JobCardData } from "@/lib/jobCardData";
 import RegisterModal from "./RegisterModal";
 
 type Props = {
-  jobs: any[];
+  jobs: JobCardData[];
   // list: عمودي (صفحات /jobs العامة)، grid: شبكة (قسم "أحدث الوظائف" في الرئيسية)
   layout?: "list" | "grid";
 };

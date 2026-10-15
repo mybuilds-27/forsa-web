@@ -26,14 +26,15 @@ import { getActiveJobsSeoData, JobCombo } from "@/lib/publicJobsQuery";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { shouldShowProfileNudge } from "@/lib/profileNudge";
-import JobCard, { JobPost, salaryTeaser, isContactJob, contactWhatsAppNumber } from "./JobCard";
+import JobCard, { JobPost, isContactJob, contactWhatsAppNumber } from "./JobCard";
 import ContactReveal from "@/app/jobs/[id]/ContactReveal";
-import { tagStyle, ApplicationStatus, applicationStatusOf } from "@/lib/jobCardStyles";
+import { tagStyle, ApplicationStatus, applicationStatusOf, salaryDisplay } from "@/lib/jobCardStyles";
 import ScreeningQuestionsModal from "@/components/ScreeningQuestionsModal";
 import SpecializationMismatchModal, { MismatchItem } from "@/components/SpecializationMismatchModal";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import ProfileCompletionBar from "@/components/ProfileCompletionBar";
 import JobListItem from "@/app/jobs/JobListItem";
+import { toJobCardData } from "@/lib/jobCardData";
 import PostApplyProfileNudge from "@/components/PostApplyProfileNudge";
 
 const PAGE_SIZE = 12;
@@ -455,7 +456,7 @@ export default function JobsTab({ completionPercent, specialization, keywords, j
           <h2 style={{ fontSize: 18, marginBottom: 12 }}>🎯 وظائف موصى بيها ليك</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
             {recommendedJobs.map((job) => (
-              <JobListItem key={job.id} job={job} />
+              <JobListItem key={job.id} job={toJobCardData(job)} />
             ))}
           </div>
         </div>
@@ -627,7 +628,7 @@ export default function JobsTab({ completionPercent, specialization, keywords, j
               {selectedJob.jobLevel && <span style={tagStyle}>{EXPERIENCE_LEVELS[selectedJob.jobLevel] || selectedJob.jobLevel}</span>}
             </div>
             <p style={{ lineHeight: 1.7 }}>{selectedJob.description}</p>
-            <div style={{ marginTop: 10, fontWeight: 600 }}>الراتب: {salaryTeaser(selectedJob)}</div>
+            <div style={{ marginTop: 10, fontWeight: 600 }}>الراتب: {salaryDisplay(selectedJob, "short").text}</div>
             {selectedJob.requirements && (
               <p style={{ marginTop: 10 }}>
                 <strong>الشروط:</strong> {selectedJob.requirements}

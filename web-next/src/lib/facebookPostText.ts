@@ -61,8 +61,8 @@ function yesNoText(value: string | undefined, yesLabel: string, noLabel: string)
   return null;
 }
 
-// استثناء متعمد عن salaryText() في jobCardStyles.ts (المستخدمة في الصفحة العامة): هناك السطر
-// بيفضل ظاهر بقيمة "غير محدد" لو showSalary === false أو مفيش بيانات راتب خالص. هنا قرار صريح
+// استثناء متعمد عن salaryDisplay() في jobCardStyles.ts (المستخدمة في الصفحة العامة): هناك السطر
+// بيفضل ظاهر بقيمة "غير معلن" لو showSalary === false أو "غير محدد" لو مفيش بيانات راتب خالص. هنا قرار صريح
 // من صاحب الموقع: السطر يختفي بالكامل في الحالتين، بدل ما يلمّح لصاحب العمل إن الراتب "غير
 // محدد" في نص هيتنشر فعليًا لو أصلًا مختار يخفيه أو لسه مادخلش بيانات راتب.
 function salaryLine(job: FacebookPostJob): string | null {

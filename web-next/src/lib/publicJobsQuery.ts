@@ -1,12 +1,18 @@
 import { collection, getDocs, limit, orderBy, query, where, type QueryConstraint } from "firebase/firestore";
 import { db } from "./firebase";
 import { GOVERNORATES, SPECIALIZATION_OPTIONS } from "./constants";
+import { toJobCardData, type JobCardData } from "./jobCardData";
 
 // شكل مبسّط بس لمستند job_posts للحقول اللي getFeaturedPublicJobs محتاجاها — بدل any، عشان
 // فحص expiresAt يبقى type-safe من غير ما نحتاج نعرّف النوع الكامل الحقيقي للمستند.
 type JobPostDoc = { id: string; expiresAt?: { toMillis: () => number } } & Record<string, unknown>;
 
-export async function getActivePublicJobs(filters: { governorate?: string; city?: string; specialization?: string } = {}) {
+// الدوال التلاتة اللي تحت بترجّع JobCardData (شوف lib/jobCardData.ts) مش المستند الكامل: نتيجتها بتتبعت
+// لكومبوننت client (PublicJobsList)، فأي حقل زيادة كان بيوصل للمتصفح. الفلترة نفسها بتحصل على المستند
+// الكامل الأول.
+export async function getActivePublicJobs(
+  filters: { governorate?: string; city?: string; specialization?: string } = {}
+): Promise<JobCardData[]> {
   const constraints: QueryConstraint[] = [where("isActive", "==", true)];
   if (filters.governorate) constraints.push(where("governorate", "==", filters.governorate));
   if (filters.city) constraints.push(where("city", "==", filters.city));
@@ -18,7 +24,8 @@ export async function getActivePublicJobs(filters: { governorate?: string; city?
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() } as any))
     .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now)
-    .sort((a, b) => Number(!!b.featured) - Number(!!a.featured));
+    .sort((a, b) => Number(!!b.featured) - Number(!!a.featured))
+    .map(toJobCardData);
 }
 
 // وظايف الباقة المدفوعة النشطة بس، من الأحدث — قسم "⭐ وظائف مميزة" في الصفحة الرئيسية.
@@ -27,7 +34,7 @@ export async function getActivePublicJobs(filters: { governorate?: string; city?
 // عمومًا (لو إجمالي الوظائف النشطة زاد عن كده يومًا ما) متتفوتش من القسم ده. الـcomposite
 // index المطلوب (isActive ASC + featured DESC + createdAt DESC) موجود بالفعل في
 // firestore.indexes.json (بيتشارك مع getFilteredPublicJobs تحت) — مفيش حاجة جديدة تتنشر.
-export async function getFeaturedPublicJobs(limitCount: number) {
+export async function getFeaturedPublicJobs(limitCount: number): Promise<JobCardData[]> {
   const snap = await getDocs(
     query(
       collection(db, "job_posts"),
@@ -40,7 +47,8 @@ export async function getFeaturedPublicJobs(limitCount: number) {
   const now = Date.now();
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }) as JobPostDoc)
-    .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now);
+    .filter((p) => !p.expiresAt || p.expiresAt.toMillis() > now)
+    .map(toJobCardData);
 }
 
 // نفس شكل استعلام JobsTab.tsx بالظبط (isActive + orderBy(featured) + orderBy(createdAt) +
@@ -51,7 +59,7 @@ export async function getFeaturedPublicJobs(limitCount: number) {
 // بالظبط مع specOther.
 export async function getFilteredPublicJobs(
   filters: { governorate?: string; jobType?: string; specialization?: string; city?: string; q?: string } = {}
-) {
+): Promise<JobCardData[]> {
   // city بيتفلتر client-side بعد الجلب، فمحتاجين نجيب عدد أكبر من الـ50 المعروضة عادي عشان
   // الفلترة بعد الجلب متقلّلش النتايج الفعلية المعروضة (نفس الفكرة اللي اتعملت مع فلتر الراتب).
   const fetchLimit = filters.city ? 150 : 50;
@@ -85,7 +93,7 @@ export async function getFilteredPublicJobs(
     });
   }
 
-  return jobs.slice(0, 50);
+  return jobs.slice(0, 50).map(toJobCardData);
 }
 
 export type JobCombo = { governorate: string; specialization: string; count: number };

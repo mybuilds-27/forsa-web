@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import PublicJobsList from "@/components/PublicJobsList";
+import type { JobCardData } from "@/lib/jobCardData";
 
 const PAGE_SIZE = 10;
 
 type Props = {
-  jobs: any[];
+  jobs: JobCardData[];
 };
 
 // كل الوظائف المطابقة (لحد 50) بتوصل من السيرفر مرة واحدة بالفعل (getFilteredPublicJobs)،

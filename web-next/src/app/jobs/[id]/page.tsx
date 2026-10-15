@@ -11,7 +11,7 @@ import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
 import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify } from "@/lib/constants";
 import { toWhatsAppNumber } from "@/lib/phoneAuth";
-import { featuredPillStyle, JOB_TYPE_LABELS, salaryText, sanitizeJobDescription, tagStyle, experienceRangeText } from "@/lib/jobCardStyles";
+import { featuredPillStyle, JOB_TYPE_LABELS, salaryDisplay, sanitizeJobDescription, tagStyle, experienceRangeText } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX } from "@/lib/publicJobsQuery";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
@@ -433,7 +433,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 14, marginBottom: 20 }}>
-        <DetailRow label="الراتب" value={salaryText(job)} />
+        <DetailRow label="الراتب" value={salaryDisplay(job).text} />
         <DetailRow label="عدد الفرص المتاحة" value={job.vacancies ? `${job.vacancies} فرصة` : undefined} />
         <DetailRow
           label="السن المطلوب"
