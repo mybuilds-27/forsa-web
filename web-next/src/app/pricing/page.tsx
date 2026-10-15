@@ -33,6 +33,24 @@ const rows: { label: string; value: (p: PlanLimits) => string }[] = [
   { label: "شارة «مميز» على الوظائف", value: (p) => (p.featured ? "متاحة" : "غير متاحة") },
 ];
 
+// الباقتين بنفس الترتيب: نفس المصدر للجدول (الشاشات الأوسع) وللبطاقات (أقل من 640px) — شوف
+// .pricing-table و.pricing-cards في globals.css. القيم نفسها من rows فوق، مفيش تكرار للبيانات.
+const plans: { title: string; limits: PlanLimits; price: React.ReactNode }[] = [
+  { title: "الباقة المجانية", limits: FREE_PLAN_LIMITS, price: "دون رسوم" },
+  {
+    title: "الباقة المدفوعة",
+    limits: PREMIUM_PLAN_LIMITS,
+    price: (
+      <>
+        {PREMIUM_PRICE_EGP} جنيه لمدة {PREMIUM_DURATION_MONTHS} أشهر
+        <div style={{ fontSize: 12.5, color: "#4A5568", marginTop: 4 }}>
+          (حوالي {monthlyPrice} جنيهًا شهريًا)
+        </div>
+      </>
+    ),
+  },
+];
+
 const faq: { q: string; a: string }[] = [
   {
     q: "ماذا يحدث عند انتهاء الاشتراك؟",
@@ -63,35 +81,52 @@ export default function PricingPage() {
         اختيارية لمن يحتاج إلى عدد أكبر من الوظائف والدعوات وإمكانية التواصل المباشر مع المرشحين.
       </p>
 
-      <div style={{ overflowX: "auto", marginBottom: 32 }}>
+      <div className="pricing-table" style={{ overflowX: "auto", marginBottom: 32 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 480 }}>
           <thead>
             <tr style={{ background: "#F8F6F0" }}>
               <th style={thStyle}></th>
-              <th style={thStyle}>الباقة المجانية</th>
-              <th style={thStyle}>الباقة المدفوعة</th>
+              {plans.map((plan) => (
+                <th key={plan.title} style={thStyle}>{plan.title}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             <tr>
               <td style={labelStyle}>السعر</td>
-              <td style={tdStyle}>دون رسوم</td>
-              <td style={tdStyle}>
-                {PREMIUM_PRICE_EGP} جنيه لمدة {PREMIUM_DURATION_MONTHS} أشهر
-                <div style={{ fontSize: 12.5, color: "#4A5568", marginTop: 4 }}>
-                  (حوالي {monthlyPrice} جنيهًا شهريًا)
-                </div>
-              </td>
+              {plans.map((plan) => (
+                <td key={plan.title} style={tdStyle}>{plan.price}</td>
+              ))}
             </tr>
             {rows.map((row) => (
               <tr key={row.label}>
                 <td style={labelStyle}>{row.label}</td>
-                <td style={tdStyle}>{row.value(FREE_PLAN_LIMITS)}</td>
-                <td style={tdStyle}>{row.value(PREMIUM_PLAN_LIMITS)}</td>
+                {plans.map((plan) => (
+                  <td key={plan.title} style={tdStyle}>{row.value(plan.limits)}</td>
+                ))}
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* أقل من 640px: بطاقة لكل باقة فوق بعض بدل الجدول (اللي كان عموده المدفوع بيستخبى برا الشاشة) */}
+      <div className="pricing-cards" style={{ marginBottom: 32 }}>
+        {plans.map((plan) => (
+          <div key={plan.title} style={cardStyle}>
+            <div style={cardTitleStyle}>{plan.title}</div>
+            <div style={cardRowStyle}>
+              <div style={cardLabelStyle}>السعر</div>
+              <div style={cardValueStyle}>{plan.price}</div>
+            </div>
+            {rows.map((row) => (
+              <div key={row.label} style={cardRowStyle}>
+                <div style={cardLabelStyle}>{row.label}</div>
+                <div style={cardValueStyle}>{row.value(plan.limits)}</div>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
 
       <h2 style={{ fontSize: 19, marginBottom: 10 }}>طريقة الاشتراك</h2>
@@ -153,6 +188,44 @@ const labelStyle: React.CSSProperties = {
   ...tdStyle,
   color: "#4A5568",
   fontWeight: 700,
+};
+
+const cardStyle: React.CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  border: "1px solid #14213D22",
+  borderRadius: 12,
+  overflow: "hidden",
+};
+
+const cardTitleStyle: React.CSSProperties = {
+  background: "#F8F6F0",
+  padding: "12px 14px",
+  fontSize: 15,
+  fontWeight: 700,
+  borderBottom: "2px solid #14213D33",
+};
+
+const cardRowStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  padding: "10px 14px",
+  borderBottom: "1px solid #14213D1A",
+  fontSize: 14,
+};
+
+const cardLabelStyle: React.CSSProperties = {
+  flex: "1 1 auto",
+  minWidth: 0,
+  color: "#4A5568",
+  fontWeight: 700,
+};
+
+const cardValueStyle: React.CSSProperties = {
+  flex: "0 1 auto",
+  textAlign: "left",
 };
 
 const buttonStyle: React.CSSProperties = {
