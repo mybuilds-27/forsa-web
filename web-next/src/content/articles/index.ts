@@ -26,6 +26,25 @@ export function getArticle(slug: string): Article | undefined {
   return articles.find((a) => a.slug === slug);
 }
 
+// آخر تعديل: updatedAt لو موجود وأحدث من تاريخ النشر، وإلا تاريخ النشر نفسه
+export function articleModifiedDate(a: Article): string {
+  return a.updatedAt && a.updatedAt > a.date ? a.updatedAt : a.date;
+}
+
+// مقالات ذات صلة: نفس التصنيف الأول (من الأحدث)، وبعدين الأحدث من الباقي، من غير المقال نفسه
+export function getRelatedArticles(slug: string, count = 3): Article[] {
+  const current = getArticle(slug);
+  const others = articles.filter((a) => a.slug !== slug);
+  const sameCategory = current?.category ? others.filter((a) => a.category === current.category) : [];
+  const rest = others.filter((a) => !sameCategory.includes(a));
+  return [...sameCategory, ...rest].slice(0, count);
+}
+
+// أحدث المقالات (اختياري: تصنيف معيّن) — articles مترتبة من الأحدث أصلًا
+export function getLatestArticles(count: number, category?: Article["category"]): Article[] {
+  return (category ? articles.filter((a) => a.category === category) : articles).slice(0, count);
+}
+
 // UTC صريح عشان التاريخ ميتزحزحش يوم حسب منطقة السيرفر وقت الـbuild.
 export function formatArticleDate(date: string): string {
   return new Date(`${date}T00:00:00Z`).toLocaleDateString("ar-EG", {

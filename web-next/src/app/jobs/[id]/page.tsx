@@ -16,6 +16,10 @@ import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_BROAD } f
 import { NOINDEX_FOLLOW, pageSeo } from "@/lib/seoMetadata";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
+import { getArticle } from "@/content/articles";
+
+// "قبل ما تقدّم": نفس المقالات لكل وظيفة (اختيار ثابت، من غير أي قراءة) — اللي ميبقاش موجود بيتشال
+const BEFORE_APPLY_ARTICLE_SLUGS = ["avoid-fake-job-scams", "how-to-write-a-cv", "common-interview-questions"];
 
 // نفس مشكلة الـstatic prerender اللي لقيناها في companies/page.tsx وjobs/page.tsx —
 // من غيرها، صفحة المحافظة لوحدها (فرع findGovernorateBySlug تحت) ممكن تفضل بالبيانات
@@ -488,11 +492,30 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <p style={{ marginBottom: 20, whiteSpace: "pre-wrap" }}><strong>مزايا إضافية:</strong> {additionalBenefits}</p>
       )}
 
+      <BeforeApplyArticles />
+
       <RelatedJobs jobId={job.id} specialization={job.specialization} governorate={job.governorate} />
         </div>
 
         <BrowseSidebar combos={seoData.combos} />
       </div>
+    </div>
+  );
+}
+
+function BeforeApplyArticles() {
+  const links = BEFORE_APPLY_ARTICLE_SLUGS.map((slug) => getArticle(slug)).filter((a) => a !== undefined);
+  if (links.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 20, padding: "14px 16px", background: "#F8F6F0", border: "1px solid #14213D1F", borderRadius: 10 }}>
+      <div style={{ fontWeight: 700, color: "#14213D", marginBottom: 8 }}>قبل ما تقدّم</div>
+      <ul style={{ margin: 0, paddingInlineStart: 20, lineHeight: 1.9, fontSize: 14 }}>
+        {links.map((a) => (
+          <li key={a.slug}>
+            <Link href={`/articles/${a.slug}`} style={{ color: "#14213D" }}>{a.title}</Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -6,6 +6,8 @@ import { getCompanies } from "@/lib/companiesQuery";
 import { GOVERNORATES, SEO_AREAS, SPECIALIZATION_OPTIONS, slugify } from "@/lib/constants";
 import { JOB_TYPE_LABELS, tagStyle } from "@/lib/jobCardStyles";
 import CompanyLogo from "@/components/CompanyLogo";
+import ArticleCard, { articleGridStyle } from "@/components/ArticleCard";
+import { getLatestArticles } from "@/content/articles";
 
 const COLORS = {
   ink: "#14213D",
@@ -52,6 +54,8 @@ export default async function HomePage() {
   // getCompanies() بترجع الشركات مرتبة: بلوجو حقيقي مرفوع الأول، وبعدين تعادل بالأحدث
   // (آخر وظيفة نشطة نشرتها الشركة) — الشرط الأساسي (وظيفة نشطة واحدة على الأقل) زي ما هو.
   const topCompanies = companies.slice(0, HOME_COMPANIES_COUNT);
+  // مقالات ثابتة في الكود (content/articles) — مفيش أي قراءة Firestore
+  const guideArticles = getLatestArticles(3, "seekers");
 
   return (
     <div dir="rtl">
@@ -322,6 +326,34 @@ export default async function HomePage() {
                     }}
                   >
                     تصفح كل الوظائف ←
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {guideArticles.length > 0 && (
+              <div style={{ marginBottom: 40 }}>
+                <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>دليل الباحث عن عمل</h2>
+                <div style={articleGridStyle}>
+                  {guideArticles.map((a) => (
+                    <ArticleCard key={a.slug} article={a} />
+                  ))}
+                </div>
+                <div style={{ textAlign: "center", marginTop: 20 }}>
+                  <Link
+                    href="/articles"
+                    style={{
+                      display: "inline-block",
+                      padding: "10px 22px",
+                      borderRadius: 8,
+                      border: `1.5px solid ${COLORS.ink}`,
+                      color: COLORS.ink,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                    }}
+                  >
+                    كل المقالات ←
                   </Link>
                 </div>
               </div>

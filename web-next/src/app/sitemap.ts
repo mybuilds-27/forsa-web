@@ -1,6 +1,6 @@
 import { slugify } from "@/lib/constants";
 import { getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_BROAD, MIN_JOBS_FOR_INDEX_NARROW } from "@/lib/publicJobsQuery";
-import { articles } from "@/content/articles";
+import { articleModifiedDate, articles } from "@/content/articles";
 
 // ملف الـsitemap ده مالهوش أي dynamic segment، فـNext.js كان بيعمله static prerender
 // وقت الـbuild ويسيبه في كاش (زي ما لقينا في companies/page.tsx وjobs/page.tsx) — يعني
@@ -18,7 +18,8 @@ export default async function sitemap() {
     { url: `${baseUrl}/privacy`, lastModified: new Date() },
     { url: `${baseUrl}/terms`, lastModified: new Date() },
     { url: `${baseUrl}/contact`, lastModified: new Date() },
-    { url: `${baseUrl}/articles`, lastModified: new Date() },
+    // أحدث تاريخ نشر/تعديل بين المقالات (مش وقت توليد الـsitemap)
+    { url: `${baseUrl}/articles`, lastModified: articles.length ? new Date(articles.map(articleModifiedDate).sort().reverse()[0]) : new Date() },
     { url: `${baseUrl}/companies`, lastModified: new Date() },
     { url: `${baseUrl}/faq`, lastModified: new Date() },
     { url: `${baseUrl}/why-free`, lastModified: new Date() },
@@ -27,7 +28,7 @@ export default async function sitemap() {
 
   const articlePages = articles.map((a) => ({
     url: `${baseUrl}/articles/${a.slug}`,
-    lastModified: new Date(a.date),
+    lastModified: new Date(articleModifiedDate(a)),
   }));
 
   let jobPages: { url: string; lastModified: Date }[] = [];

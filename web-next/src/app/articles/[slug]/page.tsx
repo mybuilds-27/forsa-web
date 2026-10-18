@@ -1,8 +1,47 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { articles, formatArticleDate, getArticle } from "@/content/articles";
+import { articleModifiedDate, articles, formatArticleDate, getArticle, getRelatedArticles } from "@/content/articles";
+import type { Article } from "@/content/articles/types";
 import ArticleBody from "@/lib/articleMarkdown";
+import ArticleCard, { articleGridStyle } from "@/components/ArticleCard";
+
+const SITE_URL = "https://www.elshoghl.com";
+
+// Article + BreadcrumbList (schema.org). التواريخ من بيانات المقال زي ما هي: datePublished = date،
+// وdateModified = updatedAt لو أحدث، وإلا date.
+function articleJsonLd(article: Article) {
+  const url = `${SITE_URL}/articles/${article.slug}`;
+  const organization = {
+    "@type": "Organization",
+    name: "الشغل",
+    url: SITE_URL,
+    logo: { "@type": "ImageObject", url: `${SITE_URL}/icon-512.png` },
+  };
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: article.title,
+      description: article.description,
+      datePublished: article.date,
+      dateModified: articleModifiedDate(article),
+      inLanguage: "ar",
+      author: organization,
+      publisher: organization,
+      mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "الرئيسية", item: SITE_URL },
+        { "@type": "ListItem", position: 2, name: "المقالات", item: `${SITE_URL}/articles` },
+        { "@type": "ListItem", position: 3, name: article.title, item: url },
+      ],
+    },
+  ];
+}
 
 // أي slug مش موجود في content/articles بيرجع 404 على طول (مفيش توليد وقت الطلب).
 export const dynamicParams = false;
@@ -31,6 +70,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       locale: "ar_EG",
       type: "article",
       publishedTime: article.date,
+      modifiedTime: articleModifiedDate(article),
     },
     twitter: { card: "summary_large_image", title, description: article.description },
   };
@@ -60,9 +100,15 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const { slug } = await params;
   const article = getArticle(slug);
   if (!article) notFound();
+  const modified = articleModifiedDate(article);
+  const related = getRelatedArticles(article.slug, 3);
 
   return (
     <article dir="rtl" style={{ maxWidth: 720, margin: "0 auto", padding: "40px 20px" }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd(article)).replace(/</g, "\\u003c") }}
+      />
       <Link href="/articles" style={{ fontSize: 14, color: "#4A5568", textDecoration: "none" }}>
         → كل المقالات
       </Link>
@@ -71,6 +117,11 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
       <time dateTime={article.date} style={{ fontSize: 13, color: "#4A5568" }}>
         {formatArticleDate(article.date)}
       </time>
+      {modified !== article.date && (
+        <div style={{ fontSize: 13, color: "#4A5568", marginTop: 4 }}>
+          آخر تحديث: <time dateTime={modified}>{formatArticleDate(modified)}</time>
+        </div>
+      )}
 
       <div style={{ marginTop: 24 }}>
         <ArticleBody markdown={article.body} />
@@ -93,6 +144,17 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           <Link href="/register" style={ctaGhostStyle}>سجّل مجانًا</Link>
         </div>
       </div>
+
+      {related.length > 0 && (
+        <section style={{ marginTop: 36 }}>
+          <h2 style={{ fontSize: 19, fontWeight: 800, color: "#14213D", marginBottom: 14 }}>مقالات ذات صلة</h2>
+          <div style={articleGridStyle}>
+            {related.map((a) => (
+              <ArticleCard key={a.slug} article={a} />
+            ))}
+          </div>
+        </section>
+      )}
     </article>
   );
 }
