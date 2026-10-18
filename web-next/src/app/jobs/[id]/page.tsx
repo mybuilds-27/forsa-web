@@ -11,8 +11,9 @@ import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
 import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify } from "@/lib/constants";
 import { toWhatsAppNumber } from "@/lib/phoneAuth";
-import { featuredPillStyle, JOB_TYPE_LABELS, salaryDisplay, sanitizeJobDescription, tagStyle, experienceRangeText } from "@/lib/jobCardStyles";
-import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX } from "@/lib/publicJobsQuery";
+import { featuredPillStyle, JOB_TYPE_LABELS, salaryDisplay, sanitizeJobDescription, tagStyle, experienceRangeText, isJobDescriptionIndexable } from "@/lib/jobCardStyles";
+import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_BROAD } from "@/lib/publicJobsQuery";
+import { NOINDEX_FOLLOW, pageSeo } from "@/lib/seoMetadata";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
 
@@ -52,11 +53,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       jobs.length > 0
         ? `${jobs.length} وظيفة شغل متاحة حاليًا في ${governorate} على موقع الشغل — تصفح وقدّم دلوقتي.`
         : `دوّر على وظايف شغل في ${governorate} على موقع الشغل.`;
-    return {
-      title,
-      description,
-      ...(jobs.length < MIN_JOBS_FOR_INDEX ? { robots: { index: false, follow: true } } : {}),
-    };
+    return pageSeo({ title, description, path: `/jobs/${slugify(governorate)}`, noindex: jobs.length < MIN_JOBS_FOR_INDEX_BROAD });
   }
 
   const job = await getJob(id);
@@ -67,12 +64,16 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     return {
       title: `${job.title} (منتهية) - الشغل`,
       description: `الوظيفة دي انتهت — شوف وظايف مشابهة في ${job.specialization || "نفس المجال"} على موقع الشغل.`,
-      robots: { index: false, follow: true },
+      alternates: { canonical: `/jobs/${job.id}` },
+      robots: NOINDEX_FOLLOW,
     };
   }
-  const title = `${job.title} - وظيفة على موقع الشغل`;
+  // العنوان فيه اسم الشركة (لو معلن) والمدينة والمحافظة، عشان الوظايف اللي بنفس المسمى متطلعش بنفس العنوان
+  const place = [job.city, job.governorate].filter(Boolean).join("، ");
+  const shownCompany = job.showCompanyName && job.companyName ? job.companyName : "";
+  const title = `${[job.title, shownCompany, place].filter(Boolean).join(" - ")} | الشغل`;
   const description = `${job.title} في ${job.city} - ${job.governorate}. ${sanitizeJobDescription(job.description || "").slice(0, 120)}`;
-  const companyName = job.showCompanyName && job.companyName ? job.companyName : "شركة غير معلنة";
+  const companyName = shownCompany || "شركة غير معلنة";
   const ogTitle = `${job.title} - ${companyName}`;
   const url = `https://www.elshoghl.com/jobs/${job.id}`;
   // OG_IMAGE هنا مبدئي (نفس لوجو الموقع العام) — المرحلة الجاية: صورة مولّدة لكل وظيفة
@@ -82,6 +83,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return {
     title,
     description,
+    alternates: { canonical: `/jobs/${job.id}` },
+    // وصف قصير (أقل من MIN_JOB_DESCRIPTION_FOR_INDEX بعد التنضيف): الصفحة شغالة للزوار بس مش بتتفهرس
+    ...(isJobDescriptionIndexable(job.description) ? {} : { robots: NOINDEX_FOLLOW }),
     openGraph: {
       title: ogTitle,
       description,

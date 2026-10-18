@@ -3,13 +3,30 @@ import { Suspense } from "react";
 import { getFilteredPublicJobs, getActiveJobsSeoData } from "@/lib/publicJobsQuery";
 import BrowseBySpecialization from "@/components/BrowseBySpecialization";
 import { getAreasForGovernorate, slugify } from "@/lib/constants";
+import { pageSeo } from "@/lib/seoMetadata";
 import JobsFilterBar from "./JobsFilterBar";
 import PaginatedJobsList from "./PaginatedJobsList";
 
-export const metadata = {
-  title: "وظايف شغل في مصر - تصفح كل الوظائف المتاحة | الشغل",
-  description: "دوّر على وظيفتك الجاية من هنا - وظايف شغل جديدة يوميًا في كل تخصصات ومحافظات مصر، على موقع الشغل المجاني بالكامل.",
-};
+// مفاتيح تتبع (حملات وإعلانات وإحالات) مبتغيّرش محتوى الصفحة، فمبتخليهاش noindex: أي مفتاح بيبدأ بـutm_،
+// وfbclid وgclid وref. أي مفتاح غير دول (بحث أو فلتر أو حتى مفتاح مش معروف) بيخلي الصفحة noindex.
+const IGNORED_TRACKING_PARAM_PREFIX = "utm_";
+const IGNORED_TRACKING_PARAMS = new Set(["fbclid", "gclid", "ref"]);
+
+function isTrackingParam(key: string): boolean {
+  return key.startsWith(IGNORED_TRACKING_PARAM_PREFIX) || IGNORED_TRACKING_PARAMS.has(key);
+}
+
+// canonical دايمًا /jobs من غير query. أي query غير مفاتيح التتبع = noindex,follow: نتايج الفلاتر نسخ
+// جزئية من نفس الصفحة، وصفحات المحافظة/التخصص الثابتة هي اللي بتتفهرس.
+export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams;
+  return pageSeo({
+    title: "وظايف شغل في مصر - تصفح كل الوظائف المتاحة | الشغل",
+    description: "دوّر على وظيفتك الجاية من هنا - وظايف شغل جديدة يوميًا في كل تخصصات ومحافظات مصر، على موقع الشغل المجاني بالكامل.",
+    path: "/jobs",
+    noindex: Object.keys(params).some((key) => !isTrackingParam(key)),
+  });
+}
 
 // الصفحة دي مالهاش أي dynamic segment، فـNext.js كان بيعملها static prerender وقت الـbuild
 // ويسيبها في كاش (زي ما لقينا في companies/page.tsx) — يعني وظيفة جديدة منشورة معتفضلش

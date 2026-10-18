@@ -15,6 +15,9 @@ const COLORS = {
   success: "#2F6F4E",
 };
 
+// العنوان والوصف وopenGraph (og:url = الرئيسية) من layout.tsx؛ هنا canonical بس
+export const metadata = { alternates: { canonical: "/" } };
+
 const LATEST_JOBS_COUNT = 6;
 const FEATURED_JOBS_COUNT = 6;
 const HOME_COMPANIES_COUNT = 12;
@@ -366,7 +369,7 @@ export default async function HomePage() {
             {GOVERNORATES.map((g) => (
               <Link
                 key={g}
-                href={`/jobs?governorate=${encodeURIComponent(g)}`}
+                href={`/jobs/${slugify(g)}`}
                 style={{ ...tagStyle, textDecoration: "none", color: COLORS.ink, padding: "7px 14px", fontSize: 13 }}
               >
                 {g}

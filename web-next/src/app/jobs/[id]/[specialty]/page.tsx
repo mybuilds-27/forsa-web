@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findGovernorateBySlug, findSpecialtyBySlug, slugify } from "@/lib/constants";
-import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX } from "@/lib/publicJobsQuery";
+import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_NARROW } from "@/lib/publicJobsQuery";
+import { pageSeo } from "@/lib/seoMetadata";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
 
@@ -32,11 +33,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       ? `${jobs.length} وظيفة ${specialization} متاحة حاليًا في ${governorate} على موقع الشغل — تصفح وقدّم دلوقتي.`
       : `دوّر على وظايف ${specialization} في ${governorate} على موقع الشغل.`;
 
-  return {
+  return pageSeo({
     title,
     description,
-    ...(jobs.length < MIN_JOBS_FOR_INDEX ? { robots: { index: false, follow: true } } : {}),
-  };
+    path: `/jobs/${slugify(governorate)}/${slugify(specialization)}`,
+    noindex: jobs.length < MIN_JOBS_FOR_INDEX_NARROW,
+  });
 }
 
 export default async function GovernorateSpecialtyJobsPage({

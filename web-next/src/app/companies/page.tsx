@@ -1,10 +1,12 @@
 import { getCompaniesWithoutLogos } from "@/lib/companiesQuery";
+import { pageSeo } from "@/lib/seoMetadata";
 import CompaniesGrid from "./CompaniesGrid";
 
-export const metadata = {
+export const metadata = pageSeo({
   title: "الشركات اللي بتوظف دلوقتي في مصر - موقع الشغل",
   description: "تصفح الشركات اللي بتدوّر على كوادر وبتوظف دلوقتي في مصر، وشوف كل وظايف الشغل المفتوحة عندها في مكان واحد على موقع الشغل.",
-};
+  path: "/companies",
+});
 
 // الصفحة دي مالهاش أي dynamic segment، فـNext.js كان بيعملها static prerender وقت الـbuild
 // ويسيبها في كاش ISR (لاحظنا x-nextjs-stale-time:300 وx-vercel-cache:HIT فعليًا على الموقع

@@ -13,6 +13,19 @@ export function sanitizeJobDescription(text: string): string {
     .replace(/\*/g, "");
 }
 
+// صفحة الوظيفة بتتفهرس بس لو وصفها (بعد sanitizeJobDescription وضغط المسافات) MIN_JOB_DESCRIPTION_FOR_INDEX
+// حرف أو أكتر. أقل من كده: noindex,follow ومش في الـsitemap، والصفحة نفسها شغالة عادي للزوار.
+export const MIN_JOB_DESCRIPTION_FOR_INDEX = 120;
+
+export function jobDescriptionLength(description: unknown): number {
+  if (typeof description !== "string") return 0;
+  return sanitizeJobDescription(description).replace(/\s+/g, " ").trim().length;
+}
+
+export function isJobDescriptionIndexable(description: unknown): boolean {
+  return jobDescriptionLength(description) >= MIN_JOB_DESCRIPTION_FOR_INDEX;
+}
+
 // دالة المرتب الموحّدة (بدل salaryText وsalaryTeaser القديمتين) لكارت الوظيفة وصفحتها وتاب الباحث.
 // "full" للصفحة والكارت، "short" للأماكن الضيقة. specified: false لما مفيش رقم ولا تفاوض — الكارت
 // بيعرضها بلون هادي. showSalary === false: "غير معلن" (صاحب العمل اختار يخفيه)، ومفيش بيانات: "غير محدد".

@@ -12,12 +12,13 @@ import {
   upgradeEmailHref,
   upgradeWhatsAppHref,
 } from "@/lib/upgradeContact";
+import { pageSeo } from "@/lib/seoMetadata";
 
-export const metadata = {
+export const metadata = pageSeo({
   title: "الباقات والأسعار - موقع الشغل",
   description: `مقارنة بين الباقة المجانية والباقة المدفوعة لأصحاب الأعمال على موقع الشغل: ${PREMIUM_PRICE_EGP} جنيه لمدة ${PREMIUM_DURATION_MONTHS} أشهر، مع عدد الوظائف والدعوات ومدة النشر في كل باقة.`,
-  alternates: { canonical: "/pricing" },
-};
+  path: "/pricing",
+});
 
 const monthlyPrice = Math.round(PREMIUM_PRICE_EGP / PREMIUM_DURATION_MONTHS);
 

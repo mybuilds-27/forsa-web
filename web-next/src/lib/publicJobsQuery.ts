@@ -2,6 +2,7 @@ import { collection, getDocs, limit, orderBy, query, where, type QueryConstraint
 import { db } from "./firebase";
 import { GOVERNORATES, SPECIALIZATION_OPTIONS } from "./constants";
 import { toJobCardData, type JobCardData } from "./jobCardData";
+import { isJobDescriptionIndexable } from "./jobCardStyles";
 
 // شكل مبسّط بس لمستند job_posts للحقول اللي getFeaturedPublicJobs محتاجاها — بدل any، عشان
 // فحص expiresAt يبقى type-safe من غير ما نحتاج نعرّف النوع الكامل الحقيقي للمستند.
@@ -98,23 +99,28 @@ export async function getFilteredPublicJobs(
 
 export type JobCombo = { governorate: string; specialization: string; count: number };
 
-// الحد الأدنى لعدد الوظايف النشطة عشان أي صفحة تصفح تتفهرس (محافظة+تخصص، تخصص، محافظة، منطقة): أقل
-// منه الصفحة بتفضل ظاهرة للزوار بس بـnoindex,follow ومبتتحطش في الـsitemap (sitemap.ts).
-export const MIN_JOBS_FOR_INDEX = 2;
+// الحد الأدنى لعدد الوظايف النشطة عشان صفحة تصفح تتفهرس: أقل منه الصفحة بتفضل ظاهرة للزوار بس
+// بـnoindex,follow ومبتتحطش في الـsitemap (sitemap.ts). BROAD لصفحات المحافظة والتخصص لوحدهم، وNARROW
+// للصفحات الأضيق (محافظة+تخصص، والمنطقة) اللي بتتكرر كتير بعدد وظايف قليل.
+export const MIN_JOBS_FOR_INDEX_BROAD = 3;
+export const MIN_JOBS_FOR_INDEX_NARROW = 5;
 
 export async function getActiveJobsSeoData(): Promise<{
   jobIds: string[];
+  // الوظايف اللي صفحتها بتتفهرس (وصفها كافي، isJobDescriptionIndexable) — للـsitemap بس
+  indexableJobIds: string[];
   governorates: string[];
   specializations: string[];
   combos: JobCombo[];
   // عدد الوظايف النشطة لكل محافظة/تخصص معتمد لوحده (نفس شروط govSet/specSet) — للـsitemap عشان
-  // يفلتر بـMIN_JOBS_FOR_INDEX زي التركيبات.
+  // يفلتر بحدود الفهرسة زي التركيبات.
   governorateCounts: Record<string, number>;
   specializationCounts: Record<string, number>;
 }> {
   const snap = await getDocs(query(collection(db, "job_posts"), where("isActive", "==", true)));
   const now = Date.now();
   const jobIds: string[] = [];
+  const indexableJobIds: string[] = [];
   const comboMap = new Map<string, JobCombo>();
   const govSet = new Set<string>();
   const specSet = new Set<string>();
@@ -132,6 +138,7 @@ export async function getActiveJobsSeoData(): Promise<{
     const p = d.data() as any;
     if (p.expiresAt && p.expiresAt.toMillis() < now) continue;
     jobIds.push(d.id);
+    if (isJobDescriptionIndexable(p.description)) indexableJobIds.push(d.id);
     if (p.governorate && validGovernorates.has(p.governorate)) {
       govSet.add(p.governorate);
       governorateCounts[p.governorate] = (governorateCounts[p.governorate] || 0) + 1;
@@ -150,6 +157,7 @@ export async function getActiveJobsSeoData(): Promise<{
 
   return {
     jobIds,
+    indexableJobIds,
     governorates: Array.from(govSet),
     specializations: Array.from(specSet),
     combos: Array.from(comboMap.values()).sort((a, b) => b.count - a.count),

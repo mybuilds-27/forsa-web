@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findSpecialtyBySlug, slugify } from "@/lib/constants";
-import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX } from "@/lib/publicJobsQuery";
+import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_BROAD } from "@/lib/publicJobsQuery";
+import { pageSeo } from "@/lib/seoMetadata";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
 
@@ -22,11 +23,12 @@ export async function generateMetadata({ params }: { params: Promise<{ specialty
       ? `${jobs.length} وظيفة ${specialization} متاحة حاليًا في كل محافظات مصر على موقع الشغل — تصفح وقدّم دلوقتي.`
       : `دوّر على وظايف ${specialization} في كل محافظات مصر على موقع الشغل.`;
 
-  return {
+  return pageSeo({
     title,
     description,
-    ...(jobs.length < MIN_JOBS_FOR_INDEX ? { robots: { index: false, follow: true } } : {}),
-  };
+    path: `/jobs/specialization/${slugify(specialization)}`,
+    noindex: jobs.length < MIN_JOBS_FOR_INDEX_BROAD,
+  });
 }
 
 export default async function SpecializationJobsPage({

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import FaqAccordion from "./FaqAccordion";
+import { pageSeo } from "@/lib/seoMetadata";
 
-export const metadata = {
+export const metadata = pageSeo({
   title: "الأسئلة الشائعة - موقع الشغل",
   description: "إجابات الأسئلة الشائعة حول التسجيل والتقديم على الوظائف ونشرها على موقع الشغل، للباحثين عن عمل وأصحاب الأعمال.",
-};
+  path: "/faq",
+});
 
 const faqItems = [
   {

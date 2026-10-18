@@ -1,5 +1,5 @@
 import { slugify } from "@/lib/constants";
-import { getActiveJobsSeoData, MIN_JOBS_FOR_INDEX } from "@/lib/publicJobsQuery";
+import { getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_BROAD, MIN_JOBS_FOR_INDEX_NARROW } from "@/lib/publicJobsQuery";
 import { articles } from "@/content/articles";
 
 // ملف الـsitemap ده مالهوش أي dynamic segment، فـNext.js كان بيعمله static prerender
@@ -35,30 +35,31 @@ export default async function sitemap() {
   let specializationPages: { url: string; lastModified: Date }[] = [];
   let comboPages: { url: string; lastModified: Date }[] = [];
   try {
-    const { jobIds, governorates, specializations, combos, governorateCounts, specializationCounts } =
+    const { indexableJobIds, governorates, specializations, combos, governorateCounts, specializationCounts } =
       await getActiveJobsSeoData();
 
-    jobPages = jobIds.map((id) => ({
+    // الوظايف اللي وصفها قصير (noindex في صفحتها) مش في الـsitemap
+    jobPages = indexableJobIds.map((id) => ({
       url: `${baseUrl}/jobs/${id}`,
       lastModified: new Date(),
     }));
 
     governoratePages = governorates
-      .filter((g) => (governorateCounts[g] || 0) >= MIN_JOBS_FOR_INDEX)
+      .filter((g) => (governorateCounts[g] || 0) >= MIN_JOBS_FOR_INDEX_BROAD)
       .map((g) => ({
         url: `${baseUrl}/jobs/${slugify(g)}`,
         lastModified: new Date(),
       }));
 
     specializationPages = specializations
-      .filter((s) => (specializationCounts[s] || 0) >= MIN_JOBS_FOR_INDEX)
+      .filter((s) => (specializationCounts[s] || 0) >= MIN_JOBS_FOR_INDEX_BROAD)
       .map((s) => ({
         url: `${baseUrl}/jobs/specialization/${slugify(s)}`,
         lastModified: new Date(),
       }));
 
     comboPages = combos
-      .filter((c) => c.count >= MIN_JOBS_FOR_INDEX)
+      .filter((c) => c.count >= MIN_JOBS_FOR_INDEX_NARROW)
       .map((c) => ({
         url: `${baseUrl}/jobs/${slugify(c.governorate)}/${slugify(c.specialization)}`,
         lastModified: new Date(),

@@ -6,6 +6,10 @@ import JobListItem from "@/app/jobs/JobListItem";
 import CompanyLogo from "@/components/CompanyLogo";
 import { isPublicCompanyJob } from "@/lib/companyVisibility";
 import { toJobCardData } from "@/lib/jobCardData";
+import { NOINDEX_FOLLOW, pageSeo } from "@/lib/seoMetadata";
+
+// صفحة الشركة بتتفهرس بس لو عندها وظيفتين عامتين نشطتين أو أكتر (أقل من كده: noindex,follow)
+const MIN_COMPANY_JOBS_FOR_INDEX = 2;
 
 // cache() عشان generateMetadata والصفحة يشاركوا نفس القراءتين في نفس الطلب بدل ما كل واحد يقرا لوحده.
 const getCompany = cache(async (employerId: string): Promise<any> => {
@@ -62,18 +66,20 @@ export async function generateMetadata({ params }: { params: Promise<{ employerI
   const { employerId } = await params;
   const result = await getPublicCompany(employerId);
   if (!result) {
-    return { title: "شركة غير متاحة - الشغل" };
+    return { title: "شركة غير متاحة - الشغل", robots: NOINDEX_FOLLOW };
   }
-  const { company } = result;
+  const { company, jobs } = result;
   const industry = typeof company.industry === "string" ? company.industry.trim() : "";
   const description =
     industry && industry.length <= INDUSTRY_SHORT_MAX
       ? maskPhoneNumbers(industry).slice(0, META_DESCRIPTION_MAX)
       : `تصفح كل الوظائف المفتوحة حاليًا لدى ${company.companyName} على موقع الشغل.`;
-  return {
+  return pageSeo({
     title: `${company.companyName} - وظائف على موقع الشغل`,
     description,
-  };
+    path: `/companies/${employerId}`,
+    noindex: jobs.length < MIN_COMPANY_JOBS_FOR_INDEX,
+  });
 }
 
 export default async function CompanyProfilePage({ params }: { params: Promise<{ employerId: string }> }) {
