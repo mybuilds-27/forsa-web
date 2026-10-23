@@ -20,7 +20,6 @@ export default async function sitemap() {
     { url: `${baseUrl}/contact`, lastModified: new Date() },
     // أحدث تاريخ نشر/تعديل بين المقالات (مش وقت توليد الـsitemap)
     { url: `${baseUrl}/articles`, lastModified: articles.length ? new Date(articles.map(articleModifiedDate).sort().reverse()[0]) : new Date() },
-    { url: `${baseUrl}/companies`, lastModified: new Date() },
     { url: `${baseUrl}/faq`, lastModified: new Date() },
     { url: `${baseUrl}/why-free`, lastModified: new Date() },
     { url: `${baseUrl}/pricing`, lastModified: new Date() },
