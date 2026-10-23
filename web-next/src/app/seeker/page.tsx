@@ -9,11 +9,12 @@ import QuickSignupForm from "./QuickSignupForm";
 import JobsTab from "./JobsTab";
 import ProfileTab from "./ProfileTab";
 import SavedJobsTab from "./SavedJobsTab";
+import CvPrintCard from "./CvPrintCard";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import EmailVerificationBanner from "@/components/EmailVerificationBanner";
 
 type Status = "loading" | "no-profile" | "has-profile";
-type Tab = "jobs" | "saved" | "profile";
+type Tab = "jobs" | "saved" | "profile" | "cv";
 
 export default function SeekerPage() {
   return (
@@ -33,7 +34,7 @@ function SeekerPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const activeTab: Tab = tabParam === "saved" || tabParam === "profile" ? tabParam : "jobs";
+  const activeTab: Tab = tabParam === "saved" || tabParam === "profile" || tabParam === "cv" ? tabParam : "jobs";
   // من زرار "كمّل دلوقتي" في Navbar.tsx — قيمة جديدة مع كل دوسة (Date.now())، فـProfileTab
   // تقدر تفرّق "دوسة جديدة" عن مجرد re-render وتفتح فورم التعديل حتى لو التاب ده كان مفتوح أصلًا.
   const openEditNonce = searchParams.get("openEdit");
@@ -94,8 +95,19 @@ function SeekerPageInner() {
       <>
         <div dir="rtl" style={{ width: "100%", maxWidth: 900, margin: "0 auto", padding: "16px 20px 0" }}>
           <EmailVerificationBanner />
+          {/* تاب "السيرة الذاتية" من غير بروفايل: رسالة + رابط لنفس فورم التسجيل السريع اللي تحتها */}
+          {activeTab === "cv" && (
+            <div style={{ background: "#F8F6F0", border: "1px solid #14213D33", borderRadius: 10, padding: 16, marginBottom: 8 }}>
+              <p style={{ margin: "0 0 10px", fontWeight: 700, color: "#14213D" }}>
+                كمّل بياناتك الأول عشان تقدر تطبع سيرتك الذاتية
+              </p>
+              <a href="#quick-signup" style={{ color: "#14213D", fontWeight: 700 }}>كمّل بياناتك</a>
+            </div>
+          )}
         </div>
-        <QuickSignupForm onSaved={loadProfile} />
+        <div id="quick-signup">
+          <QuickSignupForm onSaved={loadProfile} />
+        </div>
       </>
     );
   }
@@ -119,6 +131,11 @@ function SeekerPageInner() {
         {activeTab === "saved" && <SavedJobsTab />}
         {activeTab === "profile" && (
           <ProfileTab data={profileData} onUpdated={loadProfile} openEditNonce={openEditNonce} />
+        )}
+        {activeTab === "cv" && (
+          <div style={{ maxWidth: 700, margin: "0 auto", padding: "30px 20px" }}>
+            <CvPrintCard data={profileData} />
+          </div>
         )}
       </div>
     </div>
