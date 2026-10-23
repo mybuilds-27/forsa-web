@@ -42,9 +42,11 @@ export default function ExperienceTab({ initialData, onSaved, isNewProfile, miss
   }
 
   function updateExperienceRow(index: number, field: keyof ExperienceRow, value: any) {
-    const updated = [...experience];
-    updated[index] = { ...updated[index], [field]: value };
-    setExperience(updated);
+    setExperience((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
   }
 
   function removeExperienceRow(index: number) {
