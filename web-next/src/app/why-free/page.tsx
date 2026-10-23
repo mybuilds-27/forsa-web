@@ -1,7 +1,10 @@
-export const metadata = {
+import { pageSeo } from "@/lib/seoMetadata";
+
+export const metadata = pageSeo({
   title: "ليه مجاني؟ - موقع الشغل",
   description: "ليه النشر على موقع الشغل مجاني بالكامل لأصحاب الأعمال، وإيه الفرق مع الباقة المدفوعة الاختيارية.",
-};
+  path: "/why-free",
+});
 
 export default function WhyFreePage() {
   return (

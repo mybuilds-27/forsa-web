@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 export default function ContactPage() {
@@ -22,6 +23,15 @@ export default function ContactPage() {
         لأي شكوى، اقتراح، أو لو محتاج استشارة في الموارد البشرية، تواصل معانا بأي طريقة تناسبك:
       </p>
 
+      <h2 style={{ fontSize: 16, marginBottom: 8 }}>نقدر نساعدك في إيه؟</h2>
+      <ul style={{ color: "#4A5568", fontSize: 14, lineHeight: 1.8, marginBottom: 20, paddingInlineStart: 20 }}>
+        <li>للباحثين عن عمل: مشاكل في التسجيل أو التقديم أو بروفايلك.</li>
+        <li>لأصحاب الأعمال: نشر الوظايف، والباقة المدفوعة، وطلب الترقية.</li>
+        <li>للإبلاغ عن إعلان مشبوه أو استخدام غير مناسب للموقع.</li>
+        <li>لطلبات الاطلاع على بياناتك أو حذف حسابك (اكتب لنا من الإيميل المسجّل على الموقع).</li>
+        <li>للاقتراحات والملاحظات على الموقع.</li>
+      </ul>
+
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <button onClick={copyEmail} style={btnStyle}>
           📧 انسخ الإيميل: <span style={{ fontSize: 12.5 }}>elshoghl27@gmail.com</span>
@@ -35,6 +45,14 @@ export default function ContactPage() {
       </div>
 
       {copyMsg && <div style={{ color: "#2F6F4E", fontSize: 13, marginTop: 12 }}>{copyMsg}</div>}
+
+      <p style={{ color: "#4A5568", fontSize: 14, lineHeight: 1.8, marginTop: 20 }}>
+        بنرد على الرسايل في أقرب وقت ممكن. ولو سؤالك عن حاجة عامة، شوف{" "}
+        <Link href="/faq" style={{ color: "#14213D" }}>
+          الأسئلة الشائعة
+        </Link>{" "}
+        الأول.
+      </p>
     </div>
   );
 }

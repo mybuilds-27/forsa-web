@@ -1,7 +1,11 @@
-export const metadata = {
+import Link from "next/link";
+import { pageSeo } from "@/lib/seoMetadata";
+
+export const metadata = pageSeo({
   title: "سياسة الخصوصية - موقع الشغل",
   description: "سياسة الخصوصية الخاصة بموقع الشغل وكيفية التعامل مع بياناتك.",
-};
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (
@@ -37,7 +41,8 @@ export default function PrivacyPage() {
         إحصائياتك. فتحك لصفحة الوظيفة مش معناه إنك قدّمت أو أبديت اهتمام بيها.
       </p>
       <p style={{ color: "#4A5568", fontSize: 14, lineHeight: 1.8, marginBottom: 20 }}>
-        إحنا مش بنبيع ولا نشارك بياناتك مع أي طرف تالت لأغراض تسويقية.
+        إحنا مش بنبيع بياناتك الشخصية اللي سجّلتها في حسابك، ومش بنشاركها مع أي طرف تالت لأغراض تسويقية. اللي بيخص
+        الإعلانات والكوكيز موضّح في القسمين ٦ و٧.
       </p>
 
       <h2 style={{ fontSize: 16, marginBottom: 8 }}>٤. حقوقك</h2>
@@ -48,9 +53,58 @@ export default function PrivacyPage() {
       </p>
 
       <h2 style={{ fontSize: 16, marginBottom: 8 }}>٥. أمان البيانات</h2>
-      <p style={{ color: "#4A5568", fontSize: 14, lineHeight: 1.8 }}>
+      <p style={{ color: "#4A5568", fontSize: 14, lineHeight: 1.8, marginBottom: 20 }}>
         بياناتك متخزنة على Firebase (Google Cloud) بقواعد أمان بتمنع أي حد من الوصول لبيانات مش بتاعته
         غير المصرّح بيها. الدخول للموقع بيتم عن طريق رقم الموبايل أو الإيميل أو حساب Google.
+      </p>
+
+      <h2 style={{ fontSize: 16, marginBottom: 8 }}>٦. ملفات تعريف الارتباط (الكوكيز)</h2>
+      <p style={{ color: "#4A5568", fontSize: 14, lineHeight: 1.8, marginBottom: 20 }}>
+        الموقع بيستخدم ملفات تعريف الارتباط (الكوكيز) وتقنيات مشابهة زي التخزين المحلي في المتصفح، لأغراض زي إبقاء
+        تسجيل دخولك شغال، وتذكّر إعداداتك، وفهم استخدام الموقع بشكل عام عن طريق أدوات التحليلات. تقدر تتحكم في الكوكيز
+        أو تحذفها من إعدادات متصفحك، لكن ممكن بعض أجزاء الموقع ما تشتغلش صح من غيرها.
+      </p>
+
+      <h2 style={{ fontSize: 16, marginBottom: 8 }}>٧. الإعلانات (Google AdSense)</h2>
+      <p style={{ color: "#4A5568", fontSize: 14, lineHeight: 1.8, marginBottom: 20 }}>
+        ممكن الموقع يعرض إعلانات من خلال Google AdSense. جهات خارجية، منها Google، بتستخدم ملفات تعريف الارتباط لعرض
+        إعلانات بناءً على زياراتك السابقة لموقعنا أو لمواقع تانية على الإنترنت. استخدام Google لملفات تعريف الارتباط
+        الإعلانية بيسمح لها ولشركائها بعرض إعلانات ليك بناءً على زيارتك لموقعنا و/أو لمواقع تانية. تقدر توقف الإعلانات
+        المخصصة من{" "}
+        <a href="https://adssettings.google.com" target="_blank" rel="noopener noreferrer" style={{ color: "#14213D" }}>
+          إعدادات الإعلانات في Google
+        </a>
+        ، وتقدر كمان تزور{" "}
+        <a href="https://www.aboutads.info" target="_blank" rel="noopener noreferrer" style={{ color: "#14213D" }}>
+          www.aboutads.info
+        </a>{" "}
+        لإيقاف استخدام جهات إعلانية تانية لملفات تعريف الارتباط في الإعلانات المخصصة. ولمعرفة إزاي Google بتستخدم
+        البيانات لما بتزور مواقع شركائها، شوف{" "}
+        <a
+          href="https://policies.google.com/technologies/partner-sites"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "#14213D" }}
+        >
+          الصفحة دي من Google
+        </a>
+        .
+      </p>
+
+      <h2 style={{ fontSize: 16, marginBottom: 8 }}>٨. روابط لمواقع تانية</h2>
+      <p style={{ color: "#4A5568", fontSize: 14, lineHeight: 1.8, marginBottom: 20 }}>
+        ممكن تلاقي في الموقع روابط لمواقع خارجية (زي صفحات شركات أو مصادر معلومات). إحنا مش مسؤولين عن سياسات الخصوصية
+        أو المحتوى في المواقع دي، فيُفضّل تراجع سياساتها.
+      </p>
+
+      <h2 style={{ fontSize: 16, marginBottom: 8 }}>٩. تحديث السياسة</h2>
+      <p style={{ color: "#4A5568", fontSize: 14, lineHeight: 1.8 }}>
+        ممكن نحدّث السياسة دي من وقت للتاني، وهنكتب تاريخ آخر تحديث هنا. آخر تحديث: ٢٣ أكتوبر ٢٠٢٦. ولأي سؤال عن
+        خصوصية بياناتك، تواصل معانا من{" "}
+        <Link href="/contact" style={{ color: "#14213D" }}>
+          صفحة تواصل معنا
+        </Link>
+        .
       </p>
     </div>
   );
