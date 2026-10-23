@@ -82,6 +82,41 @@ export default function ProfileTab({ data, onUpdated, openEditNonce }: Props) {
 
       <ProfileCompletionBar percent={completion} />
 
+      {/* ProfileTab بيترسم بس لما الباحث عنده بروفايل (status === "has-profile" في seeker/page.tsx)،
+          فالبطاقة دي ليها نفس شرط الزرار القديم من غير شرط إضافي. */}
+      <div
+        style={{
+          background: "#F8F6F0",
+          border: "1px solid #14213D33",
+          borderRadius: 10,
+          padding: 20,
+          marginBottom: 20,
+        }}
+      >
+        <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 800, color: "#14213D" }}>اطبع سيرتك الذاتية</h3>
+        <p style={{ margin: "0 0 14px", fontSize: 14.5, color: "#4A5568", lineHeight: 1.8 }}>
+          سيرة ذاتية عربي مرتبة من بيانات بروفايلك، تحفظها PDF وتبعتها لأي شركة.
+        </p>
+        <button
+          onClick={() => setPrinting(true)}
+          style={{
+            width: "100%",
+            maxWidth: 360,
+            padding: "14px 24px",
+            background: "#14213D",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            cursor: "pointer",
+            fontWeight: 700,
+            fontSize: 16,
+            fontFamily: "inherit",
+          }}
+        >
+          📄 اعمل CV احترافي واحفظه
+        </button>
+      </div>
+
       <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20 }}>
         {data.photoURL && (
           <img src={data.photoURL} alt="صورتك الشخصية" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: "50%", marginBottom: 14 }} />
@@ -129,20 +164,6 @@ export default function ProfileTab({ data, onUpdated, openEditNonce }: Props) {
           }}
         >
           تعديل البروفايل
-        </button>
-        <button
-          onClick={() => setPrinting(true)}
-          style={{
-            padding: "12px 24px",
-            background: "transparent",
-            color: "#14213D",
-            border: "1px solid #14213D",
-            borderRadius: 8,
-            cursor: "pointer",
-            fontWeight: 700,
-          }}
-        >
-          📄 اعمل CV احترافي واحفظه
         </button>
       </div>
 
