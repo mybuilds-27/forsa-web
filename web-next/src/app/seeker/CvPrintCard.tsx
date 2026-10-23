@@ -12,10 +12,37 @@ export default function CvPrintCard({ data }: { data: Record<string, unknown> })
 
   useEffect(() => {
     if (!printing) return;
-    window.print();
+    let cancelled = false;
     const handleAfterPrint = () => setPrinting(false);
     window.addEventListener("afterprint", handleAfterPrint);
-    return () => window.removeEventListener("afterprint", handleAfterPrint);
+
+    // بنستنى صور الـCV (الصورة الشخصية) تخلص تحميل قبل الطباعة، عشان أول مرة من غير كاش
+    // متطلعش دايرة فاضية — بحد أقصى ثانيتين، والطباعة بتبدأ دايمًا حتى لو الصورة فشلت أو اتأخرت.
+    const images = Array.from(document.querySelectorAll<HTMLImageElement>(".cv-print-view img"));
+    const imagesSettled = Promise.all(
+      images.map((img) =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise<void>((resolve) => {
+              img.addEventListener("load", () => resolve(), { once: true });
+              img.addEventListener("error", () => resolve(), { once: true });
+            })
+      )
+    );
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<void>((resolve) => {
+      timeoutId = setTimeout(resolve, 2000);
+    });
+    Promise.race([imagesSettled, timedOut]).then(() => {
+      clearTimeout(timeoutId);
+      if (!cancelled) window.print();
+    });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      window.removeEventListener("afterprint", handleAfterPrint);
+    };
   }, [printing]);
 
   return (
