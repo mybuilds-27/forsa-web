@@ -332,7 +332,7 @@ export default function TalentSearchTab({ employerPlan, companyName }: Props) {
           seeker={selectedSeeker}
           employerPlan={employerPlan}
           defaultInviteJobId={justPostedJobId || undefined}
-          whatsappCompanyName={companyName || undefined}
+          whatsappCompanyName={companyName ?? ""}
           onClose={() => setSelectedSeeker(null)}
         />
       )}

@@ -153,7 +153,11 @@ function EmployerPageInner() {
           />
         )}
         {activeTab === "talent" && (
-          <TalentSearchTab employerPlan={companyData?.plan || "free"} companyName={companyData?.companyName || ""} />
+          <TalentSearchTab
+            employerPlan={companyData?.plan || "free"}
+            // الشركة مختارة إخفاء اسمها افتراضيًا (showCompanyNameDefault): رسالة واتساب بتقول "صاحب عمل" بدل الاسم
+            companyName={companyData?.showCompanyNameDefault === false ? "" : companyData?.companyName || ""}
+          />
         )}
       </div>
 

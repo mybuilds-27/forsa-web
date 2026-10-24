@@ -322,8 +322,9 @@ export default function SeekerDetailModal({ seeker: s, employerPlan, defaultInvi
               <h3 style={{ fontSize: 15, marginBottom: 10 }}>بيانات التواصل</h3>
               <div style={{ fontSize: 14.5, marginBottom: 6 }}>الهاتف: <strong>{contact.phone || "—"}</strong></div>
               {(() => {
-                // من البحث عن كوادر (اسم الشركة متبعت): برسالة جاهزة؛ من "مين شاف الوظيفة": من غير رسالة
-                const whatsappLink = whatsappCompanyName
+                // من البحث عن كوادر (whatsappCompanyName متبعت، حتى لو فاضي → "صاحب عمل"): برسالة جاهزة؛
+                // من "مين شاف الوظيفة" (مش متبعت خالص): من غير رسالة
+                const whatsappLink = whatsappCompanyName !== undefined
                   ? buildWhatsAppLink(contact.phone, talentWhatsAppMessage(whatsappCompanyName))
                   : buildWhatsAppChatLink(contact.phone);
                 return whatsappLink ? (

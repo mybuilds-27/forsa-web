@@ -24,15 +24,24 @@ export function buildWhatsAppChatLink(rawPhone: unknown): string | null {
   return number ? `https://wa.me/${number}` : null;
 }
 
-// رسالة كارت المتقدم على وظيفة صاحب العمل (ApplicantCard).
-export function applicantWhatsAppMessage(companyName: string, jobTitle: string): string {
-  return `السلام عليكم، أنا من شركة ${companyName}، بخصوص تقديمك على وظيفة ${jobTitle} على موقع الشغل`;
+// اسم الشركة فاضي أو مسافات أو مخفي (undefined/null): "صاحب عمل" — عشان الرسالة متطلعش أبدًا بقيمة
+// فاضية أو undefined.
+function senderPhrase(companyName?: string | null): string {
+  const company = typeof companyName === "string" ? companyName.trim() : "";
+  return company ? `معك ${company} عبر موقع الشغل` : "معك صاحب عمل عبر موقع الشغل";
 }
 
-// رسالة نافذة بيانات الباحث في "البحث عن كوادر" (SeekerDetailModal) — الباحث هنا ما قدّمش على
-// وظيفة محددة، فمفيش عنوان وظيفة ولا "تقديمك".
-export function talentWhatsAppMessage(companyName: string): string {
-  return `السلام عليكم، أنا من شركة ${companyName}، اطّلعت على بروفايلك على موقع الشغل وحابب أتواصل معاك بخصوص فرصة عمل`;
+// رسالة نافذة بيانات الباحث في "البحث عن كوادر" (SeekerDetailModal) — الباحث ما قدّمش على وظيفة محددة.
+export function talentWhatsAppMessage(companyName?: string | null): string {
+  return `السلام عليكم ورحمة الله وبركاته، ${senderPhrase(companyName)}. اطلعنا على ملفك الشخصي ونود التواصل معك بخصوص فرصة عمل لدينا. هل يناسبك التحدث الآن؟`;
+}
+
+// رسالة كارت المتقدم على وظيفة صاحب العمل (ApplicantCard) — المرشح قدّم فعلًا. لو المسمى فاضي
+// بنرجع لرسالة البحث عن كوادر بدل ما نكتب "وظيفة" من غير اسم.
+export function applicantWhatsAppMessage(companyName?: string | null, jobTitle?: string | null): string {
+  const title = typeof jobTitle === "string" ? jobTitle.trim() : "";
+  if (!title) return talentWhatsAppMessage(companyName);
+  return `السلام عليكم ورحمة الله وبركاته، ${senderPhrase(companyName)}. بخصوص تقديمك على وظيفة ${title}، نود التواصل معك. هل يناسبك التحدث الآن؟`;
 }
 
 export const whatsappButtonStyle: CSSProperties = {

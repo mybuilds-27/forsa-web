@@ -84,7 +84,7 @@ export default function ApplicantCard({
   // صاحب العمل: رابط برسالة جاهزة (اسم الشركة والوظيفة). الأدمن (لوحة الإدارة): رابط من غير رسالة.
   const whatsappLink = viewerMode
     ? null
-    : whatsappCompanyName && whatsappJobTitle
+    : whatsappJobTitle
       ? buildWhatsAppLink(s.phone, applicantWhatsAppMessage(whatsappCompanyName, whatsappJobTitle))
       : isAdmin
         ? buildWhatsAppChatLink(s.phone)
