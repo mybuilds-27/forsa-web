@@ -385,6 +385,28 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
     <div dir="rtl" style={{ maxWidth: 800, margin: "0 auto" }}>
       <h2 style={{ marginBottom: 16 }}>بيانات الشركة</h2>
 
+      {/* أول التبويب عشان يبان من غير سكرول. width 100% مع maxWidth: عرض كامل على الموبايل، وعرض ثابت على الديسكتوب */}
+      <Link
+        href="/pricing"
+        style={{
+          display: "block",
+          width: "100%",
+          maxWidth: 360,
+          boxSizing: "border-box",
+          marginBottom: 16,
+          padding: "14px 20px",
+          background: "#14213D",
+          color: "#fff",
+          borderRadius: 8,
+          fontSize: 16,
+          fontWeight: 700,
+          textAlign: "center",
+          textDecoration: "none",
+        }}
+      >
+        تفاصيل الباقات
+      </Link>
+
       <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20, marginBottom: 10 }}>
         {companyData.logoURL && (
           <CompanyLogo src={companyData.logoURL} alt="شعار الشركة" style={{ marginBottom: 10 }} />
@@ -448,28 +470,6 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
             اطّلع على مزايا الباقة المدفوعة
           </button>
         )}
-
-        {/* width 100% مع maxWidth: عرض كامل على الموبايل (الكارت أضيق من 360)، وعرض ثابت على الديسكتوب */}
-        <Link
-          href="/pricing"
-          style={{
-            display: "block",
-            width: "100%",
-            maxWidth: 360,
-            boxSizing: "border-box",
-            marginTop: 16,
-            padding: "14px 20px",
-            background: "#14213D",
-            color: "#fff",
-            borderRadius: 8,
-            fontSize: 16,
-            fontWeight: 700,
-            textAlign: "center",
-            textDecoration: "none",
-          }}
-        >
-          تفاصيل الباقات
-        </Link>
       </div>
 
       {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} />}
