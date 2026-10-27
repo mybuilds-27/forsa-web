@@ -34,8 +34,8 @@ export default function JobListItem({ job, saved, onToggleSave }: Props) {
             ...headerButtonStyle,
             width: 44,
             fontSize: 18,
-            background: saved ? "#F5B800" : "transparent",
-            color: saved ? "#14213D" : "#fff",
+            background: saved ? "#14213D" : "transparent",
+            color: saved ? "#fff" : "#14213D",
           }}
         >
           {saved ? "★" : "☆"}
@@ -53,12 +53,12 @@ export default function JobListItem({ job, saved, onToggleSave }: Props) {
 }
 
 const headerButtonStyle: CSSProperties = {
-  minHeight: 44,
-  padding: "0 12px",
+  minHeight: 36,
+  padding: "0 10px",
   justifyContent: "center",
   borderRadius: 8,
-  border: "1px solid rgba(255,255,255,0.4)",
+  border: "1px solid #14213D22",
   background: "transparent",
-  color: "#fff",
+  color: "#14213D",
   fontSize: 13,
 };

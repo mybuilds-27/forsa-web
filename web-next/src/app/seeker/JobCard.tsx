@@ -76,8 +76,8 @@ export default function JobCard({ job: p, applicationStatus, saved, onToggleSave
           ...headerButtonStyle,
           width: 44,
           fontSize: 18,
-          background: saved ? "#F5B800" : "transparent",
-          color: saved ? "#14213D" : "#fff",
+          background: saved ? "#14213D" : "transparent",
+          color: saved ? "#fff" : "#14213D",
         }}
       >
         {saved ? "★" : "☆"}
@@ -139,17 +139,17 @@ export default function JobCard({ job: p, applicationStatus, saved, onToggleSave
   );
 }
 
-// نفس أزرار رأس الكارت العام (JobListItem.tsx): أيقونات 44x44 على الرأس الكحلي
+// أزرار الحفظ والمشاركة على خلفية الكارت الفاتحة (نفس ستايل JobListItem)
 const headerButtonStyle: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  minHeight: 44,
-  padding: "0 12px",
+  minHeight: 36,
+  padding: "0 10px",
   justifyContent: "center",
   borderRadius: 8,
-  border: "1px solid rgba(255,255,255,0.4)",
+  border: "1px solid #14213D22",
   background: "transparent",
-  color: "#fff",
+  color: "#14213D",
   fontSize: 13,
   cursor: "pointer",
   fontFamily: "inherit",
