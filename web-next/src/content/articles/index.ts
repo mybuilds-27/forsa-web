@@ -14,10 +14,11 @@ import { article as careerChangeArticle } from "./changing-career-field";
 import { article as terminationRightsArticle } from "./probation-and-termination-rights";
 import { article as resignArticle } from "./how-to-resign-professionally";
 import { article as linkedinArticle } from "./linkedin-profile-guide";
+import { article as screeningArticle } from "./how-to-screen-job-applicants";
 
 // إضافة مقال جديد: اعمل ملف جديد في المجلد ده (انسخ cv-article.ts)، وضيف سطر import فوق
 // وسطر في المصفوفة تحت. الترتيب هنا مش مهم، المقالات بتتعرض الأحدث الأول حسب date.
-const allArticles: Article[] = [cvArticle, interviewArticle, fakeJobsArticle, jobSearchArticle, salaryArticle, jobAdArticle, first90DaysArticle, laborLawArticle, freshGraduatesArticle, socialInsuranceArticle, employmentContractArticle, careerChangeArticle, terminationRightsArticle, resignArticle, linkedinArticle];
+const allArticles: Article[] = [cvArticle, interviewArticle, fakeJobsArticle, jobSearchArticle, salaryArticle, jobAdArticle, first90DaysArticle, laborLawArticle, freshGraduatesArticle, socialInsuranceArticle, employmentContractArticle, careerChangeArticle, terminationRightsArticle, resignArticle, linkedinArticle, screeningArticle];
 
 const slugs = new Set<string>();
 for (const a of allArticles) {
