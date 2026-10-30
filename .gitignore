@@ -72,3 +72,6 @@ node_modules/
 # (المفروض تتحفظ برّه الريبو تمامًا، زي في Downloads، ومتتضافش أبدًا لأي commit)
 *firebase-adminsdk*.json
 *service-account*.json
+
+# تقارير السكريبتات المحلية — فيها بيانات حقيقية
+functions/**/*.csv
