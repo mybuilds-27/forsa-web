@@ -552,6 +552,8 @@ function EmployerCard({
     });
   }
 
+  const isOpenEndedPlan = row.plan === "premium" && row.planExpiresAtMillis === null;
+
   function upgradePlan() {
     const confirmed = window.confirm(
       `${row.plan === "premium" ? "تمدّد" : "ترقّي"} "${displayName}" للباقة المدفوعة ${months} شهر؟`
@@ -565,7 +567,11 @@ function EmployerCard({
   }
 
   function downgradePlan() {
-    const confirmed = window.confirm(`تلغي الباقة المدفوعة لـ"${displayName}"؟ هترجع مجانية وهيتلغي تمييز وظايفه (غير اللي ميّزتها يدويًا).`);
+    const confirmed = window.confirm(
+      `تلغي الباقة المدفوعة لـ"${displayName}"؟ هترجع مجانية وهيتلغي تمييز وظايفه (غير اللي ميّزتها يدويًا).${
+        isOpenEndedPlan ? " الباقة دي مفتوحة، ولو لغيتها مش هترجع مفتوحة تاني من اللوحة." : ""
+      }`
+    );
     if (!confirmed) return;
     void runAction("plan-down", async () => {
       await adminSetEmployerPlan(row.id, "free");
@@ -604,7 +610,7 @@ function EmployerCard({
           )}
           {row.plan === "premium" ? (
             <span style={featuredPillStyle}>
-              ⭐ مدفوعة{row.planExpiresAtMillis !== null ? ` حتى ${formatMillis(row.planExpiresAtMillis)}` : ""}
+              ⭐ مدفوعة{isOpenEndedPlan ? " (مفتوحة)" : row.planExpiresAtMillis !== null ? ` حتى ${formatMillis(row.planExpiresAtMillis)}` : ""}
             </span>
           ) : (
             <span style={pausedPillStyle}>مجانية</span>
@@ -641,14 +647,20 @@ function EmployerCard({
         <select
           value={months}
           onChange={(e) => setMonths(Number(e.target.value))}
-          disabled={disabled}
+          disabled={disabled || isOpenEndedPlan}
           style={{ padding: "7px 8px", border: "1px solid #14213D33", borderRadius: 8, fontSize: 13 }}
         >
           {PLAN_MONTH_OPTIONS.map((m) => (
             <option key={m} value={m}>{m} شهر</option>
           ))}
         </select>
-        <button type="button" disabled={disabled} onClick={upgradePlan} style={toolBtnStyle}>
+        <button
+          type="button"
+          disabled={disabled || isOpenEndedPlan}
+          title={isOpenEndedPlan ? "الباقة مفتوحة بدون تاريخ انتهاء" : undefined}
+          onClick={upgradePlan}
+          style={{ ...toolBtnStyle, ...(isOpenEndedPlan ? { opacity: 0.5, cursor: "not-allowed" } : {}) }}
+        >
           {busy === "plan-up" ? "جاري..." : row.plan === "premium" ? "⭐ تمديد الباقة" : "⭐ ترقية للمدفوعة"}
         </button>
         {row.plan === "premium" && (
