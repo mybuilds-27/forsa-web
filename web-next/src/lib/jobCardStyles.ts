@@ -15,7 +15,7 @@ export function sanitizeJobDescription(text: string): string {
 
 // صفحة الوظيفة بتتفهرس بس لو وصفها (بعد sanitizeJobDescription وضغط المسافات) MIN_JOB_DESCRIPTION_FOR_INDEX
 // حرف أو أكتر. أقل من كده: noindex,follow ومش في الـsitemap، والصفحة نفسها شغالة عادي للزوار.
-export const MIN_JOB_DESCRIPTION_FOR_INDEX = 120;
+export const MIN_JOB_DESCRIPTION_FOR_INDEX = 300;
 
 export function jobDescriptionLength(description: unknown): number {
   if (typeof description !== "string") return 0;
