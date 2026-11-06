@@ -102,8 +102,8 @@ export type JobCombo = { governorate: string; specialization: string; count: num
 // الحد الأدنى لعدد الوظايف النشطة عشان صفحة تصفح تتفهرس: أقل منه الصفحة بتفضل ظاهرة للزوار بس
 // بـnoindex,follow ومبتتحطش في الـsitemap (sitemap.ts). BROAD لصفحات المحافظة والتخصص لوحدهم، وNARROW
 // للصفحات الأضيق (محافظة+تخصص، والمنطقة) اللي بتتكرر كتير بعدد وظايف قليل.
-export const MIN_JOBS_FOR_INDEX_BROAD = 3;
-export const MIN_JOBS_FOR_INDEX_NARROW = 5;
+export const MIN_JOBS_FOR_INDEX_BROAD = 5;
+export const MIN_JOBS_FOR_INDEX_NARROW = 8;
 
 export async function getActiveJobsSeoData(): Promise<{
   jobIds: string[];
