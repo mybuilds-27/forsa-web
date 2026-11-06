@@ -5,6 +5,10 @@ import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_BROAD } f
 import { pageSeo } from "@/lib/seoMetadata";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
+import { SPECIALIZATION_INTROS } from "@/lib/listingIntros";
+
+// مقدمة صفحة التخصص (lib/listingIntros.ts): نص عادي بنفس خط الصفحة، من غير خلفية أو صندوق
+const listingIntroStyle: React.CSSProperties = { color: "#37414F", fontSize: 15.5, lineHeight: 1.9, maxWidth: 760, margin: "-8px 0 24px" };
 
 // نفس مشكلة الـstatic prerender اللي لقيناها في companies/page.tsx وjobs/page.tsx —
 // من غيرها، صفحة التخصص لوحده ممكن تفضل بالبيانات القديمة لحد أول deploy جديد.
@@ -56,6 +60,7 @@ export default async function SpecializationJobsPage({
           ? `${jobs.length} وظيفة ${specialization} متاحة حاليًا في كل محافظات مصر`
           : `مفيش وظائف ${specialization} نشطة دلوقتي`}
       </p>
+      {SPECIALIZATION_INTROS[specialization] && <p style={listingIntroStyle}>{SPECIALIZATION_INTROS[specialization]}</p>}
 
       <div className="browse-layout">
         <div className="browse-main">

@@ -17,6 +17,10 @@ import { NOINDEX_FOLLOW, pageSeo } from "@/lib/seoMetadata";
 import BrowseSidebar from "@/components/BrowseSidebar";
 import PublicJobsList from "@/components/PublicJobsList";
 import { getArticle } from "@/content/articles";
+import { GOVERNORATE_INTROS } from "@/lib/listingIntros";
+
+// مقدمة صفحة المحافظة (lib/listingIntros.ts): نص عادي بنفس خط الصفحة، من غير خلفية أو صندوق
+const listingIntroStyle: React.CSSProperties = { color: "#37414F", fontSize: 15.5, lineHeight: 1.9, maxWidth: 760, margin: "-8px 0 24px" };
 
 // "قبل ما تقدّم": نفس المقالات لكل وظيفة (اختيار ثابت، من غير أي قراءة) — اللي ميبقاش موجود بيتشال
 const BEFORE_APPLY_ARTICLE_SLUGS = ["avoid-fake-job-scams", "how-to-write-a-cv", "common-interview-questions"];
@@ -219,6 +223,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <p style={{ color: "#4A5568", marginBottom: 24 }}>
           {jobs.length > 0 ? `${jobs.length} وظيفة متاحة حاليًا في ${governorate}` : `مفيش وظائف نشطة في ${governorate} دلوقتي`}
         </p>
+        {GOVERNORATE_INTROS[governorate] && <p style={listingIntroStyle}>{GOVERNORATE_INTROS[governorate]}</p>}
 
         <div className="browse-layout">
           <div className="browse-main">
