@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Cairo, Tajawal } from "next/font/google";
+import localFont from "next/font/local";
 import Script from "next/script";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
@@ -11,16 +11,28 @@ const META_PIXEL_ID = "1678267889939692";
 const GA_MEASUREMENT_ID = "G-3J7CEB9JRC";
 const ADSENSE_CLIENT_ID = "ca-pub-3556923690765050";
 
-const cairo = Cairo({
+// الخطوط محفوظة جوه الريبو (app/fonts، مصدرها github.com/google/fonts، رخصة OFL) بدل خطوط جوجل الأونلاين،
+// عشان الـbuild ميعتمدش على تحميل الخطوط من جوجل. نفس الأوزان بالظبط اللي كانت متحمّلة قبل كده،
+// فاختيار المتصفح لأقرب وزن (زي 800) مبيتغيرش. Cairo نسخ ثابتة من الـvariable font (slnt = 0).
+const cairo = localFont({
   variable: "--font-cairo",
-  subsets: ["arabic", "latin"],
-  weight: ["400", "600", "700", "900"],
+  display: "swap",
+  src: [
+    { path: "./fonts/cairo/Cairo-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/cairo/Cairo-SemiBold.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/cairo/Cairo-Bold.woff2", weight: "700", style: "normal" },
+    { path: "./fonts/cairo/Cairo-Black.woff2", weight: "900", style: "normal" },
+  ],
 });
 
-const tajawal = Tajawal({
+const tajawal = localFont({
   variable: "--font-tajawal",
-  subsets: ["arabic", "latin"],
-  weight: ["400", "500", "700"],
+  display: "swap",
+  src: [
+    { path: "./fonts/tajawal/Tajawal-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/tajawal/Tajawal-Medium.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/tajawal/Tajawal-Bold.woff2", weight: "700", style: "normal" },
+  ],
 });
 
 const SITE_URL = "https://www.elshoghl.com";

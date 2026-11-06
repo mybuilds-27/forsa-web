@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
 export const alt = "الشغل - موقع توظيف مصري مجاني بالكامل";
@@ -17,29 +19,18 @@ const DOMAIN = "elshoghl.com";
 // شكل كل كلمة عربي (اتصال الحروف جوها) بيتحدد بالخط نفسه مش بالـdirection.
 const SLOGAN = [...SLOGAN_WORDS].reverse().join(" ");
 
-// UA بتاع Safari قديم — بيخلي جوجل فونتس يرجع صيغة خط satori (اللي بيستخدمها ImageResponse)
-// قادرة تقرأها (woff/truetype/opentype) بدل الـwoff2 الحديثة اللي بترجع للمتصفحات العادية.
-const LEGACY_SAFARI_UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) AppleWebKit/534.57.2 (KHTML, like Gecko) Version/5.1.7 Safari/534.57.2";
-
-async function loadCairoFont(text: string, weight: 500 | 800) {
-  const cssUrl = `https://fonts.googleapis.com/css2?family=Cairo:wght@${weight}&text=${encodeURIComponent(text)}`;
-  const css = await (await fetch(cssUrl, { headers: { "User-Agent": LEGACY_SAFARI_UA } })).text();
-  const match = css.match(/src: url\(([^)]+)\) format\('(woff|truetype|opentype)'\)/);
-  if (!match) throw new Error("Cairo font source not found in Google Fonts CSS response");
-  const fontRes = await fetch(match[1]);
-  return fontRes.arrayBuffer();
-}
+// نسخ Cairo ثابتة (ttf) جوه الريبو بدل تحميلها من جوجل وقت الـbuild — satori (اللي بيستخدمها
+// ImageResponse) مبيقراش woff2، فالوزنين دول بس محفوظين ttf. شوف app/fonts/cairo.
+const CAIRO_FONT_DIR = join(process.cwd(), "src/app/fonts/cairo");
 
 // صورة المشاركة الافتراضية (لينك الموقع نفسه، أو أي صفحة معندهاش صورة مخصصة زي تفاصيل
 // الوظيفة) — اللوجو لوحده كان مش كافي لأن بعض المنصات بتعرض الصورة من غير العنوان النصي
 // جنبها، فبقى اسم الموقع والسلوجن والدومين كلهم مطبوعين جوه الصورة نفسها.
 export default async function OpengraphImage() {
-  // نفس خط Cairo بوزنين بس — الاسم والدومين بالبولد (800)، السلوجن أخف (500). بنحمّل كل
-  // وزن مرة واحدة بس بالحروف اللي محتاجينها فعليًا (subsetting)، عشان الصورة تتولّد أسرع.
+  // نفس خط Cairo بوزنين بس — الاسم والدومين بالبولد (800)، السلوجن أخف (500).
   const [cairoBold, cairoMedium] = await Promise.all([
-    loadCairoFont(SITE_NAME + DOMAIN, 800),
-    loadCairoFont(SLOGAN, 500),
+    readFile(join(CAIRO_FONT_DIR, "Cairo-ExtraBold.ttf")),
+    readFile(join(CAIRO_FONT_DIR, "Cairo-Medium.ttf")),
   ]);
 
   return new ImageResponse(
