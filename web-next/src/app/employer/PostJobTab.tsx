@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, query, where, getCountFromServer, getDoc, getDocs, limit, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS, KEYWORD_OPTIONS, SPECIALIZATION_KEYWORD_MAP } from "@/lib/constants";
+import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS, KEYWORD_OPTIONS, SPECIALIZATION_KEYWORD_MAP, JOB_EDUCATION_REQUIREMENTS } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 import { logClientError } from "@/lib/errorLog";
 import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
@@ -93,6 +93,8 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
   const [ageFrom, setAgeFrom] = useState("");
   const [ageTo, setAgeTo] = useState("");
   const [needsCar, setNeedsCar] = useState("");
+  // الحد الأدنى للمؤهل (مفتاح من JOB_EDUCATION_REQUIREMENTS)، "" = غير محدد. مش إجباري.
+  const [educationRequirement, setEducationRequirement] = useState("");
   const [requirements, setRequirements] = useState("");
 
   const [hoursPerDay, setHoursPerDay] = useState("");
@@ -188,6 +190,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setAgeFrom(p.ageFrom?.toString() || "");
     setAgeTo(p.ageTo?.toString() || "");
     setNeedsCar(p.needsCar || "");
+    setEducationRequirement(p.educationRequirement || "");
     setRequirements(p.requirements || "");
     setHoursPerDay(p.hoursPerDay?.toString() || "");
     setDaysOffPerMonth(p.daysOffPerMonth?.toString() || "");
@@ -213,7 +216,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       const draft = {
         title, specSelect, specOther, keywords, jobType, jobLevel, minExperience, maxExperience, governorate, citySelect, cityOther,
         description, vacancies, salaryNegotiable, salaryFrom, salaryTo, showSalary,
-        ageFrom, ageTo, needsCar, requirements, hoursPerDay, daysOffPerMonth,
+        ageFrom, ageTo, needsCar, educationRequirement, requirements, hoursPerDay, daysOffPerMonth,
         socialInsurance, privateHealthInsurance, transportationAvailable, transportationAreas,
         housingForExpats, additionalBenefits, screeningQuestions, newQuestionSelect, newQuestionOther,
         showCompanyName, receiveMethod, contactMethod, contactValue,
@@ -228,7 +231,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
   }, [
     isEditMode, title, specSelect, specOther, keywords, jobType, jobLevel, minExperience, maxExperience, governorate, citySelect, cityOther,
     description, vacancies, salaryNegotiable, salaryFrom, salaryTo, showSalary,
-    ageFrom, ageTo, needsCar, requirements, hoursPerDay, daysOffPerMonth,
+    ageFrom, ageTo, needsCar, educationRequirement, requirements, hoursPerDay, daysOffPerMonth,
     socialInsurance, privateHealthInsurance, transportationAvailable, transportationAreas,
     housingForExpats, additionalBenefits, screeningQuestions, newQuestionSelect, newQuestionOther,
     showCompanyName, receiveMethod, contactMethod, contactValue,
@@ -267,6 +270,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setAgeFrom(draft.ageFrom || "");
     setAgeTo(draft.ageTo || "");
     setNeedsCar(draft.needsCar || "");
+    setEducationRequirement(draft.educationRequirement || "");
     setRequirements(draft.requirements || "");
     setHoursPerDay(draft.hoursPerDay || "");
     setDaysOffPerMonth(draft.daysOffPerMonth || "");
@@ -467,6 +471,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         ageFrom: ageFrom ? Number(ageFrom) : null,
         ageTo: ageTo ? Number(ageTo) : null,
         needsCar: needsCar || "",
+        educationRequirement: educationRequirement || "",
         requirements: requirements || "",
         receiveMethod,
         contactMethod: receiveMethod === "contact" ? contactMethod : "",
@@ -575,6 +580,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setAgeFrom("");
     setAgeTo("");
     setNeedsCar("");
+    setEducationRequirement("");
     setRequirements("");
     setHoursPerDay("");
     setDaysOffPerMonth("");
@@ -848,6 +854,12 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
               <select value={ageTo} onChange={(e) => setAgeTo(e.target.value)} style={inputStyle}>
                 <option value="">غير محدد</option>
                 {AGE_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>الحد الأدنى للمؤهل الدراسي</label>
+              <select value={educationRequirement} onChange={(e) => setEducationRequirement(e.target.value)} style={inputStyle}>
+                {JOB_EDUCATION_REQUIREMENTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div>

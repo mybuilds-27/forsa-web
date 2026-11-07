@@ -95,6 +95,38 @@ export const EDUCATION_LEVEL_LABELS: Record<string, string> = {
   phd: "دكتوراه",
 };
 
+// الحد الأدنى للمؤهل الدراسي في الوظيفة (job_posts.educationRequirement). نفس مفاتيح ونصوص
+// EDUCATION_LEVEL_LABELS بتاعة الباحث (عشان مطابقة الوظيفة بالباحث بعدين تبقى مباشرة)، زائد
+// "not_required". "" = غير محدد (الافتراضي، والوظايف القديمة اللي من غير الحقل).
+export const JOB_EDUCATION_REQUIREMENTS: { value: string; label: string }[] = [
+  { value: "", label: "غير محدد" },
+  { value: "not_required", label: "غير مشترط" },
+  ...(["literacy", "preparatory", "secondary", "bachelor", "master", "phd"] as const).map((value) => ({
+    value,
+    label: EDUCATION_LEVEL_LABELS[value],
+  })),
+];
+
+// مقابل schema.org (credentialCategory) للـJSON-LD بتاع JobPosting. القيم اللي مش هنا مش بتتبعت.
+const JOB_EDUCATION_CREDENTIAL_CATEGORY: Record<string, string> = {
+  not_required: "no requirements",
+  secondary: "high school",
+  bachelor: "bachelor degree",
+  master: "postgraduate degree",
+  phd: "postgraduate degree",
+};
+
+// نص المؤهل المطلوب لصفحة الوظيفة، أو null لو القيمة فاضية أو مش معروفة (الصف بيختفي).
+export function jobEducationRequirementLabel(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
+  return JOB_EDUCATION_REQUIREMENTS.find((o) => o.value === value)?.label ?? null;
+}
+
+export function jobEducationCredentialCategory(value: unknown): string | null {
+  if (typeof value !== "string" || !Object.prototype.hasOwnProperty.call(JOB_EDUCATION_CREDENTIAL_CATEGORY, value)) return null;
+  return JOB_EDUCATION_CREDENTIAL_CATEGORY[value];
+}
+
 export const SCREENING_QUESTION_OPTIONS: { text: string; type: "text" | "number" }[] = [
   { text: "المرتب المتوقع؟", type: "number" },
   { text: "هل لديك خبرة سابقة في المجال؟ وكام سنة؟", type: "text" },

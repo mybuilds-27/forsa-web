@@ -9,7 +9,7 @@ import ShareButton from "@/components/ShareButton";
 import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
-import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify } from "@/lib/constants";
+import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify, jobEducationRequirementLabel, jobEducationCredentialCategory } from "@/lib/constants";
 import { toWhatsAppNumber } from "@/lib/phoneAuth";
 import { featuredPillStyle, JOB_TYPE_LABELS, salaryDisplay, sanitizeJobDescription, tagStyle, experienceRangeText, isJobDescriptionIndexable } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_BROAD } from "@/lib/publicJobsQuery";
@@ -133,6 +133,8 @@ function buildJobPostingJsonLd(job: any) {
   const city = typeof job.city === "string" ? job.city.trim() : "";
   const governorate = typeof job.governorate === "string" ? job.governorate.trim() : "";
   const addressLocality = city || governorate;
+  // المؤهل بيتبعت بس لو ليه مقابل في schema.org (وظايف قديمة من غير الحقل أو "غير محدد": مش بيتبعت)
+  const credentialCategory = jobEducationCredentialCategory(job.educationRequirement);
 
   return {
     "@context": "https://schema.org/",
@@ -175,6 +177,9 @@ function buildJobPostingJsonLd(job: any) {
             },
           },
         }
+      : {}),
+    ...(credentialCategory
+      ? { educationRequirements: { "@type": "EducationalOccupationalCredential", credentialCategory } }
       : {}),
   };
 }
@@ -460,6 +465,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               : undefined
           }
         />
+        <DetailRow label="المؤهل المطلوب" value={jobEducationRequirementLabel(job.educationRequirement) ?? undefined} />
         <DetailRow label="محتاج عربية" value={job.needsCar === "yes" ? "أيوة ✓" : job.needsCar === "no" ? "لأ" : undefined} />
         <DetailRow label="ساعات العمل يوميًا" value={job.hoursPerDay ? `${job.hoursPerDay} ساعات` : undefined} />
         <DetailRow label="التأمين الاجتماعي" value={job.socialInsurance === "yes" ? "متوفر ✓" : job.socialInsurance === "no" ? "غير متوفر" : undefined} />
