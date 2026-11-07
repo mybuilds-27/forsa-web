@@ -11,9 +11,7 @@ import { withGracePeriod, getConnectionDiagnostics } from "@/lib/withGracePeriod
 import { findRecentlyCreatedJobPost, verifyJobPostUpdated } from "@/lib/serverWriteVerify";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import KeywordsPicker, { MAX_KEYWORDS } from "@/components/KeywordsPicker";
-
-// تحت الطول ده بتظهر ملاحظة غير مانعة تحت خانة الوصف.
-const DESCRIPTION_NOTE_MIN_LENGTH = 200;
+import { jobDescriptionLength, MIN_JOB_DESCRIPTION_FOR_INDEX } from "@/lib/jobCardStyles";
 
 const AGE_OPTIONS = Array.from({ length: 50 }, (_, i) => 16 + i);
 
@@ -79,6 +77,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
   const [citySelect, setCitySelect] = useState("");
   const [cityOther, setCityOther] = useState("");
   const [description, setDescription] = useState("");
+  // نفس حساب شرط أرشفة صفحة الوظيفة (jobDescriptionLength)، عشان العدّاد والملاحظة يطابقوا الـnoindex.
+  // إرشادي بس: مش بيمنع النشر.
+  const descLength = jobDescriptionLength(description);
 
   const [vacancies, setVacancies] = useState("1");
   const [salaryNegotiable, setSalaryNegotiable] = useState(false);
@@ -782,10 +783,15 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
             )}
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>وصف الوظيفة</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="المهام والمميزات..." style={{ ...inputStyle, minHeight: 80 }} />
-              {description.trim().length < DESCRIPTION_NOTE_MIN_LENGTH && (
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="مثال: المهام اليومية، ومواعيد العمل ومكانه، والمهارات المطلوبة، وما تقدمه الشركة للموظف." style={{ ...inputStyle, minHeight: 140 }} />
+              <div style={{ fontSize: 12.5, marginTop: 4, color: descLength < MIN_JOB_DESCRIPTION_FOR_INDEX ? "#6B7280" : "#2F7D4F" }}>
+                {descLength < MIN_JOB_DESCRIPTION_FOR_INDEX
+                  ? `عدد الأحرف: ${descLength} من ${MIN_JOB_DESCRIPTION_FOR_INDEX} حرف موصى بها`
+                  : `عدد الأحرف: ${descLength}، الطول مناسب`}
+              </div>
+              {descLength < MIN_JOB_DESCRIPTION_FOR_INDEX && (
                 <div style={softNoteStyle}>
-                  الوصف المفصّل والواضح يجذب مرشحين أنسب.{" "}
+                  يُفضّل ألا يقل الوصف عن {MIN_JOB_DESCRIPTION_FOR_INDEX} حرف. الوصف المفصّل يجذب مرشحين أنسب، ويساعد على ظهور الإعلان في محركات البحث. اذكر المهام اليومية، وبيئة العمل ومواعيده، والمهارات المطلوبة، وما تقدمه الشركة للموظف.{" "}
                   <a href="/articles/how-to-write-a-job-ad" target="_blank" rel="noopener noreferrer" style={{ color: "#14213D", fontWeight: 700 }}>
                     كيف تكتب إعلان وظيفة فعّالًا؟
                   </a>
