@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, query, where, getCountFromServer, getDoc, getDocs, limit, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS, KEYWORD_OPTIONS, SPECIALIZATION_KEYWORD_MAP, JOB_EDUCATION_REQUIREMENTS } from "@/lib/constants";
+import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS, KEYWORD_OPTIONS, SPECIALIZATION_KEYWORD_MAP, JOB_EDUCATION_REQUIREMENTS, JOB_EDUCATION_FIELD_KEYS } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 import { logClientError } from "@/lib/errorLog";
 import { checkEmailVerificationGate } from "@/lib/emailVerificationGate";
@@ -95,6 +95,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
   const [needsCar, setNeedsCar] = useState("");
   // الحد الأدنى للمؤهل (مفتاح من JOB_EDUCATION_REQUIREMENTS)، "" = غير محدد. مش إجباري.
   const [educationRequirement, setEducationRequirement] = useState("");
+  // التخصص الدراسي المطلوب: بيظهر ويتحفظ بس لو المؤهل من JOB_EDUCATION_FIELD_KEYS، وإلا بيتحفظ "".
+  const [educationField, setEducationField] = useState("");
+  const educationFieldAllowed = JOB_EDUCATION_FIELD_KEYS.includes(educationRequirement);
   const [requirements, setRequirements] = useState("");
 
   const [hoursPerDay, setHoursPerDay] = useState("");
@@ -191,6 +194,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setAgeTo(p.ageTo?.toString() || "");
     setNeedsCar(p.needsCar || "");
     setEducationRequirement(p.educationRequirement || "");
+    setEducationField(p.educationField || "");
     setRequirements(p.requirements || "");
     setHoursPerDay(p.hoursPerDay?.toString() || "");
     setDaysOffPerMonth(p.daysOffPerMonth?.toString() || "");
@@ -216,7 +220,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       const draft = {
         title, specSelect, specOther, keywords, jobType, jobLevel, minExperience, maxExperience, governorate, citySelect, cityOther,
         description, vacancies, salaryNegotiable, salaryFrom, salaryTo, showSalary,
-        ageFrom, ageTo, needsCar, educationRequirement, requirements, hoursPerDay, daysOffPerMonth,
+        ageFrom, ageTo, needsCar, educationRequirement, educationField, requirements, hoursPerDay, daysOffPerMonth,
         socialInsurance, privateHealthInsurance, transportationAvailable, transportationAreas,
         housingForExpats, additionalBenefits, screeningQuestions, newQuestionSelect, newQuestionOther,
         showCompanyName, receiveMethod, contactMethod, contactValue,
@@ -231,7 +235,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
   }, [
     isEditMode, title, specSelect, specOther, keywords, jobType, jobLevel, minExperience, maxExperience, governorate, citySelect, cityOther,
     description, vacancies, salaryNegotiable, salaryFrom, salaryTo, showSalary,
-    ageFrom, ageTo, needsCar, educationRequirement, requirements, hoursPerDay, daysOffPerMonth,
+    ageFrom, ageTo, needsCar, educationRequirement, educationField, requirements, hoursPerDay, daysOffPerMonth,
     socialInsurance, privateHealthInsurance, transportationAvailable, transportationAreas,
     housingForExpats, additionalBenefits, screeningQuestions, newQuestionSelect, newQuestionOther,
     showCompanyName, receiveMethod, contactMethod, contactValue,
@@ -271,6 +275,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setAgeTo(draft.ageTo || "");
     setNeedsCar(draft.needsCar || "");
     setEducationRequirement(draft.educationRequirement || "");
+    setEducationField(draft.educationField || "");
     setRequirements(draft.requirements || "");
     setHoursPerDay(draft.hoursPerDay || "");
     setDaysOffPerMonth(draft.daysOffPerMonth || "");
@@ -472,6 +477,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         ageTo: ageTo ? Number(ageTo) : null,
         needsCar: needsCar || "",
         educationRequirement: educationRequirement || "",
+        educationField: educationFieldAllowed ? educationField.replace(/\s+/g, " ").trim() : "",
         requirements: requirements || "",
         receiveMethod,
         contactMethod: receiveMethod === "contact" ? contactMethod : "",
@@ -581,6 +587,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setAgeTo("");
     setNeedsCar("");
     setEducationRequirement("");
+    setEducationField("");
     setRequirements("");
     setHoursPerDay("");
     setDaysOffPerMonth("");
@@ -861,6 +868,12 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
               <select value={educationRequirement} onChange={(e) => setEducationRequirement(e.target.value)} style={inputStyle}>
                 {JOB_EDUCATION_REQUIREMENTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
+              {educationFieldAllowed && (
+                <>
+                  <label style={{ ...labelStyle, marginTop: 10 }}>التخصص الدراسي المطلوب (اختياري)</label>
+                  <input type="text" value={educationField} onChange={(e) => setEducationField(e.target.value)} maxLength={60} placeholder="مثال: تجارة، محاسبة، هندسة، حاسبات ومعلومات" style={inputStyle} />
+                </>
+              )}
             </div>
             <div>
               <label style={labelStyle}>هل تتطلب الوظيفة سيارة؟</label>

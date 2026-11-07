@@ -9,7 +9,7 @@ import ShareButton from "@/components/ShareButton";
 import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
-import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify, jobEducationRequirementLabel, jobEducationCredentialCategory } from "@/lib/constants";
+import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify, jobEducationRequirementText, jobEducationCredentialCategory } from "@/lib/constants";
 import { toWhatsAppNumber } from "@/lib/phoneAuth";
 import { featuredPillStyle, JOB_TYPE_LABELS, salaryDisplay, sanitizeJobDescription, tagStyle, experienceRangeText, isJobDescriptionIndexable } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_BROAD } from "@/lib/publicJobsQuery";
@@ -465,7 +465,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               : undefined
           }
         />
-        <DetailRow label="المؤهل المطلوب" value={jobEducationRequirementLabel(job.educationRequirement) ?? undefined} />
+        <DetailRow label="المؤهل المطلوب" value={jobEducationRequirementText(job.educationRequirement, job.educationField) ?? undefined} />
         <DetailRow label="محتاج عربية" value={job.needsCar === "yes" ? "أيوة ✓" : job.needsCar === "no" ? "لأ" : undefined} />
         <DetailRow label="ساعات العمل يوميًا" value={job.hoursPerDay ? `${job.hoursPerDay} ساعات` : undefined} />
         <DetailRow label="التأمين الاجتماعي" value={job.socialInsurance === "yes" ? "متوفر ✓" : job.socialInsurance === "no" ? "غير متوفر" : undefined} />

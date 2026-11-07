@@ -122,6 +122,19 @@ export function jobEducationRequirementLabel(value: unknown): string | null {
   return JOB_EDUCATION_REQUIREMENTS.find((o) => o.value === value)?.label ?? null;
 }
 
+// المؤهلات اللي ينفع يتكتب معاها تخصص دراسي (job_posts.educationField)
+export const JOB_EDUCATION_FIELD_KEYS: readonly string[] = ["secondary", "bachelor", "master", "phd"];
+
+// نص صف "المؤهل المطلوب": null لو المؤهل فاضي أو مش معروف، و"النص (التخصص)" لو فيه تخصص والمؤهل
+// من JOB_EDUCATION_FIELD_KEYS، وإلا النص لوحده. التخصص بيتعمله trim ومسافاته المتكررة بتبقى واحدة.
+export function jobEducationRequirementText(requirement: unknown, field: unknown): string | null {
+  const label = jobEducationRequirementLabel(requirement);
+  if (!label) return null;
+  const cleanField = typeof field === "string" ? field.replace(/\s+/g, " ").trim() : "";
+  if (!cleanField || !JOB_EDUCATION_FIELD_KEYS.includes(requirement as string)) return label;
+  return `${label} (${cleanField})`;
+}
+
 export function jobEducationCredentialCategory(value: unknown): string | null {
   if (typeof value !== "string" || !Object.prototype.hasOwnProperty.call(JOB_EDUCATION_CREDENTIAL_CATEGORY, value)) return null;
   return JOB_EDUCATION_CREDENTIAL_CATEGORY[value];
