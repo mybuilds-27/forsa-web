@@ -384,7 +384,18 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         </div>
       )}
 
-      <JobMatchBadge job={job} />
+      {/* client component: أي حاجة في props بتتبعت في بيانات الـRSC جوه HTML الصفحة، فبنبعت حقول
+          المطابقة بس، مش مستند الوظيفة كله (كان فيه companyName حتى لو showCompanyName مش true) */}
+      <JobMatchBadge
+        job={{
+          specialization: job.specialization,
+          jobLevel: job.jobLevel,
+          minExperience: job.minExperience,
+          maxExperience: job.maxExperience,
+          keywords: job.keywords,
+          governorate: job.governorate,
+        }}
+      />
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
         {job.receiveMethod === "contact" && job.contactValue ? (

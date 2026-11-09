@@ -10,6 +10,8 @@ export type FacebookPostJob = {
   id: string;
   title: string;
   companyName?: string;
+  // الاسم بيتكتب في النص بس لو showCompanyName === true (نفس قاعدة الصفحة العامة وjobCardData.ts)
+  showCompanyName?: boolean;
   governorate?: string;
   city?: string;
   jobType?: string;
@@ -81,7 +83,8 @@ function salaryLine(job: FacebookPostJob): string | null {
 export function buildFacebookPostText(job: FacebookPostJob, jobUrl: string): string {
   const lines: string[] = ["وظيفة جديدة علي موقع الشغل", `المسمى الوظيفي: ${job.title}`];
 
-  if (job.companyName) lines.push(job.companyName);
+  // الاسم المخفي عن الباحثين مبيتكتبش خالص (ولا "شركة غير معلنة" مكانه): السطر بيختفي
+  if (job.showCompanyName === true && job.companyName) lines.push(job.companyName);
 
   const location = [job.governorate, job.city].filter(Boolean).join(" - ");
   if (location) lines.push(`📍 الموقع: ${location}`);
