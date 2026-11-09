@@ -5,7 +5,6 @@ import JobCardBase from "@/components/JobCardBase";
 import { ScreeningQuestion } from "@/components/ScreeningQuestionsModal";
 import { ApplicationStatus, APPLICATION_STATUS_LABELS, APPLICATION_STATUS_STYLES } from "@/lib/jobCardStyles";
 import { toJobCardData } from "@/lib/jobCardData";
-import { toWhatsAppNumber } from "@/lib/phoneAuth";
 
 export type JobPost = {
   id: string;
@@ -38,12 +37,6 @@ export type JobPost = {
 // مباشرة (واتساب/إيميل/تليفون) مش عن طريق الموقع، فمفيش زرار "قدّم" — بيظهر ContactReveal بداله.
 export function isContactJob(p: JobPost): boolean {
   return p.receiveMethod === "contact" && !!p.contactValue;
-}
-
-// نفس حساب رقم الواتساب في jobs/[id]/page.tsx: صيغة دولية لو الرقم مصري معروف، وإلا تنضيف الرموز بس.
-export function contactWhatsAppNumber(p: JobPost): string | null {
-  if (p.receiveMethod !== "contact" || p.contactMethod !== "whatsapp" || !p.contactValue) return null;
-  return toWhatsAppNumber(p.contactValue) || p.contactValue.replace(/\D/g, "");
 }
 
 type Props = {

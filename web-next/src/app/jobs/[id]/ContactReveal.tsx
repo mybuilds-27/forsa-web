@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { toWhatsAppNumber } from "@/lib/phoneAuth";
 import RegisterModal from "@/components/RegisterModal";
 import { logContactReveal } from "@/lib/contactReveal";
 
@@ -10,25 +12,47 @@ const CONTACT_METHOD_LABELS: Record<string, string> = { email: "إيميل", wha
 
 type Props = {
   jobId: string;
-  jobTitle: string;
   contactMethod: string;
-  contactValue: string;
-  whatsappNumber: string | null;
 };
 
-// بوابة واجهة بس (زي ApplyButton.tsx بالظبط) — مش قفل تقني على البيانات. الزائر مش المسجل
-// دخول بيشوف زرار تسجيل بدل وسيلة التواصل الفعلية، وبعد النجاح بيتفعل العرض الحقيقي فورًا من
-// غير أي إعادة تحميل. contactValue لسه بيوصل للمتصفح جوه الـRSC payload بتاع الصفحة (page.tsx
-// Server Component بيبعتها كـprop مهما كانت حالة الدخول) — الهدف هنا تشجيع التسجيل، مش منع
-// حقيقي على مستوى البيانات (قرار متفق عليه، مش قفل صارم).
-export default function ContactReveal({ jobId, jobTitle, contactMethod, contactValue, whatsappNumber }: Props) {
+type Contact = { value: string; whatsappNumber: string | null; jobTitle: string };
+
+// بوابة واجهة (زي ApplyButton.tsx) — الزائر مش المسجل دخول بيشوف زرار تسجيل بدل وسيلة التواصل،
+// وبعد النجاح بيتفعل العرض الحقيقي فورًا من غير إعادة تحميل. contactValue مبقاش بيتبعت من page.tsx
+// (كان بيتكتب في HTML الصفحة لأي زائر)؛ بيتقري هنا من job_posts/{jobId} بعد تسجيل الدخول بس.
+// ده مش قفل على مستوى البيانات: قواعد Firestore لسه بتسمح بقراية مستند الوظيفة من غير تسجيل.
+export default function ContactReveal({ jobId, contactMethod }: Props) {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  // undefined = لسه بيتحمّل، null = القراءة فشلت أو مفيش قيمة
+  const [contact, setContact] = useState<Contact | null | undefined>(undefined);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => setLoggedIn(!!user));
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    let cancelled = false;
+    getDoc(doc(db, "job_posts", jobId))
+      .then((snap) => {
+        const data = snap.exists() ? snap.data() : null;
+        const value = typeof data?.contactValue === "string" ? data.contactValue : "";
+        if (!value) throw new Error("no contactValue");
+        // لينك واتساب محتاج الرقم بصيغة دولية (20xxxxxxxxxx) — contactValue في Firestore زي ما هو
+        // (ممكن يكون محلي 01xxxxxxxxx). fallback للسلوك القديم (تنضيف الرموز بس) لو الرقم مش بصيغة مصرية معروفة.
+        const whatsappNumber = contactMethod === "whatsapp" ? toWhatsAppNumber(value) || value.replace(/\D/g, "") : null;
+        if (!cancelled) setContact({ value, whatsappNumber, jobTitle: typeof data?.title === "string" ? data.title : "" });
+      })
+      .catch((err) => {
+        console.error("[ContactReveal] فشل تحميل وسيلة التواصل", err);
+        if (!cancelled) setContact(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loggedIn, jobId, contactMethod]);
 
   // بيتسجّل لحظة ما العرض الحقيقي يظهر لمستخدم مسجّل دخول — أي وسيلة تواصل (واتساب/إيميل/
   // تليفون)، مش بس ضغطة فعلية على زرار (بعض الطرق زي الإيميل/التليفون أصلًا مالهاش زرار
@@ -70,11 +94,19 @@ export default function ContactReveal({ jobId, jobTitle, contactMethod, contactV
     );
   }
 
-  if (contactMethod === "whatsapp" && whatsappNumber) {
+  if (contact === undefined) {
+    return <p style={{ color: "#4A5568", margin: 0 }}>جاري التحميل...</p>;
+  }
+
+  if (contact === null) {
+    return <p style={{ color: "#B42318", margin: 0 }}>تعذّر تحميل وسيلة التواصل. أعد تحميل الصفحة وحاول مرة أخرى.</p>;
+  }
+
+  if (contactMethod === "whatsapp" && contact.whatsappNumber) {
     return (
       <a
-        href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-          `مرحبًا، شفت إعلان وظيفة ${jobTitle} على موقع الشغل وحابب أتقدملها`
+        href={`https://wa.me/${contact.whatsappNumber}?text=${encodeURIComponent(
+          `مرحبًا، شفت إعلان وظيفة ${contact.jobTitle} على موقع الشغل وحابب أتقدملها`
         )}`}
         target="_blank"
         rel="noopener noreferrer"
@@ -98,7 +130,7 @@ export default function ContactReveal({ jobId, jobTitle, contactMethod, contactV
 
   return (
     <p style={{ color: "#4A5568", margin: 0 }}>
-      <strong>التواصل ({CONTACT_METHOD_LABELS[contactMethod] || contactMethod}):</strong> {contactValue}
+      <strong>التواصل ({CONTACT_METHOD_LABELS[contactMethod] || contactMethod}):</strong> {contact.value}
     </p>
   );
 }

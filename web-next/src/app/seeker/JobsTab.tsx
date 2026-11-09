@@ -26,7 +26,7 @@ import { getActiveJobsSeoData, JobCombo } from "@/lib/publicJobsQuery";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { shouldShowProfileNudge } from "@/lib/profileNudge";
-import JobCard, { JobPost, isContactJob, contactWhatsAppNumber } from "./JobCard";
+import JobCard, { JobPost, isContactJob } from "./JobCard";
 import ContactReveal from "@/app/jobs/[id]/ContactReveal";
 import { tagStyle, ApplicationStatus, applicationStatusOf, salaryDisplay } from "@/lib/jobCardStyles";
 import ScreeningQuestionsModal from "@/components/ScreeningQuestionsModal";
@@ -645,13 +645,7 @@ export default function JobsTab({ completionPercent, specialization, keywords, j
                 </button>
               ) : isContactJob(selectedJob) ? (
                 // نفس شرط ومكوّن صفحة الوظيفة العامة (jobs/[id]/page.tsx): وظيفة تواصل مباشر مفيهاش "قدّم".
-                <ContactReveal
-                  jobId={selectedJob.id}
-                  jobTitle={selectedJob.title}
-                  contactMethod={selectedJob.contactMethod || ""}
-                  contactValue={selectedJob.contactValue || ""}
-                  whatsappNumber={contactWhatsAppNumber(selectedJob)}
-                />
+                <ContactReveal jobId={selectedJob.id} contactMethod={selectedJob.contactMethod || ""} />
               ) : (
                 <button
                   onClick={() => handleApplyClick(selectedJob)}

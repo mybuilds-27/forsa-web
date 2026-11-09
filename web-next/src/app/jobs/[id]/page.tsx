@@ -10,7 +10,6 @@ import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
 import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify, jobEducationRequirementText, jobEducationCredentialCategory } from "@/lib/constants";
-import { toWhatsAppNumber } from "@/lib/phoneAuth";
 import { featuredPillStyle, JOB_TYPE_LABELS, salaryDisplay, sanitizeJobDescription, tagStyle, experienceRangeText, isJobDescriptionIndexable } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_BROAD } from "@/lib/publicJobsQuery";
 import { NOINDEX_FOLLOW, pageSeo } from "@/lib/seoMetadata";
@@ -311,18 +310,6 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   // ChatGPT (##, **نص**, سطور بـ*/-) — النص الأصلي في Firestore زي ما هو، ده بس للعرض.
   const description = sanitizeJobDescription(job.description || "");
 
-  // لينك واتساب محتاج الرقم بصيغة دولية (20xxxxxxxxxx) — contactValue في Firestore زي ما
-  // هو (ممكن يكون محلي 01xxxxxxxxx من غير كود الدولة)، ده بس تصحيح للعرض وقت بناء اللينك.
-  // fallback آمن للسلوك القديم (تنضيف الرموز بس) لو الرقم مش بصيغة مصرية معروفة، مع تحذير
-  // في لوج السيرفر عشان نلاحظ أرقام غريبة بدل ما اللينك يفضل يكسر بصمت.
-  let whatsappNumber: string | null = null;
-  if (job.receiveMethod === "contact" && job.contactMethod === "whatsapp" && job.contactValue) {
-    whatsappNumber = toWhatsAppNumber(job.contactValue);
-    if (!whatsappNumber) {
-      console.warn(`[jobs/${job.id}] contactValue مش بصيغة رقم مصري معروف: "${job.contactValue}"`);
-      whatsappNumber = job.contactValue.replace(/\D/g, "");
-    }
-  }
   const descriptionIsArabic = isArabicText(description);
   const descriptionBulletItems = splitBulletItems(description);
 
@@ -399,13 +386,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
         {job.receiveMethod === "contact" && job.contactValue ? (
-          <ContactReveal
-            jobId={job.id}
-            jobTitle={job.title}
-            contactMethod={job.contactMethod}
-            contactValue={job.contactValue}
-            whatsappNumber={whatsappNumber}
-          />
+          // contactValue (ورقم الواتساب المحسوب منه) مبيتبعتوش كـprops: أي prop لـclient component
+          // بيتكتب في HTML الصفحة. ContactReveal بيقرا القيمة من Firestore بعد ما يتأكد إن الزائر مسجل دخول.
+          <ContactReveal jobId={job.id} contactMethod={job.contactMethod} />
         ) : (
           <ApplyButton
             jobId={job.id}
