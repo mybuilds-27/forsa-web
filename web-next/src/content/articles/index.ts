@@ -23,10 +23,11 @@ import { article as endingEmploymentArticle } from "./ending-employment-employer
 import { article as salesCsInterviewArticle } from "./sales-customer-service-interview-questions";
 import { article as applicationMessageArticle } from "./job-application-message-whatsapp-email";
 import { article as fairSalaryArticle } from "./how-to-set-fair-salary-small-business";
+import { article as factoryJobsArticle } from "./factory-jobs-industrial-zones-egypt";
 
 // إضافة مقال جديد: اعمل ملف جديد في المجلد ده (انسخ cv-article.ts)، وضيف سطر import فوق
 // وسطر في المصفوفة تحت. الترتيب هنا مش مهم، المقالات بتتعرض الأحدث الأول حسب date.
-const allArticles: Article[] = [cvArticle, interviewArticle, fakeJobsArticle, jobSearchArticle, salaryArticle, jobAdArticle, first90DaysArticle, laborLawArticle, freshGraduatesArticle, socialInsuranceArticle, employmentContractArticle, careerChangeArticle, terminationRightsArticle, resignArticle, linkedinArticle, screeningArticle, onboardingArticle, overtimeArticle, employerObligationsArticle, leaveRightsArticle, endingEmploymentArticle, salesCsInterviewArticle, applicationMessageArticle, fairSalaryArticle];
+const allArticles: Article[] = [cvArticle, interviewArticle, fakeJobsArticle, jobSearchArticle, salaryArticle, jobAdArticle, first90DaysArticle, laborLawArticle, freshGraduatesArticle, socialInsuranceArticle, employmentContractArticle, careerChangeArticle, terminationRightsArticle, resignArticle, linkedinArticle, screeningArticle, onboardingArticle, overtimeArticle, employerObligationsArticle, leaveRightsArticle, endingEmploymentArticle, salesCsInterviewArticle, applicationMessageArticle, fairSalaryArticle, factoryJobsArticle];
 
 const slugs = new Set<string>();
 for (const a of allArticles) {
