@@ -1,9 +1,12 @@
 import type { HrTemplate } from "./types";
 import { hrTemplate as experienceCertificate } from "./experience-certificate";
+import { hrTemplate as leaveRequest } from "./leave-request";
+import { hrTemplate as violationNoticeInvestigation } from "./violation-notice-investigation";
+import { hrTemplate as jobOfferLetter } from "./job-offer-letter";
 
 // إضافة نموذج جديد: اعمل ملف جديد في المجلد ده (انسخ experience-certificate.ts)، وضيف سطر import فوق
 // وسطر في المصفوفة تحت. النماذج بتتعرض الأحدث الأول حسب date.
-const allTemplates: HrTemplate[] = [experienceCertificate];
+const allTemplates: HrTemplate[] = [experienceCertificate, leaveRequest, violationNoticeInvestigation, jobOfferLetter];
 
 const slugs = new Set<string>();
 for (const t of allTemplates) {
