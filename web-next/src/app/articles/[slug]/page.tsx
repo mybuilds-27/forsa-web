@@ -5,6 +5,8 @@ import { articleModifiedDate, articles, formatArticleDate, getArticle, getRelate
 import type { Article } from "@/content/articles/types";
 import ArticleBody from "@/lib/articleMarkdown";
 import ArticleCard, { articleGridStyle } from "@/components/ArticleCard";
+import { getTemplatesForArticle } from "@/content/hr-templates";
+import HrTemplateCard from "@/components/HrTemplateCard";
 
 const SITE_URL = "https://www.elshoghl.com";
 
@@ -102,6 +104,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   if (!article) notFound();
   const modified = articleModifiedDate(article);
   const related = getRelatedArticles(article.slug, 3);
+  // النماذج اللي relatedArticles بتاعها فيه المقال ده (content/hr-templates) — القسم بيظهر بس لو فيه
+  const relatedTemplates = getTemplatesForArticle(article.slug);
 
   return (
     <article dir="rtl" style={{ maxWidth: 720, margin: "0 auto", padding: "40px 20px" }}>
@@ -144,6 +148,17 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           <Link href="/register" style={ctaGhostStyle}>سجّل مجانًا</Link>
         </div>
       </div>
+
+      {relatedTemplates.length > 0 && (
+        <section style={{ marginTop: 36 }}>
+          <h2 style={{ fontSize: 19, fontWeight: 800, color: "#14213D", marginBottom: 14 }}>نماذج ذات صلة</h2>
+          <div style={articleGridStyle}>
+            {relatedTemplates.map((t) => (
+              <HrTemplateCard key={t.slug} template={t} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {related.length > 0 && (
         <section style={{ marginTop: 36 }}>

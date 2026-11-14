@@ -22,6 +22,7 @@ export default function Footer() {
         <Link href="/pricing" style={linkStyle}>الباقات والأسعار</Link>
         <Link href="/companies" style={linkStyle}>الشركات</Link>
         <Link href="/articles" style={linkStyle}>مقالات</Link>
+        <Link href="/hr-templates" style={linkStyle}>نماذج الموارد البشرية</Link>
         <Link href="/privacy" style={linkStyle}>سياسة الخصوصية</Link>
         <Link href="/terms" style={linkStyle}>الشروط والأحكام</Link>
         <Link href="/faq" style={linkStyle}>الأسئلة الشائعة</Link>

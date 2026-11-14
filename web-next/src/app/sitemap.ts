@@ -1,6 +1,7 @@
 import { slugify } from "@/lib/constants";
 import { getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_BROAD, MIN_JOBS_FOR_INDEX_NARROW } from "@/lib/publicJobsQuery";
 import { articleModifiedDate, articles } from "@/content/articles";
+import { hrTemplates, templateModifiedDate } from "@/content/hr-templates";
 
 // ملف الـsitemap ده مالهوش أي dynamic segment، فـNext.js كان بيعمله static prerender
 // وقت الـbuild ويسيبه في كاش (زي ما لقينا في companies/page.tsx وjobs/page.tsx) — يعني
@@ -20,6 +21,8 @@ export default async function sitemap() {
     { url: `${baseUrl}/contact`, lastModified: new Date() },
     // أحدث تاريخ نشر/تعديل بين المقالات (مش وقت توليد الـsitemap)
     { url: `${baseUrl}/articles`, lastModified: articles.length ? new Date(articles.map(articleModifiedDate).sort().reverse()[0]) : new Date() },
+    // أحدث تاريخ نشر/تعديل بين النماذج
+    { url: `${baseUrl}/hr-templates`, lastModified: hrTemplates.length ? new Date(hrTemplates.map(templateModifiedDate).sort().reverse()[0]) : new Date() },
     { url: `${baseUrl}/faq`, lastModified: new Date() },
     { url: `${baseUrl}/why-free`, lastModified: new Date() },
     { url: `${baseUrl}/pricing`, lastModified: new Date() },
@@ -28,6 +31,11 @@ export default async function sitemap() {
   const articlePages = articles.map((a) => ({
     url: `${baseUrl}/articles/${a.slug}`,
     lastModified: new Date(articleModifiedDate(a)),
+  }));
+
+  const templatePages = hrTemplates.map((t) => ({
+    url: `${baseUrl}/hr-templates/${t.slug}`,
+    lastModified: new Date(templateModifiedDate(t)),
   }));
 
   let jobPages: { url: string; lastModified: Date }[] = [];
@@ -68,5 +76,5 @@ export default async function sitemap() {
     console.error("Sitemap job fetch failed", err);
   }
 
-  return [...staticPages, ...articlePages, ...jobPages, ...governoratePages, ...specializationPages, ...comboPages];
+  return [...staticPages, ...articlePages, ...templatePages, ...jobPages, ...governoratePages, ...specializationPages, ...comboPages];
 }

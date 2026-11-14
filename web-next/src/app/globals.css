@@ -158,7 +158,7 @@ a {
    لـbody (شوف ProfileTab.tsx)، فكفاية نخفي أي sibling تاني ليه على مستوى body من غير
    ما نحتاج نخفي شجرة كاملة بـvisibility (اللي كانت بتسيب مساحة محجوزة وتطلع صفحة زيادة). */
 @media print {
-  body > *:not(.cv-print-view) {
+  body > *:not(.cv-print-view):not(.hr-template-print-view) {
     display: none !important;
   }
 }
@@ -168,6 +168,23 @@ a {
    ليها. الهامش البصري الفعلي جاي من padding الكارت نفسه في CVPreview. */
 @page {
   margin: 0;
+}
+
+/* طباعة نموذج الموارد البشرية (HrTemplateActions.tsx) — نفس فكرة cv-print-view (portal لـbody). مخفي على
+   الشاشة عشان النسخة دي متظهرش تحت الصفحة وقت فتح نافذة الطباعة، والهامش من الـpadding لأن @page هامشه صفر. */
+.hr-template-print-view {
+  display: none;
+}
+
+@media print {
+  .hr-template-print-view {
+    display: block;
+    white-space: pre-wrap;
+    padding: 20mm 18mm;
+    font-size: 14pt;
+    line-height: 2;
+    color: #000;
+  }
 }
 
 /* قائمة الإشعارات المنسدلة (NotificationBell.tsx) — notification-backdrop مبيتاخدش أي box
