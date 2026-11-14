@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, query, where, getCountFromServer, getDoc, getDocs, limit, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, query, where, getCountFromServer, getDoc, getDocs, limit, writeBatch, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { GOVERNORATES, GOVERNORATE_CITIES, SPECIALIZATION_OPTIONS, EXPERIENCE_LEVELS, SCREENING_QUESTION_OPTIONS, KEYWORD_OPTIONS, SPECIALIZATION_KEYWORD_MAP, JOB_EDUCATION_REQUIREMENTS, JOB_EDUCATION_FIELD_KEYS } from "@/lib/constants";
 import { friendlyErrorMessage } from "@/lib/errorMessages";
@@ -12,6 +12,7 @@ import { findRecentlyCreatedJobPost, verifyJobPostUpdated } from "@/lib/serverWr
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import KeywordsPicker, { MAX_KEYWORDS } from "@/components/KeywordsPicker";
 import { jobDescriptionLength, MIN_JOB_DESCRIPTION_FOR_INDEX } from "@/lib/jobCardStyles";
+import { jobContactRef, readPrivateJobContact } from "@/lib/jobContact";
 
 const AGE_OPTIONS = Array.from({ length: 50 }, (_, i) => 16 + i);
 
@@ -209,6 +210,18 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     setReceiveMethod(p.receiveMethod === "contact" ? "contact" : "platform");
     setContactMethod(p.contactMethod || "");
     setContactValue(p.contactValue || "");
+    // بيانات التواصل من private/contact لو موجودة (المكان الجديد)، وإلا بتفضل القيمة القديمة من المستند العام فوق
+    if (p.receiveMethod === "contact") {
+      let cancelled = false;
+      readPrivateJobContact(editingPost.id).then((c) => {
+        if (cancelled || !c) return;
+        if (c.contactMethod) setContactMethod(c.contactMethod);
+        setContactValue(c.contactValue);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
   }, [editingPost]);
 
   // كل حقول الفورم بتتحفظ في localStorage تحت مفتاح ثابت (debounce نص ثانية عشان منكتبش
@@ -492,11 +505,19 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         isActive: true,
       };
 
+      // بيانات التواصل بتتكتب كمان في job_posts/{id}/private/contact في نفس الـbatch مع الوظيفة (كتابة مزدوجة
+      // لحد ما الحقول القديمة تتشال من المستند العام). وظيفة بالتقديم من الموقع: private/contact بيتمسح لو موجود.
+      const contactData = receiveMethod === "contact" ? { contactMethod, contactValue } : null;
+
       if (isEditMode && editingPost) {
         // updatedAt بتتحدث بس هنا (مسار التعديل) — postData نفسها مشتركة مع مسار النشر
         // الجديد تحت، فمينفعش نضيفها هناك عشان مبقاش لها معنى وقت الإنشاء الأول.
         const saveStartedAt = new Date().getTime();
-        const updatePromise = updateDoc(doc(db, "job_posts", editingPost.id), { ...postData, updatedAt: serverTimestamp() });
+        const batch = writeBatch(db);
+        batch.update(doc(db, "job_posts", editingPost.id), { ...postData, updatedAt: serverTimestamp() });
+        if (contactData) batch.set(jobContactRef(editingPost.id), contactData);
+        else batch.delete(jobContactRef(editingPost.id));
+        const updatePromise = batch.commit();
         // التحقق من السيرفر بعد الـ60 ثانية بس (شوف withGracePeriod وserverWriteVerify.ts).
         await withGracePeriod(updatePromise, () => setSlowSaveNotice(true), async () => {
           const saved = await verifyJobPostUpdated(editingPost.id, saveStartedAt);
@@ -517,12 +538,17 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
         expiry.setDate(expiry.getDate() + (currentPlan === "premium" ? 60 : 30));
         postData.expiresAt = Timestamp.fromDate(expiry);
         const saveStartedAt = new Date().getTime();
-        const addPromise = addDoc(collection(db, "job_posts"), {
+        // الـid بيتولّد قبل الـbatch عشان private/contact يتكتب معاها في نفس الكتابة
+        const newJobRef = doc(collection(db, "job_posts"));
+        const batch = writeBatch(db);
+        batch.set(newJobRef, {
           ...postData,
           createdAt: serverTimestamp(),
         });
-        // addDoc مبيدّيش id قبل ما يخلص، فالتحقق بعد الـ60 ثانية بيدوّر على وظيفة بنفس employerId والعنوان
-        // وcreatedAt حديث (شوف findRecentlyCreatedJobPost) ويرجّع ref بنفس الـid لو لقاها.
+        if (contactData) batch.set(jobContactRef(newJobRef.id), contactData);
+        const addPromise = batch.commit().then(() => newJobRef);
+        // التحقق بعد الـ60 ثانية بيدوّر على وظيفة بنفس employerId والعنوان وcreatedAt حديث
+        // (شوف findRecentlyCreatedJobPost) ويرجّع ref بنفس الـid لو لقاها.
         const docRef = await withGracePeriod(addPromise, () => setSlowSaveNotice(true), async () => {
           const createdId = await findRecentlyCreatedJobPost(postData.employerId, postData.title, saveStartedAt);
           if (!createdId) return null;

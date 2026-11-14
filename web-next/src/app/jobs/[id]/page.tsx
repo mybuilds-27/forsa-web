@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/firebase";
 import ApplyButton from "./ApplyButton";
 import ContactReveal from "./ContactReveal";
+import { isContactJob } from "@/lib/jobContact";
 import JobMatchBadge from "./JobMatchBadge";
 import ShareButton from "@/components/ShareButton";
 import ReportJobButton from "./ReportJobButton";
@@ -385,7 +386,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       />
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
-        {job.receiveMethod === "contact" && job.contactValue ? (
+        {isContactJob(job) ? (
           // contactValue (ورقم الواتساب المحسوب منه) مبيتبعتوش كـprops: أي prop لـclient component
           // بيتكتب في HTML الصفحة. ContactReveal بيقرا القيمة من Firestore بعد ما يتأكد إن الزائر مسجل دخول.
           <ContactReveal jobId={job.id} contactMethod={job.contactMethod} />

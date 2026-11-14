@@ -29,6 +29,7 @@ import {
 } from "@/lib/employerStats";
 import { EXPERIENCE_LEVELS } from "@/lib/constants";
 import { CONTACT_METHOD_LABELS, contactApplyText } from "@/lib/contactMethodLabels";
+import { isContactJob, readPrivateJobContact } from "@/lib/jobContact";
 import ShareButton from "@/components/ShareButton";
 import ApplicantCard from "@/components/ApplicantCard";
 import ContactRevealViewers from "@/components/ContactRevealViewers";
@@ -198,7 +199,24 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
   const [loadingApplicants, setLoadingApplicants] = useState(false);
   const [applicantsError, setApplicantsError] = useState("");
   const [detailPost, setDetailPost] = useState<JobPost | null>(null);
+  // وسيلة التواصل في تفاصيل الوظيفة: من private/contact لو موجودة (متخزنة مع id الوظيفة اللي اتقرت ليها)،
+  // وإلا contactValue القديم على المستند العام
+  const [detailPrivateContact, setDetailPrivateContact] = useState<{ jobId: string; value: string } | null>(null);
+  const detailContactValue =
+    (detailPost && detailPrivateContact?.jobId === detailPost.id ? detailPrivateContact.value : "") || detailPost?.contactValue || "";
   const [fbPostJob, setFbPostJob] = useState<JobPost | null>(null);
+
+  useEffect(() => {
+    if (!detailPost || !isContactJob(detailPost)) return;
+    let cancelled = false;
+    const jobId = detailPost.id;
+    readPrivateJobContact(jobId).then((c) => {
+      if (!cancelled && c) setDetailPrivateContact({ jobId, value: c.contactValue });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [detailPost]);
   const [dailyApplications, setDailyApplications] = useState<DailyCount[]>([]);
   const [invitationStats, setInvitationStats] = useState<InvitationStats | null>(null);
   const [invitationStatsError, setInvitationStatsError] = useState(false);
@@ -789,9 +807,9 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
             {detailPost.additionalBenefits && (
               <p style={{ marginTop: 10 }}><strong>مزايا إضافية:</strong> {detailPost.additionalBenefits}</p>
             )}
-            {detailPost.receiveMethod === "contact" && detailPost.contactValue && (
+            {detailPost.receiveMethod === "contact" && detailContactValue && (
               <p style={{ marginTop: 10 }}>
-                <strong>التواصل ({{ email: "البريد الإلكتروني", whatsapp: "واتساب", phone: "الهاتف" }[detailPost.contactMethod || ""] || detailPost.contactMethod}):</strong> {detailPost.contactValue}
+                <strong>التواصل ({{ email: "البريد الإلكتروني", whatsapp: "واتساب", phone: "الهاتف" }[detailPost.contactMethod || ""] || detailPost.contactMethod}):</strong> {detailContactValue}
               </p>
             )}
 

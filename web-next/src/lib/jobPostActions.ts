@@ -1,6 +1,7 @@
-import { collection, deleteDoc, doc, getDocs, query, updateDoc, where } from "firebase/firestore";
+import { collection, doc, getDocs, query, updateDoc, where, writeBatch } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import { db } from "@/lib/firebase";
+import { jobContactRef } from "@/lib/jobContact";
 import type { ScreeningQuestion } from "@/components/ScreeningQuestionsModal";
 
 // إيقاف الوظيفة (يدوي من الزرار هنا، أو الإغلاق الكسول عند انتهاء expiresAt في
@@ -21,8 +22,13 @@ export async function toggleJobFeatured(postId: string, makeFeatured: boolean): 
   await updateDoc(doc(db, "job_posts", postId), { featured: makeFeatured, featuredByAdmin: makeFeatured });
 }
 
+// الوظيفة وبيانات تواصلها (job_posts/{id}/private/contact) بيتمسحوا في نفس الـbatch — مسح مستند الأب لوحده
+// مبيمسحش الـsubcollection في Firestore. قاعدة delete بتاعة private/contact بتقرا الوظيفة بـget (قبل الـbatch).
 export async function deleteJobPost(postId: string): Promise<void> {
-  await deleteDoc(doc(db, "job_posts", postId));
+  const batch = writeBatch(db);
+  batch.delete(jobContactRef(postId));
+  batch.delete(doc(db, "job_posts", postId));
+  await batch.commit();
 }
 
 export async function fetchApplicants(postId: string, employerId: string): Promise<any[]> {

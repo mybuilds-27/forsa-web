@@ -5,6 +5,7 @@ import JobCardBase from "@/components/JobCardBase";
 import { ScreeningQuestion } from "@/components/ScreeningQuestionsModal";
 import { ApplicationStatus, APPLICATION_STATUS_LABELS, APPLICATION_STATUS_STYLES } from "@/lib/jobCardStyles";
 import { toJobCardData } from "@/lib/jobCardData";
+import { isContactJob as isContactJobFields } from "@/lib/jobContact";
 
 export type JobPost = {
   id: string;
@@ -33,10 +34,10 @@ export type JobPost = {
   contactValue?: string;
 };
 
-// نفس شرط صفحة الوظيفة العامة (jobs/[id]/page.tsx): الوظيفة بتستقبل المتقدمين عن طريق وسيلة تواصل
-// مباشرة (واتساب/إيميل/تليفون) مش عن طريق الموقع، فمفيش زرار "قدّم" — بيظهر ContactReveal بداله.
+// نفس شرط صفحة الوظيفة العامة (jobs/[id]/page.tsx، من lib/jobContact.ts): الوظيفة بتستقبل المتقدمين عن طريق
+// وسيلة تواصل مباشرة (واتساب/إيميل/تليفون) مش عن طريق الموقع، فمفيش زرار "قدّم" — بيظهر ContactReveal بداله.
 export function isContactJob(p: JobPost): boolean {
-  return p.receiveMethod === "contact" && !!p.contactValue;
+  return isContactJobFields(p);
 }
 
 type Props = {

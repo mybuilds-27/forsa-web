@@ -7,6 +7,7 @@ import { auth, db } from "@/lib/firebase";
 import { toWhatsAppNumber } from "@/lib/phoneAuth";
 import RegisterModal from "@/components/RegisterModal";
 import { logContactReveal } from "@/lib/contactReveal";
+import { readPrivateJobContact } from "@/lib/jobContact";
 
 const CONTACT_METHOD_LABELS: Record<string, string> = { email: "إيميل", whatsapp: "واتساب", phone: "تليفون" };
 
@@ -19,8 +20,8 @@ type Contact = { value: string; whatsappNumber: string | null; jobTitle: string 
 
 // بوابة واجهة (زي ApplyButton.tsx) — الزائر مش المسجل دخول بيشوف زرار تسجيل بدل وسيلة التواصل،
 // وبعد النجاح بيتفعل العرض الحقيقي فورًا من غير إعادة تحميل. contactValue مبقاش بيتبعت من page.tsx
-// (كان بيتكتب في HTML الصفحة لأي زائر)؛ بيتقري هنا من job_posts/{jobId} بعد تسجيل الدخول بس.
-// ده مش قفل على مستوى البيانات: قواعد Firestore لسه بتسمح بقراية مستند الوظيفة من غير تسجيل.
+// (كان بيتكتب في HTML الصفحة لأي زائر)؛ بيتقري هنا بعد تسجيل الدخول بس: من job_posts/{jobId}/private/contact
+// الأول (lib/jobContact.ts)، ولو مش موجود أو فاضي أو اترفض، من contactValue على المستند العام زي الأول.
 export default function ContactReveal({ jobId, contactMethod }: Props) {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -35,10 +36,10 @@ export default function ContactReveal({ jobId, contactMethod }: Props) {
   useEffect(() => {
     if (!loggedIn) return;
     let cancelled = false;
-    getDoc(doc(db, "job_posts", jobId))
-      .then((snap) => {
+    Promise.all([readPrivateJobContact(jobId), getDoc(doc(db, "job_posts", jobId))])
+      .then(([privateContact, snap]) => {
         const data = snap.exists() ? snap.data() : null;
-        const value = typeof data?.contactValue === "string" ? data.contactValue : "";
+        const value = privateContact?.contactValue || (typeof data?.contactValue === "string" ? data.contactValue : "");
         if (!value) throw new Error("no contactValue");
         // لينك واتساب محتاج الرقم بصيغة دولية (20xxxxxxxxxx) — contactValue في Firestore زي ما هو
         // (ممكن يكون محلي 01xxxxxxxxx). fallback للسلوك القديم (تنضيف الرموز بس) لو الرقم مش بصيغة مصرية معروفة.
