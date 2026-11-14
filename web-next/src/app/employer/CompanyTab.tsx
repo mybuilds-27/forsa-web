@@ -477,6 +477,19 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
       {/* رابط الإحالة: لشركة موجودة وغير محظورة بس */}
       {companyData && companyData.banned !== true && <EmployerReferralSection />}
 
+      <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20, marginBottom: 30, background: "#F8F6F0" }}>
+        <h3 style={{ marginBottom: 8, fontSize: 17 }}>نماذج جاهزة للموارد البشرية</h3>
+        <p style={{ fontSize: 14, color: "#4A5568", lineHeight: 1.8, margin: "0 0 14px" }}>
+          شهادة خبرة، طلب إجازة، إخطار بمخالفة، عرض عمل، وغيرها، جاهزة للنسخ والطباعة
+        </p>
+        <Link
+          href="/hr-templates"
+          style={{ display: "inline-block", padding: "10px 20px", background: "#14213D", color: "#fff", borderRadius: 8, textDecoration: "none", fontWeight: 700, fontSize: 14 }}
+        >
+          تصفح النماذج
+        </Link>
+      </div>
+
       <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20, marginBottom: 30 }}>
         <h3 style={{ marginBottom: 16, fontSize: 17 }}>الإحصائيات</h3>
 

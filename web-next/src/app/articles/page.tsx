@@ -28,6 +28,25 @@ export default function ArticlesPage() {
         نصايح وإرشادات تساعدك في رحلة البحث عن شغل أو التوظيف.
       </p>
 
+      <Link
+        href="/hr-templates"
+        style={{
+          display: "block",
+          marginBottom: 20,
+          padding: "12px 16px",
+          background: "#F8F6F0",
+          border: "1px solid #14213D22",
+          borderRadius: 10,
+          color: "#14213D",
+          fontSize: 14.5,
+          fontWeight: 700,
+          lineHeight: 1.8,
+          textDecoration: "none",
+        }}
+      >
+        لأصحاب العمل: نماذج جاهزة للموارد البشرية، شهادة خبرة وطلب إجازة وعرض عمل وغيرها ←
+      </Link>
+
       {articles.length === 0 ? (
         <p style={{ color: "#4A5568" }}>مفيش مقالات لسه.</p>
       ) : (

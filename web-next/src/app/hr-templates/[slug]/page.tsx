@@ -93,8 +93,8 @@ export default async function HrTemplatePage({ params }: { params: Promise<{ slu
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(templateJsonLd(t)).replace(/</g, "\\u003c") }}
       />
-      <Link href="/hr-templates" style={{ fontSize: 14, color: "#4A5568", textDecoration: "none" }}>
-        → كل النماذج
+      <Link href="/hr-templates" style={backButtonStyle}>
+        → كل نماذج الموارد البشرية
       </Link>
 
       <h1 style={{ fontSize: 28, fontWeight: 900, color: "#14213D", margin: "16px 0 10px", lineHeight: 1.5 }}>{t.title}</h1>
@@ -167,9 +167,27 @@ export default async function HrTemplatePage({ params }: { params: Promise<{ slu
           </div>
         </section>
       )}
+
+      <div style={{ marginTop: 36 }}>
+        <Link href="/hr-templates" style={backButtonStyle}>
+          → كل نماذج الموارد البشرية
+        </Link>
+      </div>
     </article>
   );
 }
+
+const backButtonStyle: React.CSSProperties = {
+  display: "inline-flex",
+  padding: "8px 16px",
+  border: "1px solid #14213D",
+  borderRadius: 8,
+  color: "#14213D",
+  fontWeight: 700,
+  fontSize: 14,
+  background: "#F8F6F0",
+  textDecoration: "none",
+};
 
 const ctaPrimaryStyle: React.CSSProperties = {
   display: "inline-block",

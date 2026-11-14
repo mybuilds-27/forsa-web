@@ -8,6 +8,8 @@ import { JOB_TYPE_LABELS, tagStyle } from "@/lib/jobCardStyles";
 import CompanyLogo from "@/components/CompanyLogo";
 import ArticleCard, { articleGridStyle } from "@/components/ArticleCard";
 import { getLatestArticles } from "@/content/articles";
+import HrTemplateCard from "@/components/HrTemplateCard";
+import { hrTemplates } from "@/content/hr-templates";
 
 const COLORS = {
   ink: "#14213D",
@@ -56,6 +58,8 @@ export default async function HomePage() {
   const topCompanies = companies.slice(0, HOME_COMPANIES_COUNT);
   // مقالات ثابتة في الكود (content/articles) — مفيش أي قراءة Firestore
   const guideArticles = getLatestArticles(3, "seekers");
+  // نماذج الموارد البشرية (content/hr-templates) — ثابتة في الكود برضه، من غير Firestore
+  const homeTemplates = hrTemplates.slice(0, 3);
 
   return (
     <div dir="rtl">
@@ -354,6 +358,34 @@ export default async function HomePage() {
                     }}
                   >
                     كل المقالات ←
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {homeTemplates.length > 0 && (
+              <div style={{ marginBottom: 40 }}>
+                <h2 style={{ fontSize: 19, color: COLORS.ink, marginBottom: 16 }}>لأصحاب العمل: نماذج جاهزة للموارد البشرية</h2>
+                <div style={articleGridStyle}>
+                  {homeTemplates.map((t) => (
+                    <HrTemplateCard key={t.slug} template={t} />
+                  ))}
+                </div>
+                <div style={{ textAlign: "center", marginTop: 20 }}>
+                  <Link
+                    href="/hr-templates"
+                    style={{
+                      display: "inline-block",
+                      padding: "10px 22px",
+                      borderRadius: 8,
+                      border: `1.5px solid ${COLORS.ink}`,
+                      color: COLORS.ink,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                    }}
+                  >
+                    كل النماذج ←
                   </Link>
                 </div>
               </div>

@@ -180,9 +180,9 @@ a {
   .hr-template-print-view {
     display: block;
     white-space: pre-wrap;
-    padding: 20mm 18mm;
-    font-size: 14pt;
-    line-height: 2;
+    padding: 14mm 16mm;
+    font-size: 12pt;
+    line-height: 1.7;
     color: #000;
   }
 }
