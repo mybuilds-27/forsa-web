@@ -2681,7 +2681,7 @@ exports.adminSetEmployerPlan = onCall({ timeoutSeconds: 120 }, async (request) =
 
 // حذف نهائي (غير قابل للتراجع) — لازم confirmCompanyName يطابق اسم الشركة بالظبط (نفس شرط
 // الواجهة، بيتأكد منه هنا كمان). بيمسح: حساب Auth، employers/{uid} (ومعاه private/contact)،
-// users/{uid} (ومعاه fcmTokens)، وظايفه (ومعاها job_views وjob_contact_views)، وكل
+// users/{uid} (ومعاه fcmTokens)، وظايفه (ومعاها private/contact وjob_views وjob_contact_views)، وكل
 // applications/invitations/contact_reveals/job_reports بـemployerId بتاعه، وإشعاراته، ولوجو
 // الشركة في Storage. مش بيمسح saved_jobs اللي حافظاها باحثين لوظايفه (الكود الحالي بيتعامل
 // مع وظيفة محذوفة وبينضّفها لوحده). ترتيب مقصود: قطع الجلسات الأول، وemployers/{uid} آخر
@@ -2710,7 +2710,8 @@ exports.adminDeleteEmployer = onCall({ timeoutSeconds: 540 }, async (request) =>
     for (const d of jobsSnap.docs) {
       await db.recursiveDelete(db.collection("job_contact_views").doc(d.id));
       await db.collection("job_views").doc(d.id).delete();
-      await d.ref.delete();
+      // recursiveDelete بدل delete: بيمسح الوظيفة ومعاها subcollections بتاعتها (private/contact)
+      await db.recursiveDelete(d.ref);
     }
     counts.applications = await deleteQueryDocs(db, db.collection("applications").where("employerId", "==", employerId));
     counts.invitations = await deleteQueryDocs(db, db.collection("invitations").where("employerId", "==", employerId));
