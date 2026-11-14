@@ -4,7 +4,8 @@ service cloud.firestore {
     function isAdmin(){
       return request.auth != null
              && (request.auth.token.email == 'elshoghl27@gmail.com'
-                 || request.auth.token.email == 'mohamedzakaria2727@gmail.com');
+                 || request.auth.token.email == 'mohamedzakaria2727@gmail.com')
+             && request.auth.token.email_verified == true;
     }
     function isBannedEmployer(uid){
       return exists(/databases/$(database)/documents/employers/$(uid))
@@ -69,6 +70,17 @@ service cloud.firestore {
                        );
       allow delete: if request.auth != null
                     && (resource.data.employerId == request.auth.uid || isAdmin());
+
+      match /private/contact {
+        allow read: if request.auth != null
+                    && (get(/databases/$(database)/documents/job_posts/$(postId)).data.isActive == true
+                        || get(/databases/$(database)/documents/job_posts/$(postId)).data.employerId == request.auth.uid
+                        || isAdmin());
+        allow write: if request.auth != null
+                     && ((getAfter(/databases/$(database)/documents/job_posts/$(postId)).data.employerId == request.auth.uid
+                          && !isBannedEmployer(request.auth.uid))
+                         || isAdmin());
+      }
     }
     match /applications/{applicationId} {
       allow create: if request.auth != null
