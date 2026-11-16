@@ -33,6 +33,7 @@ import ApplicantCard from "@/components/ApplicantCard";
 import AdminTabBar, { type AdminTab } from "./AdminTabBar";
 import EmployersAdminTab from "./EmployersAdminTab";
 import ReferralRewardsAdminSection from "./ReferralRewardsAdminSection";
+import HrTemplateUsageAdminSection from "./HrTemplateUsageAdminSection";
 import ReporterInfo from "./ReporterInfo";
 import ContactRevealViewers from "@/components/ContactRevealViewers";
 import FacebookPostModal from "@/components/FacebookPostModal";
@@ -1221,6 +1222,8 @@ export default function AdminPage() {
           )}
         </div>
       )}
+
+      <HrTemplateUsageAdminSection />
 
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 16, marginBottom: 4 }}>مراقبة الأخطاء (آخر 7 أيام)</h2>

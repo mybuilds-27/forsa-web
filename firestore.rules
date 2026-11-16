@@ -167,6 +167,25 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewed']);
       allow delete: if false;
     }
+    match /template_usage/{slug} {
+      function usageInts(d) {
+        return d.get('download', 0) is int && d.get('copy', 0) is int && d.get('print', 0) is int;
+      }
+      function usageSum(d) {
+        return d.get('download', 0) + d.get('copy', 0) + d.get('print', 0);
+      }
+      allow read: if isAdmin();
+      allow create: if slug.matches('^[a-z0-9-]{1,80}$')
+                    && request.resource.data.keys().hasOnly(['download', 'copy', 'print'])
+                    && request.resource.data.size() == 1
+                    && usageInts(request.resource.data)
+                    && usageSum(request.resource.data) == 1;
+      allow update: if request.resource.data.keys().hasOnly(['download', 'copy', 'print'])
+                    && request.resource.data.diff(resource.data).affectedKeys().size() == 1
+                    && usageInts(request.resource.data)
+                    && usageSum(request.resource.data) == usageSum(resource.data) + 1;
+      allow delete: if false;
+    }
     match /contact_reveals/{revealId} {
       allow read: if request.auth != null
                   && (request.auth.uid == resource.data.employerId

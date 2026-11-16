@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { doc, increment, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { buildHrTemplateDocx } from "@/lib/hrTemplateDocx";
+
+// عداد استخدام النموذج (template_usage/{slug}): +1 في حقل واحد بس، من غير أي بيانات عن الزائر.
+// fire-and-forget: الفشل بيتسجل في console بس، ومبيأثرش على الزرار. القواعد بتسمح بزيادة 1 بس في كل كتابة.
+function trackUsage(slug: string, field: "download" | "copy" | "print") {
+  setDoc(doc(db, "template_usage", slug), { [field]: increment(1) }, { merge: true }).catch((err) =>
+    console.error("[HrTemplateActions] فشل تسجيل استخدام النموذج", err)
+  );
+}
 
 // زرار "نسخ النموذج" و"طباعة النموذج" و"تحميل Word" تحت مربع النموذج في /hr-templates/[slug].
 // الطباعة بنفس طريقة CvPrintCard.tsx: النموذج بيتعمله portal كـchild مباشر لـbody بكلاس
@@ -29,6 +39,7 @@ export default function HrTemplateActions({ template, slug }: { template: string
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      trackUsage(slug, "download");
     } catch (err) {
       console.error("[HrTemplateActions] فشل إنشاء ملف Word", err);
       setWordError(true);
@@ -52,6 +63,7 @@ export default function HrTemplateActions({ template, slug }: { template: string
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    trackUsage(slug, "copy");
   }
 
   useEffect(() => {
@@ -59,12 +71,15 @@ export default function HrTemplateActions({ template, slug }: { template: string
     const handleAfterPrint = () => setPrinting(false);
     window.addEventListener("afterprint", handleAfterPrint);
     // frame واحد عشان الـportal يترسم الأول قبل نافذة الطباعة
-    const frameId = requestAnimationFrame(() => window.print());
+    const frameId = requestAnimationFrame(() => {
+      trackUsage(slug, "print");
+      window.print();
+    });
     return () => {
       cancelAnimationFrame(frameId);
       window.removeEventListener("afterprint", handleAfterPrint);
     };
-  }, [printing]);
+  }, [printing, slug]);
 
   return (
     <>
