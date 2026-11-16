@@ -2,14 +2,40 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { buildHrTemplateDocx } from "@/lib/hrTemplateDocx";
 
-// زرار "نسخ النموذج" و"طباعة النموذج" تحت مربع النموذج في /hr-templates/[slug].
+// زرار "نسخ النموذج" و"طباعة النموذج" و"تحميل Word" تحت مربع النموذج في /hr-templates/[slug].
 // الطباعة بنفس طريقة CvPrintCard.tsx: النموذج بيتعمله portal كـchild مباشر لـbody بكلاس
 // hr-template-print-view، وقاعدة @media print في globals.css بتخفي أي sibling تاني، فالمطبوع
 // هو النموذج بس. الكلاس ده مخفي على الشاشة (globals.css) عشان النسخة دي متظهرش تحت الصفحة.
-export default function HrTemplateActions({ template }: { template: string }) {
+// Word: ملف .docx بيتعمل في المتصفح من نفس قيمة template (lib/hrTemplateDocx.ts، مكتبة docx بتتحمّل وقت الضغط بس).
+export default function HrTemplateActions({ template, slug }: { template: string; slug: string }) {
   const [copied, setCopied] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [preparingWord, setPreparingWord] = useState(false);
+  const [wordError, setWordError] = useState(false);
+
+  async function handleWordDownload() {
+    setPreparingWord(true);
+    setWordError(false);
+    try {
+      const { doc, Packer } = await buildHrTemplateDocx(template, slug);
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${slug}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error("[HrTemplateActions] فشل إنشاء ملف Word", err);
+      setWordError(true);
+    } finally {
+      setPreparingWord(false);
+    }
+  }
 
   async function handleCopy() {
     try {
@@ -49,7 +75,13 @@ export default function HrTemplateActions({ template }: { template: string }) {
         <button onClick={() => setPrinting(true)} style={ghostButtonStyle}>
           طباعة النموذج
         </button>
+        <button onClick={handleWordDownload} disabled={preparingWord} style={ghostButtonStyle}>
+          {preparingWord ? "جارٍ التحضير..." : "تحميل Word"}
+        </button>
       </div>
+      {wordError && (
+        <p style={{ fontSize: 13, color: "#B42318", margin: "8px 0 0" }}>تعذّر إنشاء الملف، حاول مرة أخرى.</p>
+      )}
 
       {printing && typeof document !== "undefined" && createPortal(
         <div className="hr-template-print-view" dir="rtl">

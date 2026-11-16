@@ -128,7 +128,7 @@ export default async function HrTemplatePage({ params }: { params: Promise<{ slu
         >
           {t.template}
         </div>
-        <HrTemplateActions template={t.template} />
+        <HrTemplateActions template={t.template} slug={t.slug} />
       </section>
 
       <div
