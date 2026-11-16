@@ -21,16 +21,13 @@ export default function Footer() {
         <Link href="/why-free" style={linkStyle}>ليه مجاني؟</Link>
         <Link href="/pricing" style={linkStyle}>الباقات والأسعار</Link>
         <Link href="/companies" style={linkStyle}>الشركات</Link>
-        <Link href="/articles" style={linkStyle}>مقالات</Link>
-        <Link href="/hr-templates" style={linkStyle}>نماذج الموارد البشرية</Link>
-        <Link href="/tools/salary-calculator" style={linkStyle}>حاسبة المرتب</Link>
         <Link href="/privacy" style={linkStyle}>سياسة الخصوصية</Link>
         <Link href="/terms" style={linkStyle}>الشروط والأحكام</Link>
         <Link href="/faq" style={linkStyle}>الأسئلة الشائعة</Link>
         <Link href="/contact" style={linkStyle}>تواصل معنا</Link>
         
 <a href="https://www.facebook.com/profile.php?id=61592211902381" target="_blank" rel="noopener noreferrer" style={linkStyle}>
-          📘 صفحتنا على فيسبوك
+          صفحتنا على فيسبوك
         </a>
       </div>
       <div>© {new Date().getFullYear()} الشغل - موقع توظيف مصري</div>

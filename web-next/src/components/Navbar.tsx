@@ -253,7 +253,7 @@ export default function Navbar() {
         {/* مخفي عن الباحث المسجّل دخول بس (عنده "تصفح الوظائف" جوه لوحته، نفس القايمة + تقديم وحفظ) —
             الأدمن مستثنى حتى لو حسابه من نوع job_seeker، والزوار وأصحاب الأعمال بيشوفوه عادي. */}
         {!(userType === "job_seeker" && !isAdmin) && <Link href="/jobs" style={linkStyle}>الوظائف</Link>}
-        <Link href="/companies" style={linkStyle}>الشركات</Link>
+        <Link href="/tools/salary-calculator" style={linkStyle}>حاسبة المرتب</Link>
         <Link href="/articles" style={linkStyle}>مقالات</Link>
         {/* نماذج الموارد البشرية لأصحاب العمل: نفس شرط "الوظائف" فوق (مخفي عن الباحث بس، والأدمن مستثنى) */}
         {!(userType === "job_seeker" && !isAdmin) && <Link href="/hr-templates" style={linkStyle}>نماذج HR</Link>}
