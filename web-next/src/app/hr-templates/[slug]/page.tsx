@@ -130,12 +130,16 @@ export default async function HrTemplatePage({ params }: { params: Promise<{ slu
           {t.template}
         </div>
         <HrTemplateActions template={t.template} slug={t.slug} />
-        {t.extraDownload && (
-          <div style={extraDownloadBoxStyle}>
-            <p style={{ margin: 0, fontSize: 14, color: "#4A5568", lineHeight: 1.9 }}>{t.extraDownload.note}</p>
-            <TrackedDownloadLink href={t.extraDownload.href} style={downloadStyle}>
-              {t.extraDownload.label}
-            </TrackedDownloadLink>
+        {t.extraDownloads && t.extraDownloads.length > 0 && (
+          <div style={extraDownloadsListStyle}>
+            {t.extraDownloads.map((d) => (
+              <div key={d.href} style={extraDownloadBoxStyle}>
+                <p style={{ margin: 0, fontSize: 14, color: "#4A5568", lineHeight: 1.9 }}>{d.note}</p>
+                <TrackedDownloadLink href={d.href} style={downloadStyle}>
+                  {d.label}
+                </TrackedDownloadLink>
+              </div>
+            ))}
           </div>
         )}
       </section>
@@ -198,9 +202,14 @@ const backButtonStyle: React.CSSProperties = {
   textDecoration: "none",
 };
 
-// صندوق extraDownload (ملف إضافي للتحميل) تحت أزرار النموذج
-const extraDownloadBoxStyle: React.CSSProperties = {
+// صناديق extraDownloads (ملفات إضافية للتحميل) تحت أزرار النموذج: نفس المسافة فوق (16)، و12 بين كل صندوق والتاني
+const extraDownloadsListStyle: React.CSSProperties = {
   marginTop: 16,
+  display: "flex",
+  flexDirection: "column",
+  gap: 12,
+};
+const extraDownloadBoxStyle: React.CSSProperties = {
   padding: 16,
   border: "1px solid #14213D22",
   borderRadius: 10,

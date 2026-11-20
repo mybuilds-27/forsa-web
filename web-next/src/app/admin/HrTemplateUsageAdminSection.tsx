@@ -11,15 +11,15 @@ import { fileIdFromHref } from "@/components/TrackedDownloadLink";
 // والنماذج اللي مالهاش مستند بتظهر بأصفار، والترتيب بالإجمالي من الأكبر للأصغر.
 // تحت الجدول: أعداد حاسبة المرتب من tool_usage/salary-calculator (SalaryCalculator.tsx) بنفس زرار "عرض"،
 // وأصفار لو المستند لسه مش موجود. قراءتها مستقلة: لو فشلت الجدول بيظهر عادي والكارت بيكتب "تعذر التحميل" بس.
-// وتحت الكارت: جدول "تحميل الملفات" من file_downloads/{fileId} (TrackedDownloadLink.tsx). الاسم هو label الـextraDownload
-// لو الملف مستخدم في نموذج، وإلا الـid. ملفات extraDownload اللي مالهاش مستند بتظهر بصفر. قراءته مستقلة برضه.
+// وتحت الكارت: جدول "تحميل الملفات" من file_downloads/{fileId} (TrackedDownloadLink.tsx). الاسم هو label الملف في
+// extraDownloads لو مستخدم في أي نموذج، وإلا الـid. ملفات extraDownloads اللي مالهاش مستند بتظهر بصفر. قراءته مستقلة برضه.
 type Row = { slug: string; title: string; download: number; copy: number; print: number; total: number };
 type CalcUsage = { grossToNet: number; netToGross: number; excelDownload: number };
 type FileRow = { id: string; name: string; count: number };
 
-// fileId → label لكل ملف مستخدم كـextraDownload في نموذج
+// fileId → label لكل ملف في extraDownloads في كل النماذج
 const extraDownloadLabels = new Map(
-  hrTemplates.flatMap((t) => (t.extraDownload ? [[fileIdFromHref(t.extraDownload.href), t.extraDownload.label] as const] : []))
+  hrTemplates.flatMap((t) => (t.extraDownloads || []).map((d) => [fileIdFromHref(d.href), d.label] as const))
 );
 
 const num = (v: unknown) => (typeof v === "number" ? v : 0);
