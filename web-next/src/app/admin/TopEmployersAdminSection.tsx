@@ -13,7 +13,8 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { buildWhatsAppChatLink, whatsappButtonStyle } from "@/lib/whatsappLink";
+import { buildWhatsAppLink, whatsappButtonStyle } from "@/lib/whatsappLink";
+import { adminOutreachMessage } from "@/lib/adminOutreach";
 import { fetchContactRevealViewerCount } from "@/lib/contactReveal";
 
 // قسم "أنشط أصحاب العمل" في تاب أصحاب الأعمال: كل صاحب عمل نشر وظيفة واحدة على الأقل في آخر 90 يوم،
@@ -151,6 +152,18 @@ async function loadTopEmployers(): Promise<{ rows: Row[]; employersInWindow: num
 export default function TopEmployersAdminSection() {
   const [data, setData] = useState<{ rows: Row[]; employersInWindow: number } | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  // الصف اللي رسالته اتنسخت دلوقتي (بيظهر "تم النسخ" لثانيتين)
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  async function copyMessage(id: string, message: string) {
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 2000);
+    } catch (err) {
+      console.error("[TopEmployersAdminSection] فشل نسخ الرسالة", err);
+    }
+  }
 
   async function load() {
     setState("loading");
@@ -196,7 +209,9 @@ export default function TopEmployersAdminSection() {
               </thead>
               <tbody>
                 {data.rows.map((r) => {
-                  const wa = buildWhatsAppChatLink(r.phone);
+                  // نفس الرسالة للواتساب ولزرار النسخ (lib/adminOutreach.ts)
+                  const message = adminOutreachMessage(r);
+                  const wa = buildWhatsAppLink(r.phone, message);
                   return (
                     <tr key={r.id} style={r.premiumNow ? { background: "rgba(232,163,61,0.12)" } : undefined}>
                       <td style={{ ...tdStyle, fontWeight: 700 }}>
@@ -225,6 +240,9 @@ export default function TopEmployersAdminSection() {
                               مراسلة عبر واتساب
                             </a>
                           )}
+                          <button type="button" onClick={() => copyMessage(r.id, message)} style={copyBtnStyle}>
+                            {copiedId === r.id ? "تم النسخ" : "نسخ الرسالة"}
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -251,3 +269,13 @@ const showBtnStyle: React.CSSProperties = {
 };
 const thStyle: React.CSSProperties = { textAlign: "right", padding: "6px 8px", borderBottom: "1px solid #14213D33", whiteSpace: "nowrap" };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid #14213D14", verticalAlign: "top" };
+const copyBtnStyle: React.CSSProperties = {
+  alignSelf: "flex-start",
+  padding: "4px 10px",
+  fontSize: 12,
+  border: "1px solid #14213D",
+  background: "transparent",
+  borderRadius: 6,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+};
