@@ -129,6 +129,14 @@ export default async function HrTemplatePage({ params }: { params: Promise<{ slu
           {t.template}
         </div>
         <HrTemplateActions template={t.template} slug={t.slug} />
+        {t.extraDownload && (
+          <div style={extraDownloadBoxStyle}>
+            <p style={{ margin: 0, fontSize: 14, color: "#4A5568", lineHeight: 1.9 }}>{t.extraDownload.note}</p>
+            <a href={t.extraDownload.href} download style={downloadStyle}>
+              {t.extraDownload.label}
+            </a>
+          </div>
+        )}
       </section>
 
       <div
@@ -187,6 +195,29 @@ const backButtonStyle: React.CSSProperties = {
   fontSize: 14,
   background: "#F8F6F0",
   textDecoration: "none",
+};
+
+// صندوق extraDownload (ملف إضافي للتحميل) تحت أزرار النموذج
+const extraDownloadBoxStyle: React.CSSProperties = {
+  marginTop: 16,
+  padding: 16,
+  border: "1px solid #14213D22",
+  borderRadius: 10,
+  background: "#fff",
+};
+
+// نفس ستايل زرار "تحميل الحاسبة كملف Excel" في tools/salary-calculator/SalaryCalculator.tsx
+const downloadStyle: React.CSSProperties = {
+  display: "inline-block",
+  marginTop: 18,
+  padding: "10px 20px",
+  border: "1px solid #14213D",
+  borderRadius: 8,
+  color: "#14213D",
+  fontWeight: 700,
+  fontSize: 14,
+  textDecoration: "none",
+  background: "#F8F6F0",
 };
 
 const ctaPrimaryStyle: React.CSSProperties = {

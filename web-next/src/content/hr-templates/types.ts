@@ -16,4 +16,7 @@ export type HrTemplate = {
   // slugs مقالات مرتبطة (content/articles): بتظهر في "مقالات ذات صلة" هنا، والنموذج بيظهر في
   // "نماذج ذات صلة" في صفحة كل مقال منهم.
   relatedArticles?: string[];
+  // ملف إضافي للتحميل (زي Excel في public/tools): بيظهر في صندوق تحت أزرار النسخ والطباعة والـWord،
+  // فيه note وتحتها لينك تحميل بنص label.
+  extraDownload?: { href: string; label: string; note: string };
 };
