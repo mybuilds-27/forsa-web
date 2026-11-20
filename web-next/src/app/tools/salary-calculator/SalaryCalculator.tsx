@@ -1,7 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { doc, increment, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { grossToNet, netToGross, INS_MAX, INS_MIN } from "@/lib/salaryCalc";
+
+// عداد استخدام الحاسبة (tool_usage/salary-calculator): +1 في حقل واحد بس، من غير أي بيانات عن الزائر
+// ولا المبلغ. fire-and-forget: الفشل بيتسجل في console بس، ومبيأثرش على الحاسبة. القواعد بتسمح بزيادة 1 بس.
+type UsageField = "grossToNet" | "netToGross" | "excelDownload";
+function trackUsage(field: UsageField) {
+  setDoc(doc(db, "tool_usage", "salary-calculator"), { [field]: increment(1) }, { merge: true }).catch((err) =>
+    console.error("[SalaryCalculator] فشل تسجيل استخدام الحاسبة", err)
+  );
+}
+
+// الاستخدام بيتحسب بعد ما المبلغ يثبت 1.5 ثانية ومعاه نتيجة صحيحة ظاهرة
+const USAGE_DEBOUNCE_MS = 1500;
 
 // حاسبة المرتب في /tools/salary-calculator: من الإجمالي للصافي أو العكس، والحساب بيتعمل مع الكتابة.
 // المنطق كله في lib/salaryCalc.ts (نفس قواعد ملف Excel اللي في public/tools).
@@ -35,6 +49,18 @@ export default function SalaryCalculator() {
   const override = knowsIns && insNorm !== "" && Number.isFinite(insNumber) && insNumber > 0 ? insNumber : undefined;
   const result = amountValid ? (mode === "grossToNet" ? grossToNet(amount, override) : netToGross(amount, override)) : null;
   const clamped = result && override !== undefined && override !== result.insWage ? (override < INS_MIN ? "min" : "max") : null;
+
+  // مرة واحدة بس لكل تاب في نفس تحميل الصفحة: أي تغيير في المبلغ أو التاب قبل 1.5 ثانية بيلغي التايمر،
+  // وبعد ما التاب يتحسب مبيتحسبش تاني حتى لو الزائر غيّر الرقم.
+  const countedModes = useRef(new Set<Mode>());
+  useEffect(() => {
+    if (!amountValid || countedModes.current.has(mode)) return;
+    const timer = setTimeout(() => {
+      countedModes.current.add(mode);
+      trackUsage(mode);
+    }, USAGE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [mode, amountText, amountValid]);
 
   const rows: { label: string; value: number; main?: boolean }[] = result
     ? [
@@ -131,7 +157,7 @@ export default function SalaryCalculator() {
         </div>
       )}
 
-      <a href="/tools/salary-calculator-2026.xlsx" download style={downloadStyle}>
+      <a href="/tools/salary-calculator-2026.xlsx" download onClick={() => trackUsage("excelDownload")} style={downloadStyle}>
         تحميل الحاسبة كملف Excel
       </a>
     </div>

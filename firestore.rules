@@ -186,6 +186,25 @@ service cloud.firestore {
                     && usageSum(request.resource.data) == usageSum(resource.data) + 1;
       allow delete: if false;
     }
+    match /tool_usage/{toolId} {
+      function toolInts(d) {
+        return d.get('grossToNet', 0) is int && d.get('netToGross', 0) is int && d.get('excelDownload', 0) is int;
+      }
+      function toolSum(d) {
+        return d.get('grossToNet', 0) + d.get('netToGross', 0) + d.get('excelDownload', 0);
+      }
+      allow read: if isAdmin();
+      allow create: if toolId == 'salary-calculator'
+                    && request.resource.data.keys().hasOnly(['grossToNet', 'netToGross', 'excelDownload'])
+                    && request.resource.data.size() == 1
+                    && toolInts(request.resource.data)
+                    && toolSum(request.resource.data) == 1;
+      allow update: if request.resource.data.keys().hasOnly(['grossToNet', 'netToGross', 'excelDownload'])
+                    && request.resource.data.diff(resource.data).affectedKeys().size() == 1
+                    && toolInts(request.resource.data)
+                    && toolSum(request.resource.data) == toolSum(resource.data) + 1;
+      allow delete: if false;
+    }
     match /contact_reveals/{revealId} {
       allow read: if request.auth != null
                   && (request.auth.uid == resource.data.employerId

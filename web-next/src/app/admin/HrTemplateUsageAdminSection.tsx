@@ -1,25 +1,41 @@
 "use client";
 
 import { useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { hrTemplates } from "@/content/hr-templates";
 
 // قسم "استخدام نماذج HR" في لوحة الإدارة: أعداد التحميل/النسخ/الطباعة لكل نموذج من template_usage/{slug}
 // (HrTemplateActions.tsx بيزوّدها). بيتحمّل بزرار "عرض" بس، زي باقي الأقسام التقيلة. الأسماء من hrTemplates،
 // والنماذج اللي مالهاش مستند بتظهر بأصفار، والترتيب بالإجمالي من الأكبر للأصغر.
+// تحت الجدول: أعداد حاسبة المرتب من tool_usage/salary-calculator (SalaryCalculator.tsx) بنفس زرار "عرض"،
+// وأصفار لو المستند لسه مش موجود. قراءتها مستقلة: لو فشلت الجدول بيظهر عادي والكارت بيكتب "تعذر التحميل" بس.
 type Row = { slug: string; title: string; download: number; copy: number; print: number; total: number };
+type CalcUsage = { grossToNet: number; netToGross: number; excelDownload: number };
 
 const num = (v: unknown) => (typeof v === "number" ? v : 0);
 
 export default function HrTemplateUsageAdminSection() {
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [calc, setCalc] = useState<CalcUsage | "error" | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
 
   async function load() {
     setState("loading");
     try {
-      const snap = await getDocs(collection(db, "template_usage"));
+      const [snap, calcResult] = await Promise.all([
+        getDocs(collection(db, "template_usage")),
+        getDoc(doc(db, "tool_usage", "salary-calculator")).then(
+          (calcSnap): CalcUsage => {
+            const c = calcSnap.exists() ? calcSnap.data() : {};
+            return { grossToNet: num(c.grossToNet), netToGross: num(c.netToGross), excelDownload: num(c.excelDownload) };
+          },
+          (err): "error" => {
+            console.error("[HrTemplateUsageAdminSection] فشل تحميل tool_usage", err);
+            return "error";
+          }
+        ),
+      ]);
       const usage = new Map(snap.docs.map((d) => [d.id, d.data()]));
       const result = hrTemplates
         .map((t) => {
@@ -29,6 +45,7 @@ export default function HrTemplateUsageAdminSection() {
         })
         .sort((a, b) => b.total - a.total);
       setRows(result);
+      setCalc(calcResult);
       setState("idle");
     } catch (err) {
       console.error("[HrTemplateUsageAdminSection] فشل تحميل template_usage", err);
@@ -74,6 +91,20 @@ export default function HrTemplateUsageAdminSection() {
           </table>
         </div>
       )}
+      {calc && (
+        <div style={calcCardStyle}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>حاسبة المرتب</div>
+          {calc === "error" ? (
+            <div style={{ color: "#4A5568" }}>تعذر التحميل</div>
+          ) : (
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+              <span>من الإجمالي للصافي: <b>{calc.grossToNet}</b></span>
+              <span>من الصافي للإجمالي: <b>{calc.netToGross}</b></span>
+              <span>تحميل Excel: <b>{calc.excelDownload}</b></span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -90,3 +121,11 @@ const showBtnStyle: React.CSSProperties = {
 };
 const thStyle: React.CSSProperties = { textAlign: "right", padding: "6px 8px", borderBottom: "1px solid #14213D33", whiteSpace: "nowrap" };
 const tdStyle: React.CSSProperties = { padding: "6px 8px", borderBottom: "1px solid #14213D14" };
+const calcCardStyle: React.CSSProperties = {
+  marginTop: 12,
+  padding: "10px 12px",
+  border: "1px solid #14213D22",
+  borderRadius: 8,
+  background: "#F8F6F0",
+  fontSize: 12.5,
+};
