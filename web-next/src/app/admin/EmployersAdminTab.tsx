@@ -27,6 +27,7 @@ import {
   adminSetEmployerPlan,
 } from "@/lib/adminEmployers";
 import { activePillStyle, pausedPillStyle, featuredPillStyle, toolBtnStyle, dangerToolBtnStyle } from "@/lib/jobCardStyles";
+import TopEmployersAdminSection from "./TopEmployersAdminSection";
 
 const PAGE_SIZE = 20;
 // فلتر "محظور" و"عليه بلاغات" بيشتغلوا على مجموعة صغيرة بتتحمّل مرة واحدة وتتقسّم صفحات في
@@ -325,6 +326,8 @@ export default function EmployersAdminTab() {
 
   return (
     <div>
+      <TopEmployersAdminSection />
+
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         <input
           type="text"
