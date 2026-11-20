@@ -4,6 +4,7 @@ import ArticleBody from "@/lib/articleMarkdown";
 import { salaryCalculatorContent } from "@/content/tools/salary-calculator";
 import { getArticle } from "@/content/articles";
 import { getHrTemplate } from "@/content/hr-templates";
+import TrackedDownloadLink from "@/components/TrackedDownloadLink";
 import SalaryCalculator from "./SalaryCalculator";
 
 const SITE_URL = "https://www.elshoghl.com";
@@ -48,6 +49,14 @@ const usefulLinks = [
   { href: "/articles/how-to-set-fair-salary-small-business", title: getArticle("how-to-set-fair-salary-small-business")?.title },
 ].filter((l): l is { href: string; title: string } => !!l.title);
 
+// ملف كشف المرتبات والحضور (public/tools) تحت الحاسبة مباشرة، وعداده في file_downloads (TrackedDownloadLink).
+// منفصل عن لينك Excel الحاسبة نفسها (جوه SalaryCalculator.tsx وعداده في tool_usage).
+const payrollFile = {
+  href: "/tools/payroll-attendance.xlsx",
+  label: "تحميل كشف المرتبات والحضور (Excel)",
+  note: "إذا كنت تحسب مرتبات عدد من الموظفين كل شهر: ملف Excel يضم كشف حضور يوميًا، وكشف مرتبات يسحب منه الإضافي والغياب والجزاءات، ويحسب التأمينات والضريبة والصافي وتكلفة صاحب العمل لما يصل إلى 100 موظف.",
+};
+
 export default function SalaryCalculatorPage() {
   return (
     <article dir="rtl" style={{ maxWidth: 720, margin: "0 auto", padding: "40px 20px", boxSizing: "border-box", width: "100%" }}>
@@ -59,6 +68,13 @@ export default function SalaryCalculatorPage() {
       <p style={{ color: "#4A5568", lineHeight: 1.9, margin: "0 0 20px", fontSize: 15.5 }}>{intro}</p>
 
       <SalaryCalculator />
+
+      <div style={payrollBoxStyle}>
+        <p style={{ margin: 0, fontSize: 14, color: "#4A5568", lineHeight: 1.9 }}>{payrollFile.note}</p>
+        <TrackedDownloadLink href={payrollFile.href} style={downloadStyle}>
+          {payrollFile.label}
+        </TrackedDownloadLink>
+      </div>
 
       <div style={{ marginTop: 32 }}>
         <ArticleBody markdown={body} />
@@ -79,3 +95,26 @@ export default function SalaryCalculatorPage() {
     </article>
   );
 }
+
+// نفس شكل صناديق extraDownloads في hr-templates/[slug]/page.tsx (padding وborder وradius وbackground)، ومسافة 16 فوق
+const payrollBoxStyle: React.CSSProperties = {
+  marginTop: 16,
+  padding: 16,
+  border: "1px solid #14213D22",
+  borderRadius: 10,
+  background: "#fff",
+};
+
+// نفس ستايل لينك "تحميل الحاسبة كملف Excel" جوه SalaryCalculator.tsx
+const downloadStyle: React.CSSProperties = {
+  display: "inline-block",
+  marginTop: 18,
+  padding: "10px 20px",
+  border: "1px solid #14213D",
+  borderRadius: 8,
+  color: "#14213D",
+  fontWeight: 700,
+  fontSize: 14,
+  textDecoration: "none",
+  background: "#F8F6F0",
+};

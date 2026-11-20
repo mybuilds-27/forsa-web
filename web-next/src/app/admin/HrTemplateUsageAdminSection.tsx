@@ -17,10 +17,14 @@ type Row = { slug: string; title: string; download: number; copy: number; print:
 type CalcUsage = { grossToNet: number; netToGross: number; excelDownload: number };
 type FileRow = { id: string; name: string; count: number };
 
-// fileId → label لكل ملف في extraDownloads في كل النماذج
-const extraDownloadLabels = new Map(
-  hrTemplates.flatMap((t) => (t.extraDownloads || []).map((d) => [fileIdFromHref(d.href), d.label] as const))
-);
+// ملفات الأدوات اللي مش جوه نموذج (زي كشف المرتبات في صفحة حاسبة المرتب): fileId → اسم ثابت
+const toolFileLabels: [string, string][] = [["payroll-attendance", "كشف المرتبات والحضور"]];
+
+// fileId → label لكل ملف في extraDownloads في كل النماذج، وملفات الأدوات اللي فوق
+const extraDownloadLabels = new Map([
+  ...hrTemplates.flatMap((t) => (t.extraDownloads || []).map((d) => [fileIdFromHref(d.href), d.label] as const)),
+  ...toolFileLabels,
+]);
 
 const num = (v: unknown) => (typeof v === "number" ? v : 0);
 
