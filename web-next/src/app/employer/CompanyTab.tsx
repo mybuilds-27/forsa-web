@@ -35,7 +35,7 @@ import ApplicantCard from "@/components/ApplicantCard";
 import ContactRevealViewers from "@/components/ContactRevealViewers";
 import CompanyLogo from "@/components/CompanyLogo";
 import FacebookPostModal from "@/components/FacebookPostModal";
-import { fetchContactRevealViewerCount } from "@/lib/contactReveal";
+import { fetchContactRevealViewerCount, fetchContactViewsDaily } from "@/lib/contactReveal";
 import {
   jobCardContainerStyle,
   tagStyle,
@@ -154,8 +154,44 @@ function StatsSectionDivider() {
 // اللي اتعمل combobox من غير مكتبة بدل ما نضيف dependency جديدة لتفصيلة بسيطة زي دي). الأخضر
 // (#2F6F4E، نفس لون النجاح/الأزرار الإيجابية المستخدم في الموقع بالفعل) بدل الكحلي الأساسي
 // #14213D عمدًا — يميّز القسم البياني بصريًا عن باقي كروت الأرقام في نفس القسم.
-function ApplicationsBarChart({ data }: { data: DailyCount[] }) {
+// contactViews (اختياري، نفس ترتيب الأيام): لو موجود، كل يوم بيعرض عمودين جنب بعض، التقديمات بالأخضر
+// والاطلاع على وسيلة التواصل بالكهرماني (#E8A33D، لون موجود بالفعل في الموقع). من غيره الرسمة زي ما هي.
+function ApplicationsBarChart({ data, contactViews }: { data: DailyCount[]; contactViews?: number[] }) {
   if (data.length === 0) return null;
+  if (contactViews && contactViews.length === data.length) {
+    const maxBoth = Math.max(1, ...data.map((d) => d.count), ...contactViews);
+    const bar = (count: number, color: string) => (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+        <div style={{ fontSize: 10.5, color: "#4A5568" }}>{count}</div>
+        <div style={{ width: "100%", height: Math.max(4, (count / maxBoth) * 70), background: color, borderRadius: "4px 4px 0 0" }} />
+      </div>
+    );
+    return (
+      <div>
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11.5, color: "#4A5568", marginBottom: 8 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: "#2F6F4E" }} />
+            تقديمات من الموقع
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: "#E8A33D" }} />
+            اطّلعوا على وسيلة التواصل
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 110 }}>
+          {data.map((d, i) => (
+            <div key={d.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              <div style={{ width: "100%", display: "flex", alignItems: "flex-end", gap: 2 }}>
+                {bar(d.count, "#2F6F4E")}
+                {bar(contactViews[i], "#E8A33D")}
+              </div>
+              <div style={{ fontSize: 11, color: "#4A5568" }}>{d.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   const max = Math.max(1, ...data.map((d) => d.count));
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 110 }}>
@@ -218,6 +254,9 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
     };
   }, [detailPost]);
   const [dailyApplications, setDailyApplications] = useState<DailyCount[]>([]);
+  // الاطلاع على وسيلة التواصل لكل يوم من آخر 7 أيام (وظايف التواصل المباشر بس). null = مفيش وظايف تواصل،
+  // أو لسه بيتحمّل، أو فشل — في الحالات دي الرسمة بتعرض التقديمات بس زي الأول.
+  const [dailyContactViews, setDailyContactViews] = useState<number[] | null>(null);
   const [invitationStats, setInvitationStats] = useState<InvitationStats | null>(null);
   const [invitationStatsError, setInvitationStatsError] = useState(false);
   const [contactRevealStats, setContactRevealStats] = useState<ContactRevealStats | null>(null);
@@ -279,6 +318,19 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
         setContactViewerCounts(viewerCounts);
       } catch (err) {
         console.error("[loadMyJobPosts] فشل جلب عدد اللي شافوا وسيلة التواصل (job_contact_views)", err);
+      }
+
+      // الاطلاع على وسيلة التواصل يوم بيوم لرسمة آخر 7 أيام (عدّ بس على viewedAt، شوف contactReveal.ts)
+      const contactPostIds = list.filter((p) => p.receiveMethod === "contact").map((p) => p.id);
+      if (contactPostIds.length > 0) {
+        try {
+          setDailyContactViews(await fetchContactViewsDaily(contactPostIds));
+        } catch (err) {
+          console.error("[loadMyJobPosts] فشل جلب الاطلاع على وسيلة التواصل آخر 7 أيام (job_contact_views)", err);
+          setDailyContactViews(null);
+        }
+      } else {
+        setDailyContactViews(null);
       }
     } catch (err) {
       console.error("[loadMyJobPosts] فشل استعلام job_posts", err);
@@ -398,6 +450,8 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
 
   const isPremiumPlan = companyData?.plan === "premium";
   const daysLeft = isPremiumPlan ? planDaysLeft(companyData?.planExpiresAt) : null;
+  // كارت "اطّلعوا على وسيلة التواصل" وعمود الاطلاع في الرسمة بيظهروا بس لو عند الشركة وظايف تواصل مباشر
+  const hasContactJobs = posts.some((p) => p.receiveMethod === "contact");
 
   return (
     <div dir="rtl" style={{ maxWidth: 800, margin: "0 auto" }}>
@@ -516,6 +570,9 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
           <StatCard label="الوظائف" value={`${posts.filter((p) => p.isActive !== false).length} نشطة من ${posts.length}`} />
           <StatCard label="إجمالي المشاهدات" value={Object.values(viewCounts).reduce((a, b) => a + b, 0)} />
           <StatCard label="إجمالي المرشحين" value={Object.values(applicantCounts).reduce((a, b) => a + b, 0)} />
+          {hasContactJobs && (
+            <StatCard label="اطّلعوا على وسيلة التواصل" value={Object.values(contactViewerCounts).reduce((a, b) => a + b, 0)} />
+          )}
           <StatCard
             label="الدعوات المرسلة"
             value={invitationStats ? invitationStats.total : invitationStatsError ? "تعذّر التحميل" : "..."}
@@ -552,8 +609,10 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
         )}
 
         <StatsSectionDivider />
-        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#4A5568", marginBottom: 10 }}>تقديمات آخر 7 أيام</h4>
-        <ApplicationsBarChart data={dailyApplications} />
+        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#4A5568", marginBottom: 10 }}>
+          {hasContactJobs ? "التقديمات والاطلاع على التواصل آخر 7 أيام" : "تقديمات آخر 7 أيام"}
+        </h4>
+        <ApplicationsBarChart data={dailyApplications} contactViews={hasContactJobs && dailyContactViews ? dailyContactViews : undefined} />
       </div>
 
       <h2 style={{ marginBottom: 16 }}>وظائفك المنشورة</h2>

@@ -14,15 +14,19 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { buildWhatsAppChatLink, whatsappButtonStyle } from "@/lib/whatsappLink";
+import { fetchContactRevealViewerCount } from "@/lib/contactReveal";
 
 // قسم "أنشط أصحاب العمل" في تاب أصحاب الأعمال: كل صاحب عمل نشر وظيفة واحدة على الأقل في آخر 90 يوم،
-// مترتبين بعدد التقديمات على وظايفه (كل الوقت) من الأكبر للأصغر، وأول 30 بس. بيتحمّل بزرار "عرض" بس.
+// مترتبين بـ(التقديمات على وظايفه كل الوقت + اللي اطّلعوا على وسيلة التواصل في وظايف التواصل المباشر بتاعته
+// المنشورة في آخر 90 يوم) من الأكبر للأصغر، وأول 30 بس. بيتحمّل بزرار "عرض" بس.
 //
 // القراءات في كل ضغطة "عرض" تقريبًا:
 //   1) job_posts اللي createdAt بتاعها في آخر 90 يوم (range على حقل واحد، من غير composite index): قراءة لكل وظيفة.
 //   2) عدد التقديمات لكل صاحب عمل منهم: getCountFromServer(applications where employerId ==)، مفيش حقل
 //      جاهز بعدد التقديمات على job_posts. كل استعلام عدّ = قراءة واحدة لكل 1000 تقديم (أقل حاجة قراءة واحدة).
-//   3) لأول 30 بس: مستندات employers (استعلام documentId in، قراءة لكل مستند) + private/contact لكل واحد.
+//   3) عدد اللي اطّلعوا على وسيلة التواصل: getCountFromServer على job_contact_views/{jobId}/viewers لكل وظيفة
+//      تواصل مباشر (receiveMethod == "contact") من وظايف الـ90 يوم بس (نفس مصدر لوحة الشركة، عدّ من غير أسماء).
+//   4) لأول 30 بس: مستندات employers (استعلام documentId in، قراءة لكل مستند) + private/contact لكل واحد.
 // الوظايف النشطة دلوقتي محسوبة من نفس وظايف الـ90 يوم (isActive ومش منتهية)، لأن أطول مدة نشر 60 يوم
 // (planLimits.ts) وexpiresAt بيتحدد وقت النشر بس، فأي وظيفة نشطة دلوقتي اتنشرت في آخر 90 يوم.
 const WINDOW_DAYS = 90;
@@ -38,6 +42,8 @@ type Row = {
   jobs90: number;
   activeNow: number;
   applications: number | null;
+  // null = مالوش وظايف تواصل في آخر 90 يوم، أو فشل عدّ وظيفة منهم
+  contactViews: number | null;
   lastJobMillis: number | null;
   phone: string;
 };
@@ -50,7 +56,7 @@ async function loadTopEmployers(): Promise<{ rows: Row[]; employersInWindow: num
   const since = Timestamp.fromMillis(nowMs - WINDOW_DAYS * 24 * 60 * 60 * 1000);
   const postsSnap = await getDocs(query(collection(db, "job_posts"), where("createdAt", ">=", since)));
 
-  const byEmployer = new Map<string, { jobs90: number; activeNow: number; lastJobMillis: number | null }>();
+  const byEmployer = new Map<string, { jobs90: number; activeNow: number; lastJobMillis: number | null; contactJobIds: string[] }>();
   postsSnap.docs.forEach((d) => {
     const data = d.data();
     const employerId = str(data.employerId);
@@ -59,8 +65,9 @@ async function loadTopEmployers(): Promise<{ rows: Row[]; employersInWindow: num
     const expiresAt = data.expiresAt as Timestamp | undefined;
     const createdMs = createdAt?.toMillis ? createdAt.toMillis() : null;
     const active = data.isActive === true && !(expiresAt?.toMillis && expiresAt.toMillis() <= nowMs);
-    const cur = byEmployer.get(employerId) || { jobs90: 0, activeNow: 0, lastJobMillis: null };
+    const cur = byEmployer.get(employerId) || { jobs90: 0, activeNow: 0, lastJobMillis: null, contactJobIds: [] };
     cur.jobs90 += 1;
+    if (data.receiveMethod === "contact") cur.contactJobIds.push(d.id);
     if (active) cur.activeNow += 1;
     if (createdMs !== null && (cur.lastJobMillis === null || createdMs > cur.lastJobMillis)) cur.lastJobMillis = createdMs;
     byEmployer.set(employerId, cur);
@@ -77,9 +84,29 @@ async function loadTopEmployers(): Promise<{ rows: Row[]; employersInWindow: num
     results.forEach((r, j) => appCounts.set(chunk[j], r.status === "fulfilled" ? r.value.data().count : null));
   }
 
-  const top = ids
-    .sort((a, b) => (appCounts.get(b) ?? -1) - (appCounts.get(a) ?? -1))
-    .slice(0, TOP_N);
+  // عدد اللي اطّلعوا على وسيلة التواصل لكل وظيفة تواصل (على دفعات زي التقديمات)، ومجموعه لكل صاحب عمل.
+  const contactJobIds = ids.flatMap((id) => byEmployer.get(id)!.contactJobIds);
+  const viewerCounts = new Map<string, number | null>();
+  for (let i = 0; i < contactJobIds.length; i += COUNT_CONCURRENCY) {
+    const chunk = contactJobIds.slice(i, i + COUNT_CONCURRENCY);
+    const results = await Promise.allSettled(chunk.map((jobId) => fetchContactRevealViewerCount(jobId)));
+    results.forEach((r, j) => viewerCounts.set(chunk[j], r.status === "fulfilled" ? r.value : null));
+  }
+  const contactViews = new Map<string, number | null>();
+  ids.forEach((id) => {
+    const jobs = byEmployer.get(id)!.contactJobIds;
+    if (jobs.length === 0) return contactViews.set(id, null);
+    const counts = jobs.map((jobId) => viewerCounts.get(jobId) ?? null);
+    contactViews.set(id, counts.some((c) => c === null) ? null : counts.reduce<number>((a, c) => a + (c ?? 0), 0));
+  });
+
+  // الترتيب بالتقديمات + الاطلاع على التواصل (أي رقم مش معروف بيتحسب صفر). لو الاتنين فشلوا يتحط في الآخر.
+  const score = (id: string) => {
+    const apps = appCounts.get(id) ?? null;
+    const views = contactViews.get(id) ?? null;
+    return apps === null && views === null ? -1 : (apps ?? 0) + (views ?? 0);
+  };
+  const top = ids.sort((a, b) => score(b) - score(a)).slice(0, TOP_N);
 
   const employers = new Map<string, Record<string, unknown>>();
   for (let i = 0; i < top.length; i += IN_QUERY_CHUNK) {
@@ -113,6 +140,7 @@ async function loadTopEmployers(): Promise<{ rows: Row[]; employersInWindow: num
       jobs90: stats.jobs90,
       activeNow: stats.activeNow,
       applications: appCounts.get(id) ?? null,
+      contactViews: contactViews.get(id) ?? null,
       lastJobMillis: stats.lastJobMillis,
       phone: phones.get(id) || "",
     };
@@ -139,7 +167,8 @@ export default function TopEmployersAdminSection() {
     <div style={{ marginBottom: 24 }}>
       <h2 style={{ fontSize: 16, marginBottom: 4 }}>أنشط أصحاب العمل</h2>
       <p style={{ fontSize: 12.5, color: "#4A5568", margin: "0 0 12px" }}>
-        أصحاب الأعمال اللي نشروا وظيفة واحدة على الأقل في آخر {WINDOW_DAYS} يوم، مترتبين بعدد التقديمات على وظايفهم (أول {TOP_N}).
+        أصحاب الأعمال اللي نشروا وظيفة واحدة على الأقل في آخر {WINDOW_DAYS} يوم، مترتبين بالتقديمات + اللي اطّلعوا على وسيلة
+        التواصل (أول {TOP_N}). الاطلاع محسوب على وظايف التواصل المباشر المنشورة في آخر {WINDOW_DAYS} يوم بس.
         الباقة المدفوعة الحالية عليها ⭐.
       </p>
       {!data &&
@@ -160,7 +189,7 @@ export default function TopEmployersAdminSection() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
               <thead>
                 <tr>
-                  {["الشركة", "الباقة", `وظايف آخر ${WINDOW_DAYS} يوم`, "نشطة دلوقتي", "التقديمات", "آخر وظيفة", "التواصل"].map((h) => (
+                  {["الشركة", "الباقة", `وظايف آخر ${WINDOW_DAYS} يوم`, "نشطة دلوقتي", "التقديمات", "اطّلعوا على التواصل", "آخر وظيفة", "التواصل"].map((h) => (
                     <th key={h} style={thStyle}>{h}</th>
                   ))}
                 </tr>
@@ -186,6 +215,7 @@ export default function TopEmployersAdminSection() {
                       <td style={tdStyle}>{r.jobs90}</td>
                       <td style={tdStyle}>{r.activeNow}</td>
                       <td style={{ ...tdStyle, fontWeight: 700 }}>{r.applications ?? "—"}</td>
+                      <td style={{ ...tdStyle, fontWeight: 700 }}>{r.contactViews ?? "—"}</td>
                       <td style={tdStyle}>{formatMillis(r.lastJobMillis)}</td>
                       <td style={tdStyle}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>

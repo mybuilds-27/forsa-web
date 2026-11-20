@@ -1,4 +1,4 @@
-import { collection, doc, getCountFromServer, getDoc, getDocs, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
+import { collection, doc, getCountFromServer, getDoc, getDocs, query, serverTimestamp, setDoc, Timestamp, where } from "firebase/firestore";
 import { auth, db } from "./firebase";
 
 // بديل موسّع لـwhatsappClicks.ts القديمة (كانت بتتبع ضغطات زرار واتساب بس، بعداد إجمالي من
@@ -51,4 +51,36 @@ export async function fetchContactRevealViewers(jobPostId: string): Promise<Cont
 export async function fetchContactRevealViewerCount(jobPostId: string): Promise<number> {
   const snap = await getCountFromServer(collection(db, "job_contact_views", jobPostId, "viewers"));
   return snap.data().count;
+}
+
+async function countViewersBetween(jobPostId: string, from: Date, to: Date | null): Promise<number> {
+  const constraints = [where("viewedAt", ">=", Timestamp.fromDate(from))];
+  if (to) constraints.push(where("viewedAt", "<", Timestamp.fromDate(to)));
+  const snap = await getCountFromServer(query(collection(db, "job_contact_views", jobPostId, "viewers"), ...constraints));
+  return snap.data().count;
+}
+
+// عدد اللي اطّلعوا على وسيلة التواصل في كل يوم من آخر days يوم (الأقدم الأول، نفس ترتيب أيام
+// buildDailyApplicationCounts في employerStats.ts، وبالتوقيت المحلي للمتصفح زيها)، مجموع على كل الوظايف.
+// عدّ بس (getCountFromServer على viewedAt، index الحقل الواحد التلقائي)، من غير ما نقرا الأسماء.
+// خطوتين عشان القراءات: عدّ واحد لكل وظيفة على آخر days يوم كلها، وبعدين عدّ لكل يوم للوظايف اللي فيها
+// اطلاع في الفترة دي بس. viewedAt بيتحدّث لو نفس الشخص اطّلع تاني (logContactReveal فوق)، فالشخص بيتحسب
+// في يوم آخر اطلاع ليه. أي فشل = خطأ للكل (المستدعي بيعرض التقديمات بس بدل أرقام ناقصة).
+export async function fetchContactViewsDaily(jobPostIds: string[], days = 7): Promise<number[]> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const starts: Date[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    starts.push(d);
+  }
+  const totals = new Array<number>(days).fill(0);
+  const inWindow = await Promise.all(jobPostIds.map((id) => countViewersBetween(id, starts[0], null)));
+  const viewedJobs = jobPostIds.filter((_, i) => inWindow[i] > 0);
+  const perJob = await Promise.all(
+    viewedJobs.map((id) => Promise.all(starts.map((start, i) => countViewersBetween(id, start, starts[i + 1] ?? null))))
+  );
+  perJob.forEach((counts) => counts.forEach((c, i) => (totals[i] += c)));
+  return totals;
 }
