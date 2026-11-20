@@ -205,6 +205,16 @@ service cloud.firestore {
                     && toolSum(request.resource.data) == toolSum(resource.data) + 1;
       allow delete: if false;
     }
+    match /file_downloads/{fileId} {
+      allow read: if isAdmin();
+      allow create: if fileId.matches('^[a-z0-9-]{1,80}$')
+                    && request.resource.data.keys().hasOnly(['count'])
+                    && request.resource.data.count == 1;
+      allow update: if request.resource.data.keys().hasOnly(['count'])
+                    && request.resource.data.count is int
+                    && request.resource.data.count == resource.data.count + 1;
+      allow delete: if false;
+    }
     match /contact_reveals/{revealId} {
       allow read: if request.auth != null
                   && (request.auth.uid == resource.data.employerId

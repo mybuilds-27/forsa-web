@@ -9,6 +9,7 @@ import ArticleBody from "@/lib/articleMarkdown";
 import ArticleCard, { articleGridStyle } from "@/components/ArticleCard";
 import HrTemplateCard from "@/components/HrTemplateCard";
 import HrTemplateActions from "@/components/HrTemplateActions";
+import TrackedDownloadLink from "@/components/TrackedDownloadLink";
 
 const SITE_URL = "https://www.elshoghl.com";
 
@@ -132,9 +133,9 @@ export default async function HrTemplatePage({ params }: { params: Promise<{ slu
         {t.extraDownload && (
           <div style={extraDownloadBoxStyle}>
             <p style={{ margin: 0, fontSize: 14, color: "#4A5568", lineHeight: 1.9 }}>{t.extraDownload.note}</p>
-            <a href={t.extraDownload.href} download style={downloadStyle}>
+            <TrackedDownloadLink href={t.extraDownload.href} style={downloadStyle}>
               {t.extraDownload.label}
-            </a>
+            </TrackedDownloadLink>
           </div>
         )}
       </section>
