@@ -3,7 +3,7 @@ import Link from "next/link";
 import { articles, formatArticleDate } from "@/content/articles";
 
 const TITLE = "مقالات - الشغل";
-const DESCRIPTION = "مقالات ونصايح عن التوظيف والبحث عن شغل في مصر: كتابة السيرة الذاتية، المقابلات الشخصية، واختيار الوظيفة المناسبة.";
+const DESCRIPTION = "مقالات ونصايح عن التوظيف والبحث عن شغل في مصر: السيرة الذاتية، والمقابلات الشخصية، والمرتبات، وحقوق العامل في قانون العمل.";
 
 export const metadata: Metadata = {
   title: TITLE,
