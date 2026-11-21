@@ -9,7 +9,9 @@ import ArticleBody from "@/lib/articleMarkdown";
 import ArticleCard, { articleGridStyle } from "@/components/ArticleCard";
 import HrTemplateCard from "@/components/HrTemplateCard";
 import HrTemplateActions from "@/components/HrTemplateActions";
+import HrTemplateBlocksView from "@/components/HrTemplateBlocksView";
 import TrackedDownloadLink from "@/components/TrackedDownloadLink";
+import { parseHrTemplateBlocks } from "@/lib/hrTemplateBlocks";
 
 const SITE_URL = "https://www.elshoghl.com";
 
@@ -114,8 +116,10 @@ export default async function HrTemplatePage({ params }: { params: Promise<{ slu
 
       <section style={{ marginTop: 32 }}>
         <h2 style={{ fontSize: 19, fontWeight: 800, color: "#14213D", marginBottom: 12 }}>النموذج</h2>
-        {/* نص عادي (مش Markdown) عشان الخانات والسطور تفضل زي ما هي */}
+        {/* نص عادي (مش Markdown) عشان الخانات والسطور تفضل زي ما هي، والسطور اللي بين | | بتتعرض جداول
+            (lib/hrTemplateBlocks.ts وHrTemplateBlocksView.tsx) */}
         <div
+          data-testid="hr-template-box"
           style={{
             whiteSpace: "pre-wrap",
             lineHeight: 2,
@@ -127,7 +131,7 @@ export default async function HrTemplatePage({ params }: { params: Promise<{ slu
             padding: 20,
           }}
         >
-          {t.template}
+          <HrTemplateBlocksView blocks={parseHrTemplateBlocks(t.template, t.slug)} />
         </div>
         <HrTemplateActions template={t.template} slug={t.slug} />
         {t.extraDownloads && t.extraDownloads.length > 0 && (

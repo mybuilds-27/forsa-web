@@ -185,6 +185,24 @@ a {
     line-height: 1.7;
     color: #000;
   }
+
+  /* جداول النموذج (HrTemplateBlocksView.tsx) في الطباعة: إطار أسود 1px بدل لون الشاشة، وخلفية الـheader
+     بتتطبع، والصف مايتقسمش بين صفحتين. الجدول مش محتاج scroll في الطباعة. */
+  .hr-template-print-view .hr-template-table-wrap {
+    overflow: visible !important;
+  }
+  .hr-template-print-view .hr-template-table th,
+  .hr-template-print-view .hr-template-table td {
+    border: 1px solid #000 !important;
+  }
+  .hr-template-print-view .hr-template-table th {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .hr-template-print-view .hr-template-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }
 
 /* قائمة الإشعارات المنسدلة (NotificationBell.tsx) — notification-backdrop مبيتاخدش أي box

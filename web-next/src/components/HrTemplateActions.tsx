@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { doc, increment, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { buildHrTemplateDocx } from "@/lib/hrTemplateDocx";
+import { hrTemplatePlainText, parseHrTemplateBlocks } from "@/lib/hrTemplateBlocks";
+import HrTemplateBlocksView from "./HrTemplateBlocksView";
 
 // عداد استخدام النموذج (template_usage/{slug}): +1 في حقل واحد بس، من غير أي بيانات عن الزائر.
 // fire-and-forget: الفشل بيتسجل في console بس، ومبيأثرش على الزرار. القواعد بتسمح بزيادة 1 بس في كل كتابة.
@@ -19,7 +21,10 @@ function trackUsage(slug: string, field: "download" | "copy" | "print") {
 // hr-template-print-view، وقاعدة @media print في globals.css بتخفي أي sibling تاني، فالمطبوع
 // هو النموذج بس. الكلاس ده مخفي على الشاشة (globals.css) عشان النسخة دي متظهرش تحت الصفحة.
 // Word: ملف .docx بيتعمل في المتصفح من نفس قيمة template (lib/hrTemplateDocx.ts، مكتبة docx بتتحمّل وقت الضغط بس).
+// المربع والطباعة والنسخ والـWord كلهم من نفس الـblocks (lib/hrTemplateBlocks.ts): الجداول بتتعرض وتتطبع جداول،
+// وبتتنسخ سطور خاناتها مفصولة بمسافات (hrTemplatePlainText).
 export default function HrTemplateActions({ template, slug }: { template: string; slug: string }) {
+  const blocks = parseHrTemplateBlocks(template, slug);
   const [copied, setCopied] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [preparingWord, setPreparingWord] = useState(false);
@@ -49,11 +54,12 @@ export default function HrTemplateActions({ template, slug }: { template: string
   }
 
   async function handleCopy() {
+    const text = hrTemplatePlainText(blocks);
     try {
-      await navigator.clipboard.writeText(template);
+      await navigator.clipboard.writeText(text);
     } catch {
       const textarea = document.createElement("textarea");
-      textarea.value = template;
+      textarea.value = text;
       textarea.style.position = "fixed";
       textarea.style.opacity = "0";
       document.body.appendChild(textarea);
@@ -100,7 +106,7 @@ export default function HrTemplateActions({ template, slug }: { template: string
 
       {printing && typeof document !== "undefined" && createPortal(
         <div className="hr-template-print-view" dir="rtl">
-          {template}
+          <HrTemplateBlocksView blocks={blocks} />
         </div>,
         document.body
       )}

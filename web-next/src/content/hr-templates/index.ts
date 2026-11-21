@@ -1,4 +1,5 @@
 import type { HrTemplate } from "./types";
+import { parseHrTemplateBlocks } from "@/lib/hrTemplateBlocks";
 import { hrTemplate as experienceCertificate } from "./experience-certificate";
 import { hrTemplate as leaveRequest } from "./leave-request";
 import { hrTemplate as violationNoticeInvestigation } from "./violation-notice-investigation";
@@ -20,6 +21,8 @@ for (const t of allTemplates) {
     throw new Error(`slug مكرر في content/hr-templates: ${t.slug}`);
   }
   slugs.add(t.slug);
+  // جداول النموذج (سطور | |): أي جدول صفوفه عدد خاناتها مختلف بيرمي Error فيه الـslug ورقم السطر، فيوقّع الـbuild
+  parseHrTemplateBlocks(t.template, t.slug);
 }
 
 export const hrTemplates: HrTemplate[] = [...allTemplates].sort((a, b) => b.date.localeCompare(a.date));
