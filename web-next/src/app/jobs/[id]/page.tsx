@@ -10,7 +10,7 @@ import ShareButton from "@/components/ShareButton";
 import ReportJobButton from "./ReportJobButton";
 import JobViewTracker from "@/components/JobViewTracker";
 import RelatedJobs from "./RelatedJobs";
-import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify, jobEducationRequirementText, jobEducationCredentialCategory } from "@/lib/constants";
+import { EXPERIENCE_LEVELS, findGovernorateBySlug, getAreasForGovernorate, slugify, jobEducationRequirementText, jobEducationRequirementsJsonLd } from "@/lib/constants";
 import { featuredPillStyle, JOB_TYPE_LABELS, salaryDisplay, sanitizeJobDescription, tagStyle, experienceRangeText, isJobDescriptionIndexable } from "@/lib/jobCardStyles";
 import { getActivePublicJobs, getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_BROAD } from "@/lib/publicJobsQuery";
 import { NOINDEX_FOLLOW, pageSeo } from "@/lib/seoMetadata";
@@ -133,8 +133,8 @@ function buildJobPostingJsonLd(job: any) {
   const city = typeof job.city === "string" ? job.city.trim() : "";
   const governorate = typeof job.governorate === "string" ? job.governorate.trim() : "";
   const addressLocality = city || governorate;
-  // المؤهل بيتبعت بس لو ليه مقابل في schema.org (وظايف قديمة من غير الحقل أو "غير محدد": مش بيتبعت)
-  const credentialCategory = jobEducationCredentialCategory(job.educationRequirement);
+  // المؤهل بيتبعت بس لو ليه مقابل مسموح عند جوجل (وظايف قديمة من غير الحقل أو "غير محدد": مش بيتبعت)
+  const educationRequirements = jobEducationRequirementsJsonLd(job.educationRequirement);
 
   return {
     "@context": "https://schema.org/",
@@ -178,9 +178,7 @@ function buildJobPostingJsonLd(job: any) {
           },
         }
       : {}),
-    ...(credentialCategory
-      ? { educationRequirements: { "@type": "EducationalOccupationalCredential", credentialCategory } }
-      : {}),
+    ...(educationRequirements ? { educationRequirements } : {}),
   };
 }
 

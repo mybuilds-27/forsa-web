@@ -107,9 +107,10 @@ export const JOB_EDUCATION_REQUIREMENTS: { value: string; label: string }[] = [
   })),
 ];
 
-// مقابل schema.org (credentialCategory) للـJSON-LD بتاع JobPosting. القيم اللي مش هنا مش بتتبعت.
+// مقابل credentialCategory في JSON-LD بتاع JobPosting، بقيم جوجل المسموحة بس ("high school" و"bachelor degree"
+// و"postgraduate degree"). "no requirements" مش قيمة credentialCategory (Search Console بيعتبرها غير صالحة)، فـnot_required
+// بيتبعت نص مباشر في educationRequirements (jobEducationRequirementsJsonLd تحت). القيم اللي مش هنا مش بتتبعت.
 const JOB_EDUCATION_CREDENTIAL_CATEGORY: Record<string, string> = {
-  not_required: "no requirements",
   secondary: "high school",
   bachelor: "bachelor degree",
   master: "postgraduate degree",
@@ -135,9 +136,17 @@ export function jobEducationRequirementText(requirement: unknown, field: unknown
   return `${label} (${cleanField})`;
 }
 
-export function jobEducationCredentialCategory(value: unknown): string | null {
+// قيمة educationRequirements في JSON-LD بتاع JobPosting: "no requirements" (نص) لـnot_required، أو
+// EducationalOccupationalCredential بـcredentialCategory من الـmap فوق، أو null (literacy وpreparatory و""
+// وأي قيمة تانية) يعني الحقل مايتبعتش خالص.
+export type JobEducationRequirementsJsonLd =
+  | "no requirements"
+  | { "@type": "EducationalOccupationalCredential"; credentialCategory: string };
+
+export function jobEducationRequirementsJsonLd(value: unknown): JobEducationRequirementsJsonLd | null {
+  if (value === "not_required") return "no requirements";
   if (typeof value !== "string" || !Object.prototype.hasOwnProperty.call(JOB_EDUCATION_CREDENTIAL_CATEGORY, value)) return null;
-  return JOB_EDUCATION_CREDENTIAL_CATEGORY[value];
+  return { "@type": "EducationalOccupationalCredential", credentialCategory: JOB_EDUCATION_CREDENTIAL_CATEGORY[value] };
 }
 
 export const SCREENING_QUESTION_OPTIONS: { text: string; type: "text" | "number" }[] = [
