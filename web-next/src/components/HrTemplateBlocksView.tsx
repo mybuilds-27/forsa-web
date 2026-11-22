@@ -14,7 +14,8 @@ export default function HrTemplateBlocksView({ blocks }: { blocks: HrTemplateBlo
         b.type === "text" ? (
           b.text
         ) : (
-          <div key={i} className="hr-template-table-wrap" style={{ overflowX: "auto" }}>
+          // width 0 وminWidth 100%: الجدول العريض يعمل scroll جوه المربع بدل ما يوسّع الصفحة على الموبايل
+          <div key={i} className="hr-template-table-wrap" style={{ overflowX: "auto", width: 0, minWidth: "100%" }}>
             <table className="hr-template-table" style={tableStyle}>
               {b.header && (
                 <thead>
