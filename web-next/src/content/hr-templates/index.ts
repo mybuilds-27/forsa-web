@@ -13,10 +13,11 @@ import { hrTemplate as remoteWorkContractAnnex } from "./remote-work-contract-an
 import { hrTemplate as missionExitPermit } from "./mission-exit-permit";
 import { hrTemplate as leavePolicy } from "./leave-policy";
 import { hrTemplate as jobApplicationForm } from "./job-application-form";
+import { hrTemplate as interviewEvaluation } from "./interview-evaluation";
 
 // إضافة نموذج جديد: اعمل ملف جديد في المجلد ده (انسخ experience-certificate.ts)، وضيف سطر import فوق
 // وسطر في المصفوفة تحت. النماذج بتتعرض الأحدث الأول حسب date.
-const allTemplates: HrTemplate[] = [experienceCertificate, leaveRequest, violationNoticeInvestigation, jobOfferLetter, resignationAcceptance, employeeClearance, probationEvaluation, salaryCertificate, salaryAdvanceRequest, remoteWorkContractAnnex, missionExitPermit, leavePolicy, jobApplicationForm];
+const allTemplates: HrTemplate[] = [experienceCertificate, leaveRequest, violationNoticeInvestigation, jobOfferLetter, resignationAcceptance, employeeClearance, probationEvaluation, salaryCertificate, salaryAdvanceRequest, remoteWorkContractAnnex, missionExitPermit, leavePolicy, jobApplicationForm, interviewEvaluation];
 
 const slugs = new Set<string>();
 for (const t of allTemplates) {
