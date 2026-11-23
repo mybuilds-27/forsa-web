@@ -17,10 +17,11 @@ import { hrTemplate as interviewEvaluation } from "./interview-evaluation";
 import { hrTemplate as onboardingDocuments } from "./onboarding-documents";
 import { hrTemplate as employmentContract } from "./employment-contract";
 import { hrTemplate as confidentialityNonCompete } from "./confidentiality-non-compete";
+import { hrTemplate as resignationLetter } from "./resignation-letter";
 
 // إضافة نموذج جديد: اعمل ملف جديد في المجلد ده (انسخ experience-certificate.ts)، وضيف سطر import فوق
 // وسطر في المصفوفة تحت. النماذج بتتعرض الأحدث الأول حسب date.
-const allTemplates: HrTemplate[] = [experienceCertificate, leaveRequest, violationNoticeInvestigation, jobOfferLetter, resignationAcceptance, employeeClearance, probationEvaluation, salaryCertificate, salaryAdvanceRequest, remoteWorkContractAnnex, missionExitPermit, leavePolicy, jobApplicationForm, interviewEvaluation, onboardingDocuments, employmentContract, confidentialityNonCompete];
+const allTemplates: HrTemplate[] = [experienceCertificate, leaveRequest, violationNoticeInvestigation, jobOfferLetter, resignationAcceptance, employeeClearance, probationEvaluation, salaryCertificate, salaryAdvanceRequest, remoteWorkContractAnnex, missionExitPermit, leavePolicy, jobApplicationForm, interviewEvaluation, onboardingDocuments, employmentContract, confidentialityNonCompete, resignationLetter];
 
 const slugs = new Set<string>();
 for (const t of allTemplates) {
