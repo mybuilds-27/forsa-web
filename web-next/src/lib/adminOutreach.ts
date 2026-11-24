@@ -4,11 +4,13 @@
 export function adminOutreachMessage(row: {
   companyName: string;
   jobs90: number;
+  views90: number | null;
   applications: number | null;
   contactViews: number | null;
 }): string {
   const company = row.companyName.trim() || "شركتكم";
   const stats = [`- الوظائف المنشورة في آخر 3 أشهر: ${String(row.jobs90)}`];
+  if (row.views90 !== null && row.views90 > 0) stats.push(`- عدد مرات مشاهدة إعلاناتكم على الموقع: ${String(row.views90)}`);
   if (row.applications !== null && row.applications > 0) stats.push(`- طلبات التقديم من خلال الموقع: ${String(row.applications)}`);
   if (row.contactViews !== null && row.contactViews > 0) stats.push(`- عدد من اطّلعوا على وسيلة التواصل الخاصة بكم: ${String(row.contactViews)}`);
   return [

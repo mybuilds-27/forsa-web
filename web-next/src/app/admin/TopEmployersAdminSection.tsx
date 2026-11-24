@@ -28,6 +28,8 @@ import { fetchContactRevealViewerCount } from "@/lib/contactReveal";
 //   3) عدد اللي اطّلعوا على وسيلة التواصل: getCountFromServer على job_contact_views/{jobId}/viewers لكل وظيفة
 //      تواصل مباشر (receiveMethod == "contact") من وظايف الـ90 يوم بس (نفس مصدر لوحة الشركة، عدّ من غير أسماء).
 //   4) لأول 30 بس: مستندات employers (استعلام documentId in، قراءة لكل مستند) + private/contact لكل واحد.
+//   5) لأول 30 بس: job_views/{jobId} لكل وظايفهم المنشورة في آخر 90 يوم (documentId in، دفعات 30 id، قراءة لكل
+//      مستند موجود). المشاهدات للعرض والرسالة بس، مش داخلة في الترتيب.
 // الوظايف النشطة دلوقتي محسوبة من نفس وظايف الـ90 يوم (isActive ومش منتهية)، لأن أطول مدة نشر 60 يوم
 // (planLimits.ts) وexpiresAt بيتحدد وقت النشر بس، فأي وظيفة نشطة دلوقتي اتنشرت في آخر 90 يوم.
 const WINDOW_DAYS = 90;
@@ -42,6 +44,8 @@ type Row = {
   planExpiresAtMillis: number | null;
   jobs90: number;
   activeNow: number;
+  // مجموع job_views لوظايفه المنشورة في آخر 90 يوم. null = فشلت قراءة دفعة فيها وظيفة من وظايفه
+  views90: number | null;
   applications: number | null;
   // null = مالوش وظايف تواصل في آخر 90 يوم، أو فشل عدّ وظيفة منهم
   contactViews: number | null;
@@ -57,7 +61,7 @@ async function loadTopEmployers(): Promise<{ rows: Row[]; employersInWindow: num
   const since = Timestamp.fromMillis(nowMs - WINDOW_DAYS * 24 * 60 * 60 * 1000);
   const postsSnap = await getDocs(query(collection(db, "job_posts"), where("createdAt", ">=", since)));
 
-  const byEmployer = new Map<string, { jobs90: number; activeNow: number; lastJobMillis: number | null; contactJobIds: string[] }>();
+  const byEmployer = new Map<string, { jobs90: number; activeNow: number; lastJobMillis: number | null; jobIds: string[]; contactJobIds: string[] }>();
   postsSnap.docs.forEach((d) => {
     const data = d.data();
     const employerId = str(data.employerId);
@@ -66,8 +70,9 @@ async function loadTopEmployers(): Promise<{ rows: Row[]; employersInWindow: num
     const expiresAt = data.expiresAt as Timestamp | undefined;
     const createdMs = createdAt?.toMillis ? createdAt.toMillis() : null;
     const active = data.isActive === true && !(expiresAt?.toMillis && expiresAt.toMillis() <= nowMs);
-    const cur = byEmployer.get(employerId) || { jobs90: 0, activeNow: 0, lastJobMillis: null, contactJobIds: [] };
+    const cur = byEmployer.get(employerId) || { jobs90: 0, activeNow: 0, lastJobMillis: null, jobIds: [], contactJobIds: [] };
     cur.jobs90 += 1;
+    cur.jobIds.push(d.id);
     if (data.receiveMethod === "contact") cur.contactJobIds.push(d.id);
     if (active) cur.activeNow += 1;
     if (createdMs !== null && (cur.lastJobMillis === null || createdMs > cur.lastJobMillis)) cur.lastJobMillis = createdMs;
@@ -115,6 +120,22 @@ async function loadTopEmployers(): Promise<{ rows: Row[]; employersInWindow: num
     snap.docs.forEach((d) => employers.set(d.id, d.data()));
   }
 
+  // مشاهدات وظايف أول 30 بس (نفس طريقة admin/page.tsx: job_views بـdocumentId in، 30 id في الطلب).
+  // الوظيفة اللي مالهاش مستند = صفر. دفعة فشلت = views90 بـnull لأي صاحب عمل ليه وظيفة فيها، والباقي يكمل عادي.
+  const topJobIds = top.flatMap((id) => byEmployer.get(id)!.jobIds);
+  const jobViewCounts = new Map<string, number>();
+  const failedViewJobIds = new Set<string>();
+  for (let i = 0; i < topJobIds.length; i += IN_QUERY_CHUNK) {
+    const chunk = topJobIds.slice(i, i + IN_QUERY_CHUNK);
+    try {
+      const snap = await getDocs(query(collection(db, "job_views"), where(documentId(), "in", chunk)));
+      snap.docs.forEach((d) => jobViewCounts.set(d.id, d.data().count || 0));
+    } catch (err) {
+      console.error("[TopEmployersAdminSection] فشل قراءة job_views", err);
+      chunk.forEach((jobId) => failedViewJobIds.add(jobId));
+    }
+  }
+
   // رقم التواصل من employers/{uid}/private/contact. فشل قراءة واحد بيسيب الرقم فاضي بس.
   const phones = new Map<string, string>();
   await Promise.all(
@@ -140,6 +161,9 @@ async function loadTopEmployers(): Promise<{ rows: Row[]; employersInWindow: num
       planExpiresAtMillis,
       jobs90: stats.jobs90,
       activeNow: stats.activeNow,
+      views90: stats.jobIds.some((jobId) => failedViewJobIds.has(jobId))
+        ? null
+        : stats.jobIds.reduce((a, jobId) => a + (jobViewCounts.get(jobId) ?? 0), 0),
       applications: appCounts.get(id) ?? null,
       contactViews: contactViews.get(id) ?? null,
       lastJobMillis: stats.lastJobMillis,
@@ -202,7 +226,7 @@ export default function TopEmployersAdminSection() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
               <thead>
                 <tr>
-                  {["الشركة", "الباقة", `وظايف آخر ${WINDOW_DAYS} يوم`, "نشطة دلوقتي", "التقديمات", "اطّلعوا على التواصل", "آخر وظيفة", "التواصل"].map((h) => (
+                  {["الشركة", "الباقة", `وظايف آخر ${WINDOW_DAYS} يوم`, "نشطة دلوقتي", "مشاهدات الوظايف", "التقديمات", "اطّلعوا على التواصل", "آخر وظيفة", "التواصل"].map((h) => (
                     <th key={h} style={thStyle}>{h}</th>
                   ))}
                 </tr>
@@ -229,6 +253,7 @@ export default function TopEmployersAdminSection() {
                       </td>
                       <td style={tdStyle}>{r.jobs90}</td>
                       <td style={tdStyle}>{r.activeNow}</td>
+                      <td style={{ ...tdStyle, fontWeight: 700 }}>{r.views90 ?? "—"}</td>
                       <td style={{ ...tdStyle, fontWeight: 700 }}>{r.applications ?? "—"}</td>
                       <td style={{ ...tdStyle, fontWeight: 700 }}>{r.contactViews ?? "—"}</td>
                       <td style={tdStyle}>{formatMillis(r.lastJobMillis)}</td>
@@ -236,7 +261,7 @@ export default function TopEmployersAdminSection() {
                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                           <span dir="ltr">{r.phone || "—"}</span>
                           {wa && (
-                            <a href={wa} target="_blank" rel="noopener noreferrer" style={whatsappButtonStyle}>
+                            <a href={wa} target="_blank" rel="noopener noreferrer" style={{ ...whatsappButtonStyle, whiteSpace: "nowrap" }}>
                               مراسلة عبر واتساب
                             </a>
                           )}
