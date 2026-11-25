@@ -513,10 +513,20 @@ function BeforeApplyArticles() {
   return (
     <div style={{ marginBottom: 20, padding: "14px 16px", background: "#F8F6F0", border: "1px solid #14213D1F", borderRadius: 10 }}>
       <div style={{ fontWeight: 700, color: "#14213D", marginBottom: 8 }}>قبل ما تقدّم</div>
-      <ul style={{ margin: 0, paddingInlineStart: 20, lineHeight: 1.9, fontSize: 14 }}>
-        {links.map((a) => (
-          <li key={a.slug}>
-            <Link href={`/articles/${a.slug}`} style={{ color: "#14213D" }}>{a.title}</Link>
+      {/* كل مقال صف لوحده قابل للضغط بالكامل، بخط فاصل بنفس لون إطار الصندوق (من غير خط تحت آخر صف).
+          الـunderline على النص بس في الـhover (group-hover)، والنقطة والسهم flexShrink 0 فمايلفّوش لوحدهم */}
+      <ul style={{ margin: 0, padding: 0, listStyle: "none", lineHeight: 1.6, fontSize: 14 }}>
+        {links.map((a, i) => (
+          <li key={a.slug} style={i < links.length - 1 ? { borderBottom: "1px solid #14213D1F" } : undefined}>
+            <Link
+              href={`/articles/${a.slug}`}
+              className="group"
+              style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 0", color: "#14213D", fontWeight: 600, textDecoration: "none" }}
+            >
+              <span aria-hidden="true" style={{ flexShrink: 0, width: 8, height: 8, borderRadius: "50%", background: "#E8A33D" }} />
+              <span className="group-hover:underline" style={{ flex: 1, minWidth: 0 }}>{a.title}</span>
+              <span aria-hidden="true" style={{ flexShrink: 0, color: "#C97F1F", fontWeight: 700 }}>←</span>
+            </Link>
           </li>
         ))}
       </ul>
