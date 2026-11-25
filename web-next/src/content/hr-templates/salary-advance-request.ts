@@ -2,8 +2,8 @@ import type { HrTemplate } from "./types";
 
 export const hrTemplate: HrTemplate = {
   slug: "salary-advance-request",
-  title: "نموذج طلب سلفة من المرتب مع جدول السداد وفق قانون العمل",
-  description: "نموذج طلب سلفة أو قرض من صاحب العمل جاهز للنسخ والطباعة، مع جدول أقساط وموافقة مكتوبة، وشرح الحد الأقصى للخصم من الأجر وفق قانون العمل رقم 14 لسنة 2025.",
+  title: "نموذج طلب سلفة من العمل (Word) مع جدول الأقساط",
+  description: "نموذج طلب سلفة من المرتب جاهز للطباعة والتحميل Word، مع جدول أقساط وموافقة مكتوبة، والحد الأقصى للخصم من الأجر وفق قانون العمل رقم 14 لسنة 2025.",
   date: "2026-11-16",
   updatedAt: "2026-11-21",
   relatedArticles: ["employer-obligations-egypt-labor-law", "minimum-wage-private-sector-egypt", "how-to-set-fair-salary-small-business"],

@@ -2,8 +2,8 @@ import type { HrTemplate } from "./types";
 
 export const hrTemplate: HrTemplate = {
   slug: "leave-request",
-  title: "نموذج طلب إجازة للموظفين مع شرح أنواع الإجازات في قانون العمل",
-  description: "نموذج طلب إجازة جاهز للنسخ والطباعة يصلح للإجازة السنوية والعارضة والمرضية وإجازة الامتحانات، مع شرح قواعد كل نوع في قانون العمل رقم 14 لسنة 2025.",
+  title: "نموذج طلب إجازة من العمل (سنوية وعارضة ومرضية) Word",
+  description: "نموذج طلب إجازة من العمل جاهز للطباعة والتحميل Word، يصلح للإجازة السنوية والعارضة والمرضية والامتحانات، مع حاسبة رصيد الإجازات وشرح قانون العمل الجديد رقم 14 لسنة 2025.",
   date: "2026-11-14",
   updatedAt: "2026-11-22",
   relatedArticles: ["leave-rights-egypt-labor-law", "employer-obligations-egypt-labor-law"],

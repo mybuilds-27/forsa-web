@@ -2,8 +2,8 @@ import type { HrTemplate } from "./types";
 
 export const hrTemplate: HrTemplate = {
   slug: "salary-certificate",
-  title: "نموذج شهادة تعريف بالمرتب (مفردات مرتب) للبنوك والجهات الرسمية",
-  description: "نموذج شهادة تعريف بالمرتب جاهز للنسخ والطباعة يوضح عناصر الأجر الأساسي والمتغير والإجمالي والصافي، مع شرح حق الموظف في الاطلاع على عناصر أجره وفق قانون العمل رقم 14 لسنة 2025.",
+  title: "نموذج شهادة مرتب (مفردات مرتب) للبنك Word",
+  description: "نموذج شهادة مرتب أو مفردات مرتب للبنك والجهات الرسمية، جاهز للطباعة والتحميل Word، يوضح الأجر الأساسي والبدلات والإجمالي والاستقطاعات والصافي.",
   date: "2026-11-16",
   updatedAt: "2026-11-21",
   relatedArticles: ["minimum-wage-private-sector-egypt", "employer-obligations-egypt-labor-law", "how-to-set-fair-salary-small-business"],

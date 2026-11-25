@@ -2,8 +2,8 @@ import type { HrTemplate } from "./types";
 
 export const hrTemplate: HrTemplate = {
   slug: "experience-certificate",
-  title: "نموذج شهادة خبرة جاهز للموظفين وفق قانون العمل الجديد",
-  description: "نموذج شهادة خبرة جاهز للنسخ والطباعة، مع شرح ما يلزم به قانون العمل رقم 14 لسنة 2025 صاحب العمل، والبيانات التي تكتب فيها، وأخطاء شائعة عند تحريرها.",
+  title: "نموذج شهادة خبرة عمل جاهز (Word) مع طريقة كتابتها",
+  description: "شكل شهادة الخبرة الصحيح ونموذج جاهز للطباعة والتحميل Word، بالبيانات التي يجب أن تتضمنها والأخطاء الشائعة عند كتابتها، وفق قانون العمل الجديد رقم 14 لسنة 2025.",
   date: "2026-11-14",
   updatedAt: "2026-11-14",
   relatedArticles: ["ending-employment-employer-guide", "employer-obligations-egypt-labor-law"],
