@@ -27,10 +27,11 @@ import { article as factoryJobsArticle } from "./factory-jobs-industrial-zones-e
 import { article as flexibleWorkArticle } from "./remote-part-time-flexible-work-egypt-labor-law";
 import { article as minimumWageArticle } from "./minimum-wage-private-sector-egypt";
 import { article as payslipArticle } from "./how-to-read-payslip-egypt";
+import { article as noticePeriodArticle } from "./notice-period-egypt-labor-law";
 
 // إضافة مقال جديد: اعمل ملف جديد في المجلد ده (انسخ cv-article.ts)، وضيف سطر import فوق
 // وسطر في المصفوفة تحت. الترتيب هنا مش مهم، المقالات بتتعرض الأحدث الأول حسب date.
-const allArticles: Article[] = [cvArticle, interviewArticle, fakeJobsArticle, jobSearchArticle, salaryArticle, jobAdArticle, first90DaysArticle, laborLawArticle, freshGraduatesArticle, socialInsuranceArticle, employmentContractArticle, careerChangeArticle, terminationRightsArticle, resignArticle, linkedinArticle, screeningArticle, onboardingArticle, overtimeArticle, employerObligationsArticle, leaveRightsArticle, endingEmploymentArticle, salesCsInterviewArticle, applicationMessageArticle, fairSalaryArticle, factoryJobsArticle, flexibleWorkArticle, minimumWageArticle, payslipArticle];
+const allArticles: Article[] = [cvArticle, interviewArticle, fakeJobsArticle, jobSearchArticle, salaryArticle, jobAdArticle, first90DaysArticle, laborLawArticle, freshGraduatesArticle, socialInsuranceArticle, employmentContractArticle, careerChangeArticle, terminationRightsArticle, resignArticle, linkedinArticle, screeningArticle, onboardingArticle, overtimeArticle, employerObligationsArticle, leaveRightsArticle, endingEmploymentArticle, salesCsInterviewArticle, applicationMessageArticle, fairSalaryArticle, factoryJobsArticle, flexibleWorkArticle, minimumWageArticle, payslipArticle, noticePeriodArticle];
 
 const slugs = new Set<string>();
 for (const a of allArticles) {
