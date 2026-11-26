@@ -67,7 +67,7 @@ export default function JobCardBase({ job, actions, ctaLabel = "التفاصيل
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: "1 1 auto", minWidth: 0 }}>
           {job.featured && <span style={featuredPillStyle}>مميزة</span>}
           {job.createdAtMs !== null && (
-            <span style={{ fontSize: 12, color: "#6B7280" }}>{formatRelativeTime(job.createdAtMs)}</span>
+            <span suppressHydrationWarning style={{ fontSize: 12, color: "#6B7280" }}>{formatRelativeTime(job.createdAtMs)}</span>
           )}
           {statusBadge}
         </div>
