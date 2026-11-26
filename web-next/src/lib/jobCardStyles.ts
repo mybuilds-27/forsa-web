@@ -13,14 +13,6 @@ export function sanitizeJobDescription(text: string): string {
     .replace(/\*/g, "");
 }
 
-// عدّاد الأحرف في فورم نشر الوظيفة (PostJobTab) بس — مش شرط الفهرسة (شوف MIN_JOB_DESCRIPTION_WORDS_FOR_INDEX تحت).
-export const MIN_JOB_DESCRIPTION_FOR_INDEX = 300;
-
-export function jobDescriptionLength(description: unknown): number {
-  if (typeof description !== "string") return 0;
-  return sanitizeJobDescription(description).replace(/\s+/g, " ").trim().length;
-}
-
 // شرط الفهرسة الوحيد لصفحة الوظيفة: الوصف (بعد sanitizeJobDescription) فيه MIN_JOB_DESCRIPTION_WORDS_FOR_INDEX كلمة
 // أو أكتر. أقل من كده: noindex,follow في الصفحة (jobs/[id]/page.tsx) ومش في الـsitemap (getActiveJobsSeoData)،
 // والصفحة نفسها شغالة عادي للزوار. رموز "•" مش بتتحسب كلمات (بتتعرض كنقط قايمة مش نص).

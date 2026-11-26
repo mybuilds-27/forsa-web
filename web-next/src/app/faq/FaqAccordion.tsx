@@ -47,11 +47,10 @@ export default function FaqAccordion({ items }: { items: FaqItem[] }) {
               <span>{item.q}</span>
               <span style={{ fontSize: 18, flexShrink: 0 }}>{isOpen ? "−" : "+"}</span>
             </button>
-            {isOpen && (
-              <div style={{ padding: "0 16px 16px", color: "#4A5568", fontSize: 14, lineHeight: 1.8 }}>
-                {item.a}
-              </div>
-            )}
+            {/* الإجابة بتتعمل render دايمًا (عشان تبقى في HTML السيرفر لمحركات البحث)، والمقفولة مستخبية بـdisplay: none */}
+            <div style={{ display: isOpen ? undefined : "none", padding: "0 16px 16px", color: "#4A5568", fontSize: 14, lineHeight: 1.8 }}>
+              {item.a}
+            </div>
           </div>
         );
       })}

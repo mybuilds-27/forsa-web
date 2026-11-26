@@ -325,6 +325,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const requirements = sanitizeJobDescription(job.requirements || "");
   const requirementsIsArabic = isArabicText(requirements);
   const requirementsBulletItems = splitBulletItems(requirements);
+  const requirementsIntro = requirementsBulletItems ? bulletIntro(requirements) : "";
   const additionalBenefits = sanitizeJobDescription(job.additionalBenefits || "");
 
   return (
@@ -493,6 +494,20 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         requirementsBulletItems ? (
           <div style={{ marginBottom: 10 }}>
             <strong>الشروط:</strong>
+            {/* مقدمة قبل أول "•": نفس ستايل فقرة مقدمة الوصف */}
+            {requirementsIntro && (
+              <p
+                dir={requirementsIsArabic ? "rtl" : "ltr"}
+                style={{
+                  lineHeight: 1.8,
+                  marginBottom: 20,
+                  whiteSpace: "pre-wrap",
+                  textAlign: requirementsIsArabic ? "right" : "left",
+                }}
+              >
+                {requirementsIntro}
+              </p>
+            )}
             <ul
               dir={requirementsIsArabic ? "rtl" : "ltr"}
               style={{
@@ -573,6 +588,7 @@ function ExpiredJobView({ job }: { job: ExpiredJob }) {
   const description = sanitizeJobDescription(job.description || "");
   const descriptionIsArabic = isArabicText(description);
   const descriptionBulletItems = splitBulletItems(description);
+  const descriptionIntro = descriptionBulletItems ? bulletIntro(description) : "";
 
   return (
     <div dir="rtl" style={{ width: "100%", maxWidth: 820, margin: "0 auto", padding: "40px 20px" }}>
@@ -608,6 +624,20 @@ function ExpiredJobView({ job }: { job: ExpiredJob }) {
       {description && (
         <>
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>وصف الوظيفة</h2>
+          {/* مقدمة قبل أول "•": نفس ستايل فقرة مقدمة الوصف في صفحة الوظيفة النشطة */}
+          {descriptionIntro && (
+            <p
+              dir={descriptionIsArabic ? "rtl" : "ltr"}
+              style={{
+                lineHeight: 1.8,
+                marginBottom: 20,
+                whiteSpace: "pre-wrap",
+                textAlign: descriptionIsArabic ? "right" : "left",
+              }}
+            >
+              {descriptionIntro}
+            </p>
+          )}
           {descriptionBulletItems ? (
             <ul
               dir={descriptionIsArabic ? "rtl" : "ltr"}
