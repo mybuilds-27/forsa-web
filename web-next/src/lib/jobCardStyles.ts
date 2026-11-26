@@ -13,8 +13,7 @@ export function sanitizeJobDescription(text: string): string {
     .replace(/\*/g, "");
 }
 
-// صفحة الوظيفة بتتفهرس بس لو وصفها (بعد sanitizeJobDescription وضغط المسافات) MIN_JOB_DESCRIPTION_FOR_INDEX
-// حرف أو أكتر. أقل من كده: noindex,follow ومش في الـsitemap، والصفحة نفسها شغالة عادي للزوار.
+// عدّاد الأحرف في فورم نشر الوظيفة (PostJobTab) بس — مش شرط الفهرسة (شوف MIN_JOB_DESCRIPTION_WORDS_FOR_INDEX تحت).
 export const MIN_JOB_DESCRIPTION_FOR_INDEX = 300;
 
 export function jobDescriptionLength(description: unknown): number {
@@ -22,8 +21,19 @@ export function jobDescriptionLength(description: unknown): number {
   return sanitizeJobDescription(description).replace(/\s+/g, " ").trim().length;
 }
 
+// شرط الفهرسة الوحيد لصفحة الوظيفة: الوصف (بعد sanitizeJobDescription) فيه MIN_JOB_DESCRIPTION_WORDS_FOR_INDEX كلمة
+// أو أكتر. أقل من كده: noindex,follow في الصفحة (jobs/[id]/page.tsx) ومش في الـsitemap (getActiveJobsSeoData)،
+// والصفحة نفسها شغالة عادي للزوار. رموز "•" مش بتتحسب كلمات (بتتعرض كنقط قايمة مش نص).
+export const MIN_JOB_DESCRIPTION_WORDS_FOR_INDEX = 80;
+
+export function jobDescriptionWordCount(description: unknown): number {
+  if (typeof description !== "string") return 0;
+  const text = sanitizeJobDescription(description).replace(/•/g, " ").trim();
+  return text ? text.split(/\s+/).length : 0;
+}
+
 export function isJobDescriptionIndexable(description: unknown): boolean {
-  return jobDescriptionLength(description) >= MIN_JOB_DESCRIPTION_FOR_INDEX;
+  return jobDescriptionWordCount(description) >= MIN_JOB_DESCRIPTION_WORDS_FOR_INDEX;
 }
 
 // دالة المرتب الموحّدة (بدل salaryText وsalaryTeaser القديمتين) لكارت الوظيفة وصفحتها وتاب الباحث.

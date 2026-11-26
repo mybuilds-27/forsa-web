@@ -92,7 +92,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     title,
     description,
     alternates: { canonical: `/jobs/${job.id}` },
-    // وصف قصير (أقل من MIN_JOB_DESCRIPTION_FOR_INDEX بعد التنضيف): الصفحة شغالة للزوار بس مش بتتفهرس
+    // وصف قصير (أقل من MIN_JOB_DESCRIPTION_WORDS_FOR_INDEX كلمة بعد التنضيف): الصفحة شغالة للزوار بس مش بتتفهرس
     ...(isJobDescriptionIndexable(job.description) ? {} : { robots: NOINDEX_FOLLOW }),
     openGraph: {
       title: ogTitle,
@@ -192,8 +192,8 @@ function isArabicText(text: string): boolean {
 // دي موجودة فعلًا، بنقسم النص لعناصر قايمة حقيقية (list-style من CSS بدل الرمز اليدوي) —
 // ده بيحل مشكلة اتجاه الرمز (bidi) تلقائيًا لأن نقطة الـCSS مالهاش اتجاه نصي يتأثر بيه،
 // عكس "•" لما يتكتب كحرف عادي جوه نص وارث dir="rtl". لو مفيش "•" في النص، الوصف بيتعرض
-// كفقرة عادية زي ما كان. أي نص قبل أول "•" (مقدمة عادية قبل ما البولت الأول يبدأ) بيتجاهل
-// تمامًا (.slice(1)) ومبيتحسبش كنقطة أولى وهمية.
+// كفقرة عادية زي ما كان. أي نص قبل أول "•" (مقدمة عادية قبل ما البولت الأول يبدأ) مبيتحسبش
+// كنقطة أولى وهمية (.slice(1))، وبيتعرض كفقرة فوق القايمة عن طريق bulletIntro تحت.
 function splitBulletItems(description: string): string[] | null {
   if (!description.includes("•")) return null;
   const items = description
@@ -202,6 +202,12 @@ function splitBulletItems(description: string): string[] | null {
     .map((s) => s.trim())
     .filter(Boolean);
   return items.length > 0 ? items : null;
+}
+
+// المقدمة اللي قبل أول "•" (بعد trim)، أو "" لو مفيش. بتتعرض كفقرة فوق القايمة بس لما الوصف بيتقسم لنقط.
+function bulletIntro(description: string): string {
+  const i = description.indexOf("•");
+  return i > 0 ? description.slice(0, i).trim() : "";
 }
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -311,6 +317,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
   const descriptionIsArabic = isArabicText(description);
   const descriptionBulletItems = splitBulletItems(description);
+  const descriptionIntro = descriptionBulletItems ? bulletIntro(description) : "";
 
   // نفس مشكلة الوصف بالظبط موجودة في "الشروط" و"مزايا إضافية" (نفس النسخ واللصق من
   // ChatGPT)، فبتتنضف بنفس sanitizeJobDescription. "الشروط" كمان ممكن تتكتب كنقط، فبتتحول
@@ -411,6 +418,21 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>وصف الوظيفة</h2>
+
+      {/* مقدمة قبل أول "•": نفس ستايل فقرة الوصف العادية تحت بالظبط */}
+      {descriptionIntro && (
+        <p
+          dir={descriptionIsArabic ? "rtl" : "ltr"}
+          style={{
+            lineHeight: 1.8,
+            marginBottom: 20,
+            whiteSpace: "pre-wrap",
+            textAlign: descriptionIsArabic ? "right" : "left",
+          }}
+        >
+          {descriptionIntro}
+        </p>
+      )}
 
       {descriptionBulletItems ? (
         <ul
