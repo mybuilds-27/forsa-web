@@ -34,6 +34,7 @@ const INTERVIEW_ARTICLE_BY_SPECIALIZATION: Record<string, string> = {
   "محاسبة": "accountant-interview-questions",
   "تدقيق ومراجعة حسابات": "accountant-interview-questions",
   "إنتاج": "factory-worker-interview-questions",
+  "موارد بشرية": "hr-interview-questions",
 };
 
 // نفس مشكلة الـstatic prerender اللي لقيناها في companies/page.tsx وjobs/page.tsx —
