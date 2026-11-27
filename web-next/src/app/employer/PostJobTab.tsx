@@ -51,7 +51,9 @@ type Props = {
 export default function PostJobTab({ employerPlan, companyName, editingPost, showCompanyNameDefault, onPosted }: Props) {
   const [title, setTitle] = useState("");
   const [specSelect, setSpecSelect] = useState("");
-  const [specOther, setSpecOther] = useState("");
+  // تخصص قديم محفوظ في وظيفة بتتعدّل ومش موجود في SPECIALIZATION_OPTIONS (كان بيتكتب يدوي تحت "أخرى" قبل كده):
+  // بيتعرض في ملاحظة تحت القايمة بس، ومبيتحفظش — لازم يختار تخصص من القايمة.
+  const [legacySpec, setLegacySpec] = useState("");
   const [keywords, setKeywords] = useState<string[]>([]);
 
   // اقتراح كلمات مفتاحية من مصدرين: (1) الكلمات المرتبطة بالتخصص المختار عبر
@@ -163,10 +165,11 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
 
     const savedSpec = p.specialization || "";
     if (savedSpec && !SPECIALIZATION_OPTIONS.includes(savedSpec)) {
-      setSpecSelect("other");
-      setSpecOther(savedSpec);
+      setSpecSelect("");
+      setLegacySpec(savedSpec);
     } else {
       setSpecSelect(savedSpec);
+      setLegacySpec("");
     }
 
     setKeywords(Array.isArray(p.keywords) ? p.keywords : []);
@@ -231,7 +234,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     if (isEditMode) return;
     const timeoutId = setTimeout(() => {
       const draft = {
-        title, specSelect, specOther, keywords, jobType, jobLevel, minExperience, maxExperience, governorate, citySelect, cityOther,
+        title, specSelect, keywords, jobType, jobLevel, minExperience, maxExperience, governorate, citySelect, cityOther,
         description, vacancies, salaryNegotiable, salaryFrom, salaryTo, showSalary,
         ageFrom, ageTo, needsCar, educationRequirement, educationField, requirements, hoursPerDay, daysOffPerMonth,
         socialInsurance, privateHealthInsurance, transportationAvailable, transportationAreas,
@@ -246,7 +249,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timeoutId);
   }, [
-    isEditMode, title, specSelect, specOther, keywords, jobType, jobLevel, minExperience, maxExperience, governorate, citySelect, cityOther,
+    isEditMode, title, specSelect, keywords, jobType, jobLevel, minExperience, maxExperience, governorate, citySelect, cityOther,
     description, vacancies, salaryNegotiable, salaryFrom, salaryTo, showSalary,
     ageFrom, ageTo, needsCar, educationRequirement, educationField, requirements, hoursPerDay, daysOffPerMonth,
     socialInsurance, privateHealthInsurance, transportationAvailable, transportationAreas,
@@ -268,8 +271,9 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       return;
     }
     setTitle(draft.title || "");
-    setSpecSelect(draft.specSelect || "");
-    setSpecOther(draft.specOther || "");
+    // مسودة قديمة ممكن يكون فيها "other" (قبل ما "أخرى" تتشال) أو قيمة مش في القايمة: ترجع فاضية
+    setSpecSelect(SPECIALIZATION_OPTIONS.includes(draft.specSelect) ? draft.specSelect : "");
+    setLegacySpec("");
     setKeywords(Array.isArray(draft.keywords) ? draft.keywords : []);
     setJobType(draft.jobType || "");
     setJobLevel(draft.jobLevel || "");
@@ -316,7 +320,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
   const missingRequiredFields: string[] = [];
   if (title.trim() === "") missingRequiredFields.push("العنوان");
   if (governorate === "") missingRequiredFields.push("المحافظة");
-  if (specSelect === "" || (specSelect === "other" && specOther.trim() === "")) missingRequiredFields.push("التخصص");
+  if (specSelect === "") missingRequiredFields.push("التخصص");
   if (jobType === "") missingRequiredFields.push("نوع الدوام");
 
   const readyToPost = missingRequiredFields.length === 0;
@@ -458,7 +462,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
       }
 
       const finalCity = citySelect === "other" ? cityOther.trim() : citySelect;
-      const finalSpecialization = specSelect === "other" ? specOther.trim() : specSelect;
+      const finalSpecialization = specSelect;
 
       const postData: any = {
         employerId: isEditMode && editingPost ? editingPost.data.employerId : user.uid,
@@ -594,7 +598,7 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
   function resetForm() {
     setTitle("");
     setSpecSelect("");
-    setSpecOther("");
+    setLegacySpec("");
     setKeywords([]);
     setJobType("");
     setJobLevel("");
@@ -733,15 +737,12 @@ export default function PostJobTab({ employerPlan, companyName, editingPost, sho
               <select value={specSelect} onChange={(e) => setSpecSelect(e.target.value)} required style={inputStyle}>
                 <option value="">اختر التخصص</option>
                 {SPECIALIZATION_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                <option value="other">أخرى</option>
               </select>
+              <div style={{ fontSize: 12.5, marginTop: 4, color: "#6B7280" }}>إذا لم تجد التخصص المطلوب، اختر أقرب تخصص له.</div>
+              {legacySpec && specSelect === "" && (
+                <div style={softNoteStyle}>التخصص المسجل حاليًا «{legacySpec}» غير موجود في القائمة، يُرجى اختيار أقرب تخصص له.</div>
+              )}
             </div>
-            {specSelect === "other" && (
-              <div>
-                <label style={labelStyle}>أدخل التخصص</label>
-                <input type="text" value={specOther} onChange={(e) => setSpecOther(e.target.value)} required style={inputStyle} />
-              </div>
-            )}
             {keywordSuggestions.length > 0 && (
               <div style={{ gridColumn: "1 / -1", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
                 <span style={{ fontSize: 12, color: "#4A5568" }}>كلمات مقترحة من التخصص والعنوان:</span>
