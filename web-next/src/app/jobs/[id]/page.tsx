@@ -22,8 +22,19 @@ import { GOVERNORATE_INTROS } from "@/lib/listingIntros";
 // مقدمة صفحة المحافظة (lib/listingIntros.ts): نص عادي بنفس خط الصفحة، من غير خلفية أو صندوق
 const listingIntroStyle: React.CSSProperties = { color: "#37414F", fontSize: 15.5, lineHeight: 1.9, maxWidth: 760, margin: "-8px 0 24px" };
 
-// "قبل ما تقدّم": نفس المقالات لكل وظيفة (اختيار ثابت، من غير أي قراءة) — اللي ميبقاش موجود بيتشال
+// "قبل ما تقدّم": نفس المقالات لكل وظيفة (اختيار ثابت، من غير أي قراءة) — اللي ميبقاش موجود بيتشال.
+// التالت (مقال الانترفيو) بيتبدل بمقال تخصص الوظيفة لو موجود في INTERVIEW_ARTICLE_BY_SPECIALIZATION.
 const BEFORE_APPLY_ARTICLE_SLUGS = ["avoid-fake-job-scams", "how-to-write-a-cv", "common-interview-questions"];
+
+// مقال الانترفيو الخاص بتخصص الوظيفة (بدل common-interview-questions). لو التخصص مش هنا أو المقال
+// مش موجود (getArticle)، بيفضل common-interview-questions.
+const INTERVIEW_ARTICLE_BY_SPECIALIZATION: Record<string, string> = {
+  "مبيعات": "sales-customer-service-interview-questions",
+  "خدمة عملاء": "sales-customer-service-interview-questions",
+  "محاسبة": "accountant-interview-questions",
+  "تدقيق ومراجعة حسابات": "accountant-interview-questions",
+  "إنتاج": "factory-worker-interview-questions",
+};
 
 // نفس مشكلة الـstatic prerender اللي لقيناها في companies/page.tsx وjobs/page.tsx —
 // من غيرها، صفحة المحافظة لوحدها (فرع findGovernorateBySlug تحت) ممكن تفضل بالبيانات
@@ -533,7 +544,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <p style={{ marginBottom: 20, whiteSpace: "pre-wrap" }}><strong>مزايا إضافية:</strong> {additionalBenefits}</p>
       )}
 
-      <BeforeApplyArticles />
+      <BeforeApplyArticles specialization={job.specialization} />
 
       <RelatedJobs jobId={job.id} specialization={job.specialization} governorate={job.governorate} />
         </div>
@@ -544,8 +555,12 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   );
 }
 
-function BeforeApplyArticles() {
-  const links = BEFORE_APPLY_ARTICLE_SLUGS.map((slug) => getArticle(slug)).filter((a) => a !== undefined);
+function BeforeApplyArticles({ specialization }: { specialization?: string }) {
+  const interviewSlug = specialization ? INTERVIEW_ARTICLE_BY_SPECIALIZATION[specialization] : undefined;
+  const slugs = BEFORE_APPLY_ARTICLE_SLUGS.map((slug) =>
+    slug === "common-interview-questions" && interviewSlug && getArticle(interviewSlug) ? interviewSlug : slug
+  );
+  const links = slugs.map((slug) => getArticle(slug)).filter((a) => a !== undefined);
   if (links.length === 0) return null;
   return (
     <div style={{ marginBottom: 20, padding: "14px 16px", background: "#F8F6F0", border: "1px solid #14213D1F", borderRadius: 10 }}>
