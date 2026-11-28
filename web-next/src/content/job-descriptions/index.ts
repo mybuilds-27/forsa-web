@@ -1,10 +1,12 @@
 import type { JobDescription } from "./types";
 import { parseHrTemplateBlocks } from "@/lib/hrTemplateBlocks";
 import { jobDescription as accountsReceivableAccountant } from "./accounts-receivable-accountant";
+import { jobDescription as accountsPayableAccountant } from "./accounts-payable-accountant";
+import { jobDescription as chiefAccountant } from "./chief-accountant";
 
 // إضافة وصف جديد: اعمل ملف جديد في المجلد ده (انسخ accounts-receivable-accountant.ts)، وضيف سطر import فوق
 // وسطر في المصفوفة تحت. الأوصاف بتتعرض الأحدث الأول حسب date، ومتقسمة حسب department في /job-descriptions.
-const allJobDescriptions: JobDescription[] = [accountsReceivableAccountant];
+const allJobDescriptions: JobDescription[] = [accountsReceivableAccountant, accountsPayableAccountant, chiefAccountant];
 
 const slugs = new Set<string>();
 for (const d of allJobDescriptions) {
