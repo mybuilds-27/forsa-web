@@ -387,6 +387,22 @@ export default async function HomePage() {
                   >
                     كل النماذج ←
                   </Link>
+                  <Link
+                    href="/job-descriptions"
+                    style={{
+                      display: "inline-block",
+                      padding: "10px 22px",
+                      borderRadius: 8,
+                      border: `1.5px solid ${COLORS.ink}`,
+                      color: COLORS.ink,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      marginInlineStart: 10,
+                    }}
+                  >
+                    أوصاف وظيفية جاهزة ←
+                  </Link>
                 </div>
               </div>
             )}

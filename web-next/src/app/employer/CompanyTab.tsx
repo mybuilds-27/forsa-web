@@ -560,6 +560,12 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
         >
           تصفح النماذج
         </Link>
+        <Link
+          href="/job-descriptions"
+          style={{ display: "inline-block", padding: "10px 20px", background: "#14213D", color: "#fff", borderRadius: 8, textDecoration: "none", fontWeight: 700, fontSize: 14, marginInlineStart: 10 }}
+        >
+          أوصاف وظيفية جاهزة
+        </Link>
       </div>
 
       <div style={{ border: "1px solid #14213D22", borderRadius: 10, padding: 20, marginBottom: 30 }}>

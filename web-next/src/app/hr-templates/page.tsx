@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { HR_TEMPLATES_INTRO, hrTemplates } from "@/content/hr-templates";
 import ArticleBody from "@/lib/articleMarkdown";
 import HrTemplateCard from "@/components/HrTemplateCard";
@@ -42,6 +43,13 @@ export default function HrTemplatesPage() {
       <h1 style={{ fontSize: 26, fontWeight: 800, color: "#14213D", marginBottom: 8 }}>نماذج الموارد البشرية</h1>
       <div style={{ marginBottom: 24 }}>
         <ArticleBody markdown={HR_TEMPLATES_INTRO} />
+      </div>
+
+      {/* لينك الأوصاف الوظيفية الجاهزة: نفس شكل صندوق "قبل ما تقدّم" في صفحة الوظيفة (app/jobs/[id]/page.tsx) */}
+      <div style={{ marginBottom: 20, padding: "14px 16px", background: "#F8F6F0", border: "1px solid #14213D1F", borderRadius: 10, color: "#14213D", lineHeight: 1.8 }}>
+        تبحث عن وصف وظيفي مكتوب لوظيفة محددة؟ تصفح{" "}
+        <Link href="/job-descriptions" style={{ color: "#14213D", fontWeight: 700 }}>الأوصاف الوظيفية الجاهزة</Link>{" "}
+        للمحاسبين والمبيعات والموارد البشرية والمخازن.
       </div>
 
       {hrTemplates.length === 0 ? (

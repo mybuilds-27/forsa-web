@@ -257,6 +257,8 @@ export default function Navbar() {
         <Link href="/articles" style={linkStyle}>مقالات</Link>
         {/* نماذج الموارد البشرية لأصحاب العمل: نفس شرط "الوظائف" فوق (مخفي عن الباحث بس، والأدمن مستثنى) */}
         {!(userType === "job_seeker" && !isAdmin) && <Link href="/hr-templates" style={linkStyle}>نماذج HR</Link>}
+        {/* الأوصاف الوظيفية الجاهزة: جنب النماذج وبنفس شرطها */}
+        {!(userType === "job_seeker" && !isAdmin) && <Link href="/job-descriptions" style={linkStyle}>أوصاف وظيفية</Link>}
         {showAdminLink && <Link href="/admin" style={linkStyle}>لوحة الإدارة</Link>}
         {signedIn && <NotificationBell />}
         {signedIn && <EnableNotificationsButton />}

@@ -47,6 +47,25 @@ export default function ArticlesPage() {
         لأصحاب العمل: نماذج جاهزة للموارد البشرية، شهادة خبرة وطلب إجازة وعرض عمل وغيرها ←
       </Link>
 
+      <Link
+        href="/job-descriptions"
+        style={{
+          display: "block",
+          marginBottom: 20,
+          padding: "12px 16px",
+          background: "#F8F6F0",
+          border: "1px solid #14213D22",
+          borderRadius: 10,
+          color: "#14213D",
+          fontSize: 14.5,
+          fontWeight: 700,
+          lineHeight: 1.8,
+          textDecoration: "none",
+        }}
+      >
+        لأصحاب العمل: أوصاف وظيفية جاهزة للمحاسبين والمبيعات والموارد البشرية والمخازن ←
+      </Link>
+
       {articles.length === 0 ? (
         <p style={{ color: "#4A5568" }}>مفيش مقالات لسه.</p>
       ) : (
