@@ -48,7 +48,7 @@ export default function HrTemplatesPage() {
       {/* لينك الأوصاف الوظيفية الجاهزة: نفس شكل صندوق "قبل ما تقدّم" في صفحة الوظيفة (app/jobs/[id]/page.tsx) */}
       <div style={{ marginBottom: 20, padding: "14px 16px", background: "#F8F6F0", border: "1px solid #14213D1F", borderRadius: 10, color: "#14213D", lineHeight: 1.8 }}>
         تبحث عن وصف وظيفي مكتوب لوظيفة محددة؟ تصفح{" "}
-        <Link href="/job-descriptions" style={{ color: "#14213D", fontWeight: 700 }}>الأوصاف الوظيفية الجاهزة</Link>{" "}
+        <Link href="/job-descriptions" style={{ color: "#14213D", fontWeight: 700 }}>نماذج الوصف الوظيفي الجاهزة</Link>{" "}
         للمحاسبين والمبيعات والموارد البشرية والمخازن.
       </div>
 

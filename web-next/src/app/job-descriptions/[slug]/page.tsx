@@ -45,7 +45,7 @@ function jobDescriptionJsonLd(d: JobDescription) {
       "@type": "BreadcrumbList",
       itemListElement: [
         { "@type": "ListItem", position: 1, name: "الرئيسية", item: SITE_URL },
-        { "@type": "ListItem", position: 2, name: "أوصاف وظيفية جاهزة", item: `${SITE_URL}/job-descriptions` },
+        { "@type": "ListItem", position: 2, name: "نماذج وصف وظيفي جاهزة", item: `${SITE_URL}/job-descriptions` },
         { "@type": "ListItem", position: 3, name: d.title, item: url },
       ],
     },
@@ -100,7 +100,7 @@ export default async function JobDescriptionPage({ params }: { params: Promise<{
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jobDescriptionJsonLd(d)).replace(/</g, "\\u003c") }}
       />
       <Link href="/job-descriptions" style={backButtonStyle}>
-        → كل الأوصاف الوظيفية
+        → كل نماذج الوصف الوظيفي
       </Link>
 
       <h1 style={{ fontSize: 28, fontWeight: 900, color: "#14213D", margin: "16px 0 10px", lineHeight: 1.5 }}>{d.title}</h1>
@@ -166,7 +166,7 @@ export default async function JobDescriptionPage({ params }: { params: Promise<{
 
       {others.length > 0 && (
         <section style={{ marginTop: 36 }}>
-          <h2 style={{ fontSize: 19, fontWeight: 800, color: "#14213D", marginBottom: 14 }}>أوصاف وظيفية أخرى</h2>
+          <h2 style={{ fontSize: 19, fontWeight: 800, color: "#14213D", marginBottom: 14 }}>نماذج وصف وظيفي أخرى</h2>
           <div style={articleGridStyle}>
             {others.map((x) => (
               <HrTemplateCard key={x.slug} template={x} basePath="/job-descriptions" />
@@ -177,7 +177,7 @@ export default async function JobDescriptionPage({ params }: { params: Promise<{
 
       <div style={{ marginTop: 36 }}>
         <Link href="/job-descriptions" style={backButtonStyle}>
-          → كل الأوصاف الوظيفية
+          → كل نماذج الوصف الوظيفي
         </Link>
       </div>
     </article>

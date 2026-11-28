@@ -7,7 +7,7 @@ import { articleGridStyle } from "@/components/ArticleCard";
 import { NOINDEX_FOLLOW } from "@/lib/seoMetadata";
 
 const SITE_URL = "https://www.elshoghl.com";
-const TITLE = "أوصاف وظيفية جاهزة لأهم الوظائف (Word) - الشغل";
+const TITLE = "نماذج وصف وظيفي جاهزة لأهم الوظائف (Word) - الشغل";
 const DESCRIPTION =
   "أوصاف وظيفية جاهزة للمحاسبين والمبيعات والموارد البشرية والمخازن وغيرها، بالمهام ومؤشرات الأداء والمؤهلات، جاهزة للنسخ والتعديل والتحميل كملف Word.";
 const INTRO =
@@ -35,7 +35,7 @@ const breadcrumbJsonLd = {
   "@type": "BreadcrumbList",
   itemListElement: [
     { "@type": "ListItem", position: 1, name: "الرئيسية", item: SITE_URL },
-    { "@type": "ListItem", position: 2, name: "أوصاف وظيفية جاهزة", item: `${SITE_URL}/job-descriptions` },
+    { "@type": "ListItem", position: 2, name: "نماذج وصف وظيفي جاهزة", item: `${SITE_URL}/job-descriptions` },
   ],
 };
 
@@ -52,7 +52,7 @@ export default function JobDescriptionsPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, "\\u003c") }}
       />
-      <h1 style={{ fontSize: 26, fontWeight: 800, color: "#14213D", marginBottom: 8 }}>أوصاف وظيفية جاهزة</h1>
+      <h1 style={{ fontSize: 26, fontWeight: 800, color: "#14213D", marginBottom: 8 }}>نماذج وصف وظيفي جاهزة</h1>
       <div style={{ marginBottom: 24 }}>
         <ArticleBody markdown={INTRO} />
       </div>

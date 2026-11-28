@@ -401,7 +401,7 @@ export default async function HomePage() {
                       marginInlineStart: 10,
                     }}
                   >
-                    أوصاف وظيفية جاهزة ←
+                    نماذج وصف وظيفي جاهزة ←
                   </Link>
                 </div>
               </div>

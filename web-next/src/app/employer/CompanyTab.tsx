@@ -564,7 +564,7 @@ export default function CompanyTab({ companyData, onCompanyUpdated, onEditPost }
           href="/job-descriptions"
           style={{ display: "inline-block", padding: "10px 20px", background: "#14213D", color: "#fff", borderRadius: 8, textDecoration: "none", fontWeight: 700, fontSize: 14, marginInlineStart: 10 }}
         >
-          أوصاف وظيفية جاهزة
+          نماذج وصف وظيفي جاهزة
         </Link>
       </div>
 
