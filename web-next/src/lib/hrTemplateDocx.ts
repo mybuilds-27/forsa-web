@@ -14,7 +14,9 @@ const CM = 567; // سنتيمتر بالـtwips (1440 / 2.54)
 const PAGE_WIDTH = 11906; // A4
 const CONTENT_WIDTH = PAGE_WIDTH - 4 * CM; // عرض المساحة بين الهامشين
 
-export async function buildHrTemplateDocx(template: string, slug: string) {
+// pagePath: مسار صفحة النموذج على الموقع (للسطر الرمادي في آخر الملف). الافتراضي /hr-templates/{slug}؛
+// الأوصاف الوظيفية بتبعت /job-descriptions/{slug}.
+export async function buildHrTemplateDocx(template: string, slug: string, pagePath = `/hr-templates/${slug}`) {
   const {
     AlignmentType,
     BorderStyle,
@@ -94,7 +96,7 @@ export async function buildHrTemplateDocx(template: string, slug: string) {
   children.push(
     new Paragraph({
       bidirectional: true,
-      children: [run(`نموذج من موقع الشغل: ${SITE_URL}/hr-templates/${slug}`, { size: 18, color: "808080" })],
+      children: [run(`نموذج من موقع الشغل: ${SITE_URL}${pagePath}`, { size: 18, color: "808080" })],
     })
   );
 

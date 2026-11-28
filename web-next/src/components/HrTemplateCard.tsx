@@ -4,10 +4,17 @@ import type { HrTemplate } from "@/content/hr-templates/types";
 
 // كارت نموذج (قايمة /hr-templates، ونماذج أخرى، ونماذج ذات صلة في صفحة المقال) — نفس شكل ArticleCard،
 // والشبكة نفسها articleGridStyle.
-export default function HrTemplateCard({ template }: { template: HrTemplate }) {
+// basePath (اختياري): قسم الكارت، والافتراضي /hr-templates. الأوصاف الوظيفية بتبعت /job-descriptions بنفس الكارت.
+export default function HrTemplateCard({
+  template,
+  basePath = "/hr-templates",
+}: {
+  template: Pick<HrTemplate, "slug" | "title" | "description" | "date">;
+  basePath?: string;
+}) {
   return (
     <Link
-      href={`/hr-templates/${template.slug}`}
+      href={`${basePath}/${template.slug}`}
       style={{
         display: "flex",
         flexDirection: "column",

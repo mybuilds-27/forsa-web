@@ -2,6 +2,7 @@ import { slugify } from "@/lib/constants";
 import { getActiveJobsSeoData, MIN_JOBS_FOR_INDEX_BROAD, MIN_JOBS_FOR_INDEX_NARROW } from "@/lib/publicJobsQuery";
 import { articleModifiedDate, articles } from "@/content/articles";
 import { hrTemplates, templateModifiedDate } from "@/content/hr-templates";
+import { jobDescriptions, MIN_JOB_DESCRIPTIONS_FOR_INDEX } from "@/content/job-descriptions";
 
 // ملف الـsitemap ده مالهوش أي dynamic segment، فـNext.js كان بيعمله static prerender
 // وقت الـbuild ويسيبه في كاش (زي ما لقينا في companies/page.tsx وjobs/page.tsx) — يعني
@@ -38,6 +39,18 @@ export default async function sitemap() {
     url: `${baseUrl}/hr-templates/${t.slug}`,
     lastModified: new Date(templateModifiedDate(t)),
   }));
+
+  // صفحات الأوصاف الوظيفية دايمًا، وصفحة القايمة /job-descriptions بس لما يبقى فيه MIN_JOB_DESCRIPTIONS_FOR_INDEX وصف أو أكتر
+  // (قبل كده عليها noindex,follow — app/job-descriptions/page.tsx)
+  const jobDescriptionPages = [
+    ...(jobDescriptions.length >= MIN_JOB_DESCRIPTIONS_FOR_INDEX
+      ? [{ url: `${baseUrl}/job-descriptions`, lastModified: new Date(jobDescriptions.map(templateModifiedDate).sort().reverse()[0]) }]
+      : []),
+    ...jobDescriptions.map((d) => ({
+      url: `${baseUrl}/job-descriptions/${d.slug}`,
+      lastModified: new Date(templateModifiedDate(d)),
+    })),
+  ];
 
   let jobPages: { url: string; lastModified: Date }[] = [];
   let governoratePages: { url: string; lastModified: Date }[] = [];
@@ -77,5 +90,5 @@ export default async function sitemap() {
     console.error("Sitemap job fetch failed", err);
   }
 
-  return [...staticPages, ...articlePages, ...templatePages, ...jobPages, ...governoratePages, ...specializationPages, ...comboPages];
+  return [...staticPages, ...articlePages, ...templatePages, ...jobDescriptionPages, ...jobPages, ...governoratePages, ...specializationPages, ...comboPages];
 }

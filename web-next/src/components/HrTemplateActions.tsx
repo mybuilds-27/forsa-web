@@ -23,7 +23,19 @@ function trackUsage(slug: string, field: "download" | "copy" | "print") {
 // Word: ملف .docx بيتعمل في المتصفح من نفس قيمة template (lib/hrTemplateDocx.ts، مكتبة docx بتتحمّل وقت الضغط بس).
 // المربع والطباعة والنسخ والـWord كلهم من نفس الـblocks (lib/hrTemplateBlocks.ts): الجداول بتتعرض وتتطبع جداول،
 // وبتتنسخ سطور خاناتها مفصولة بمسافات (hrTemplatePlainText).
-export default function HrTemplateActions({ template, slug }: { template: string; slug: string }) {
+// pagePath (اختياري): مسار الصفحة اللي بيتكتب في آخر ملف Word، والافتراضي /hr-templates/{slug}.
+// usageId (اختياري): معرّف مستند template_usage، والافتراضي slug. الأوصاف الوظيفية (/job-descriptions) بتبعت الاتنين.
+export default function HrTemplateActions({
+  template,
+  slug,
+  pagePath,
+  usageId = slug,
+}: {
+  template: string;
+  slug: string;
+  pagePath?: string;
+  usageId?: string;
+}) {
   const blocks = parseHrTemplateBlocks(template, slug);
   const [copied, setCopied] = useState(false);
   const [printing, setPrinting] = useState(false);
@@ -34,7 +46,7 @@ export default function HrTemplateActions({ template, slug }: { template: string
     setPreparingWord(true);
     setWordError(false);
     try {
-      const { doc, Packer } = await buildHrTemplateDocx(template, slug);
+      const { doc, Packer } = await buildHrTemplateDocx(template, slug, pagePath);
       const blob = await Packer.toBlob(doc);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -44,7 +56,7 @@ export default function HrTemplateActions({ template, slug }: { template: string
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      trackUsage(slug, "download");
+      trackUsage(usageId, "download");
     } catch (err) {
       console.error("[HrTemplateActions] فشل إنشاء ملف Word", err);
       setWordError(true);
@@ -69,7 +81,7 @@ export default function HrTemplateActions({ template, slug }: { template: string
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    trackUsage(slug, "copy");
+    trackUsage(usageId, "copy");
   }
 
   useEffect(() => {
@@ -78,14 +90,14 @@ export default function HrTemplateActions({ template, slug }: { template: string
     window.addEventListener("afterprint", handleAfterPrint);
     // frame واحد عشان الـportal يترسم الأول قبل نافذة الطباعة
     const frameId = requestAnimationFrame(() => {
-      trackUsage(slug, "print");
+      trackUsage(usageId, "print");
       window.print();
     });
     return () => {
       cancelAnimationFrame(frameId);
       window.removeEventListener("afterprint", handleAfterPrint);
     };
-  }, [printing, slug]);
+  }, [printing, usageId]);
 
   return (
     <>
