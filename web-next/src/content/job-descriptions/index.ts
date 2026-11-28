@@ -10,10 +10,14 @@ import { jobDescription as callCenterAgent } from "./call-center-agent";
 import { jobDescription as productionSupervisor } from "./production-supervisor";
 import { jobDescription as purchasingOfficer } from "./purchasing-officer";
 import { jobDescription as executiveSecretary } from "./executive-secretary";
+import { jobDescription as generalAccountant } from "./general-accountant";
+import { jobDescription as payrollSpecialist } from "./payroll-specialist";
+import { jobDescription as receptionist } from "./receptionist";
+import { jobDescription as maintenanceTechnician } from "./maintenance-technician";
 
 // إضافة وصف جديد: اعمل ملف جديد في المجلد ده (انسخ accounts-receivable-accountant.ts)، وضيف سطر import فوق
 // وسطر في المصفوفة تحت. الأوصاف بتتعرض الأحدث الأول حسب date، ومتقسمة حسب department في /job-descriptions.
-const allJobDescriptions: JobDescription[] = [accountsReceivableAccountant, accountsPayableAccountant, chiefAccountant, storekeeper, salesRepresentative, hrSpecialist, callCenterAgent, productionSupervisor, purchasingOfficer, executiveSecretary];
+const allJobDescriptions: JobDescription[] = [accountsReceivableAccountant, accountsPayableAccountant, chiefAccountant, storekeeper, salesRepresentative, hrSpecialist, callCenterAgent, productionSupervisor, purchasingOfficer, executiveSecretary, generalAccountant, payrollSpecialist, receptionist, maintenanceTechnician];
 
 const slugs = new Set<string>();
 for (const d of allJobDescriptions) {
